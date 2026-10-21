@@ -15,6 +15,7 @@ final class NoteCanvasHostView: UIView {
     private var background: NoteBackground?
     private var fitScale: CGFloat = 0
     private lazy var textTap = UITapGestureRecognizer(target: self, action: #selector(handleTextTap(_:)))
+    private var suspendedRecognizers: [UIGestureRecognizer] = []
 
     /// Reports the page in the middle of the screen and the page count.
     var onVisiblePageChange: ((_ current: Int, _ count: Int) -> Void)?
@@ -48,10 +49,29 @@ final class NoteCanvasHostView: UIView {
     }
 
     /// In text mode the pencil and fingers edit text boxes and images instead of drawing.
+    ///
+    /// PencilKit's own taps (its Select All / Paste / Insert Space menu) are
+    /// switched off meanwhile; otherwise they show that menu and make our tap
+    /// wait for them. Only scrolling, zooming and our tap stay active.
     func setTextMode(_ isOn: Bool) {
+        guard isOn != elementLayer.isInteractive else { return }
         elementLayer.isInteractive = isOn
         textTap.isEnabled = isOn
+        if isOn {
+            let kept: [UIGestureRecognizer] = [canvas.panGestureRecognizer, textTap] + [canvas.pinchGestureRecognizer].compactMap { $0 }
+            suspendedRecognizers = Self.gestureRecognizers(in: canvas).filter { recognizer in
+                recognizer.isEnabled && !kept.contains { $0 === recognizer }
+            }
+            suspendedRecognizers.forEach { $0.isEnabled = false }
+        } else {
+            suspendedRecognizers.forEach { $0.isEnabled = true }
+            suspendedRecognizers = []
+        }
         canvas.drawingGestureRecognizer.isEnabled = !isOn
+    }
+
+    private static func gestureRecognizers(in view: UIView) -> [UIGestureRecognizer] {
+        (view.gestureRecognizers ?? []) + view.subviews.flatMap { gestureRecognizers(in: $0) }
     }
 
     // Elements are below the canvas, so route touches to them in text mode.

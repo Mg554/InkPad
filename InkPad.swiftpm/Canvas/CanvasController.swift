@@ -113,6 +113,25 @@ final class CanvasController: NSObject, ObservableObject {
         host?.elementLayer.removeSelected()
     }
 
+    /// Moves ink and elements below `y` by `delta` and removes what lies in
+    /// `removing`, keeping content on its page when pages are inserted or deleted.
+    func shiftContent(below y: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
+        guard let host else { return }
+        let move = CGAffineTransform(translationX: 0, y: delta)
+        var strokes: [PKStroke] = []
+        for var stroke in host.canvas.drawing.strokes {
+            let middle = stroke.renderBounds.midY
+            if let removing, removing.contains(middle) { continue }
+            if middle > y { stroke.transform = stroke.transform.concatenating(move) }
+            strokes.append(stroke)
+        }
+        host.canvas.drawing = PKDrawing(strokes: strokes)
+        // Ink undo steps refer to the old positions.
+        host.canvas.undoManager?.removeAllActions()
+        host.elementLayer.shiftElements(below: y, by: delta, removing: removing)
+        contentDidChange()
+    }
+
     func insertImage(file: String, image: UIImage, pixelSize: CGSize) {
         guard let host else { return }
         palette?.select(.text)

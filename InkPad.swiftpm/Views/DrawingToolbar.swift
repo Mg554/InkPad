@@ -92,7 +92,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     private var optionsRow: some View {
         let style = palette.style(for: palette.tool)
         switch palette.tool {
-        case .fountainPen, .pen, .pencil, .highlighter:
+        case .quill, .fountainPen, .pen, .monoline, .pencil, .crayon, .watercolor, .highlighter:
             HStack(spacing: 8) {
                 ForEach(style.colors, id: \.self) { color in
                     colorSwatch(color, isSelected: color == style.selectedColor) {
@@ -201,7 +201,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     .fill(tipColor)
                     .frame(width: 18, height: 4)
             }
-            .frame(width: 40, height: 40)
+            .frame(width: 36, height: 40)
             // The picked pen rises, like Apple Notes.
             .offset(y: isSelected ? -3 : 0)
         }

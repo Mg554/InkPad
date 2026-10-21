@@ -8,36 +8,37 @@ struct NoteBackground: Equatable {
 
     let template: PageTemplate
     let paper: PaperColor
+    let pages: [PageSource]
     let pdf: PDFBackground?
     let layout: PageLayout
 
-    init(template: PageTemplate, paper: PaperColor, templatePageCount: Int, pdf: PDFBackground?) {
+    init(template: PageTemplate, paper: PaperColor, pages: [PageSource], pdf: PDFBackground?) {
         self.template = template
         self.paper = paper
+        self.pages = pages
         self.pdf = pdf
-        var sizes: [CGSize] = []
-        for index in 0..<(pdf?.pageCount ?? 0) {
-            let size = pdf?.displaySize(ofPage: index) ?? .zero
-            guard size.width > 0, size.height > 0 else {
-                sizes.append(PageLayout.templatePageSize)
-                continue
-            }
-            sizes.append(CGSize(width: PageLayout.pageWidth, height: PageLayout.pageWidth * size.height / size.width))
-        }
-        sizes += Array(repeating: PageLayout.templatePageSize, count: max(templatePageCount, 0))
-        layout = PageLayout(pageSizes: sizes)
+        layout = PageLayout(pageSizes: pages.map { source in
+            guard case let .pdf(index) = source, let size = pdf?.displaySize(ofPage: index),
+                  size.width > 0, size.height > 0
+            else { return PageLayout.templatePageSize }
+            return CGSize(width: PageLayout.pageWidth, height: PageLayout.pageWidth * size.height / size.width)
+        })
     }
 
-    func isPDFPage(_ index: Int) -> Bool {
-        index < (pdf?.pageCount ?? 0)
+    /// The PDF page shown on this page, if it is a readable PDF page.
+    private func pdfPage(at index: Int) -> Int? {
+        guard pages.indices.contains(index), case let .pdf(pdfIndex) = pages[index],
+              let pdf, pdfIndex >= 0, pdfIndex < pdf.pageCount
+        else { return nil }
+        return pdfIndex
     }
 
-    /// - Parameter includePaper: `false` draws template pages as plain white
+    /// - Parameter includePaper: `false` draws paper pages as plain white
     ///   (PDF pages are always drawn).
     func drawPage(at index: Int, in context: CGContext, includePaper: Bool = true) {
         let rect = layout.pageRects[index]
-        if let pdf, isPDFPage(index) {
-            pdf.draw(page: index, in: rect, context: context)
+        if let pdf, let pdfIndex = pdfPage(at: index) {
+            pdf.draw(page: pdfIndex, in: rect, context: context)
         } else if includePaper {
             TemplateRenderer.drawPage(template, paper: paper, in: rect, context: context)
         } else {
@@ -45,15 +46,15 @@ struct NoteBackground: Equatable {
         }
     }
 
-    /// Page size for export: the PDF page's own size, or A4 for template pages.
+    /// Page size for export: the PDF page's own size, or A4 for paper pages.
     func exportSize(ofPage index: Int) -> CGSize {
-        if let pdf, isPDFPage(index) {
-            return pdf.displaySize(ofPage: index)
+        if let pdf, let pdfIndex = pdfPage(at: index) {
+            return pdf.displaySize(ofPage: pdfIndex)
         }
         return Self.templateExportSize
     }
 
     static func == (lhs: NoteBackground, rhs: NoteBackground) -> Bool {
-        lhs.template == rhs.template && lhs.paper == rhs.paper && lhs.pdf === rhs.pdf && lhs.layout == rhs.layout
+        lhs.template == rhs.template && lhs.paper == rhs.paper && lhs.pages == rhs.pages && lhs.pdf === rhs.pdf
     }
 }

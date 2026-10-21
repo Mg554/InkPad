@@ -12,6 +12,12 @@ final class EditorSession: ObservableObject {
     @Published private(set) var metadata: NoteMetadata?
     @Published private(set) var background: NoteBackground?
     @Published private(set) var loadError: String?
+    /// The content as of the last save, for page thumbnails. Refreshed after
+    /// each save rather than on every stroke.
+    @Published private(set) var snapshot: NoteContent? {
+        didSet { snapshotRevision += 1 }
+    }
+    @Published private(set) var snapshotRevision = 0
     /// The content the canvas is created from.
     private(set) var initialContent: NoteContent?
 
@@ -39,6 +45,7 @@ final class EditorSession: ObservableObject {
             let content = try store.loadContent(for: noteID)
             baseContent = content
             initialContent = content
+            snapshot = content
             metadata = content.metadata
             background = content.makeBackground()
         } catch {
@@ -56,6 +63,56 @@ final class EditorSession: ObservableObject {
         metadata = content.metadata
         background = content.makeBackground()
         markEdited()
+    }
+
+    var pageCount: Int { background?.layout.pageRects.count ?? 0 }
+
+    /// Inserts a paper page after `index`, moving later ink and elements down.
+    func insertPage(after index: Int) {
+        guard let content = baseContent, let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
+        var pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
+        pages.insert(.paper, at: index + 1)
+        canvas.shiftContent(
+            below: rects[index].maxY + PageLayout.pageGap / 2,
+            by: PageLayout.templatePageSize.height + PageLayout.pageGap,
+            removing: nil
+        )
+        setPages(pages)
+        scrollAfterLayout(to: index + 1)
+    }
+
+    /// Deletes a page and what is written on it; later pages move up.
+    /// The imported PDF file itself is never changed.
+    func deletePage(at index: Int) {
+        guard let content = baseContent, let rects = background?.layout.pageRects,
+              rects.count > 1, rects.indices.contains(index) else { return }
+        var pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
+        pages.remove(at: index)
+        let rect = rects[index]
+        let gap = PageLayout.pageGap
+        canvas.shiftContent(
+            below: rect.maxY + gap / 2,
+            by: -(rect.height + gap),
+            removing: (rect.minY - gap / 2)...(rect.maxY + gap / 2)
+        )
+        setPages(pages)
+        scrollAfterLayout(to: min(index, pages.count - 1))
+    }
+
+    private func setPages(_ pages: [PageSource]) {
+        updateMetadata {
+            $0.pages = pages
+            $0.pageCount = pages.filter { $0 == .paper }.count
+        }
+        snapshot = currentContent()
+    }
+
+    /// The canvas picks up the new pages on SwiftUI's next update.
+    private func scrollAfterLayout(to index: Int) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(100))
+            canvas.scrollToPage(index)
+        }
     }
 
     /// Everything as it is on screen now.
@@ -94,6 +151,7 @@ final class EditorSession: ObservableObject {
             let saved = await store.saveContent(content, for: noteID, thumbnail: needsThumbnail)
             isSaving = false
             if saved {
+                snapshot = content
                 savedGeneration = max(savedGeneration, generation)
                 if needsThumbnail { thumbnailGeneration = generation }
             }

@@ -2,15 +2,19 @@ import PencilKit
 import SwiftUI
 
 enum DrawingTool: String, Codable, CaseIterable, Identifiable {
-    case fountainPen, pen, pencil, highlighter, eraser, text, lasso
+    case quill, fountainPen, pen, monoline, pencil, crayon, watercolor, highlighter, eraser, text, lasso
 
     var id: Self { self }
 
     var title: String {
         switch self {
-        case .pen: "Pen"
-        case .pencil: "Pencil"
+        case .quill: "Quill"
         case .fountainPen: "Fountain Pen"
+        case .pen: "Pen"
+        case .monoline: "Monoline"
+        case .pencil: "Pencil"
+        case .crayon: "Crayon"
+        case .watercolor: "Watercolor"
         case .highlighter: "Highlighter"
         case .eraser: "Eraser"
         case .text: "Text"
@@ -20,9 +24,13 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .pen: "pencil.tip"
-        case .pencil: "pencil"
+        case .quill: "signature"
         case .fountainPen: "paintbrush.pointed"
+        case .pen: "pencil.tip"
+        case .monoline: "pencil.line"
+        case .pencil: "pencil"
+        case .crayon: "pencil.and.scribble"
+        case .watercolor: "paintbrush"
         case .highlighter: "highlighter"
         case .eraser: "eraser"
         case .text: "textformat"
@@ -33,18 +41,35 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
     /// Pens and the highlighter: they have colors and draw ink.
     var isInking: Bool {
         switch self {
-        case .fountainPen, .pen, .pencil, .highlighter: true
         case .eraser, .text, .lasso: false
+        default: true
         }
     }
 
     var usesWidth: Bool { isInking || self == .eraser }
 
+    /// The PencilKit ink behind each pen. The quill is a broad fountain-pen
+    /// nib (thick downstrokes, thin sideways strokes), like an old dip pen.
+    var inkType: PKInkingTool.InkType? {
+        switch self {
+        case .quill, .fountainPen: .fountainPen
+        case .pen: .pen
+        case .monoline: .monoline
+        case .pencil: .pencil
+        case .crayon: .crayon
+        case .watercolor: .watercolor
+        case .highlighter: .marker
+        case .eraser, .text, .lasso: nil
+        }
+    }
+
     /// The range offered by the width slider.
     var widthRange: ClosedRange<CGFloat> {
         switch self {
-        case .pen, .fountainPen: 0.5...20
-        case .pencil: 1...24
+        case .pen, .fountainPen, .monoline: 0.5...20
+        case .quill: 2...30
+        case .pencil, .crayon: 1...24
+        case .watercolor: 2...40
         case .highlighter: 4...60
         case .eraser: 4...100
         case .text, .lasso: 1...1
@@ -54,8 +79,10 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
     /// Three width presets (thin, medium, thick) in canvas points.
     var widthPresets: [CGFloat] {
         switch self {
-        case .pen, .fountainPen: [1.5, 3, 6]
-        case .pencil: [2.5, 5, 10]
+        case .pen, .fountainPen, .monoline: [1.5, 3, 6]
+        case .quill: [5, 9, 15]
+        case .pencil, .crayon: [2.5, 5, 10]
+        case .watercolor: [6, 12, 22]
         case .highlighter: [10, 18, 30]
         case .eraser: [8, 20, 50]
         case .text, .lasso: []
@@ -67,6 +94,10 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .highlighter:
             [.init(0.98, 0.92, 0.25), .init(0.55, 0.92, 0.35), .init(0.45, 0.85, 0.98),
              .init(0.98, 0.55, 0.75), .init(0.99, 0.70, 0.30), .init(0.75, 0.60, 0.98)]
+        case .quill:
+            // Iron-gall browns and inks of old letters.
+            [.init(0.24, 0.15, 0.09), .init(0.08, 0.08, 0.10), .init(0.12, 0.18, 0.40),
+             .init(0.45, 0.10, 0.10), .init(0.35, 0.28, 0.12)]
         default:
             [.init(0.10, 0.10, 0.12), .init(0.15, 0.40, 0.95), .init(0.90, 0.20, 0.20),
              .init(0.15, 0.65, 0.30), .init(0.95, 0.60, 0.10), .init(0.55, 0.30, 0.85)]
@@ -220,13 +251,13 @@ final class ToolPalette: ObservableObject {
         let width = style.selectedWidth(for: tool)
         let color = style.selectedColor.uiColor
         switch tool {
-        case .pen: return PKInkingTool(.pen, color: color, width: width)
-        case .pencil: return PKInkingTool(.pencil, color: color, width: width)
-        case .fountainPen: return PKInkingTool(.fountainPen, color: color, width: width)
-        case .highlighter: return PKInkingTool(.marker, color: color, width: width)
-        case .eraser: return PKEraserTool(erasesWholeStrokes ? .vector : .bitmap, width: width)
-        // Drawing is switched off while the Text tool is active.
-        case .lasso, .text: return PKLassoTool()
+        case .eraser:
+            return PKEraserTool(erasesWholeStrokes ? .vector : .bitmap, width: width)
+        case .lasso, .text:
+            // Drawing is switched off while the Text tool is active.
+            return PKLassoTool()
+        default:
+            return PKInkingTool(tool.inkType ?? .pen, color: color, width: width)
         }
     }
 

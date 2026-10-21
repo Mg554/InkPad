@@ -76,16 +76,25 @@ enum PaperColor: String, Codable, CaseIterable, Identifiable {
     var isDark: Bool { self == .charcoal || self == .black }
 }
 
+/// What one page shows underneath the ink.
+enum PageSource: Codable, Equatable {
+    /// A page of the note's PDF (zero-based).
+    case pdf(Int)
+    /// Template paper.
+    case paper
+}
+
 /// Per-note settings stored next to the drawing (`note.json`).
 struct NoteMetadata: Codable, Equatable {
-    /// Version 2 added `pdfFile`; version 3 added `paperColor` and `elements`.
-    /// Older files still decode unchanged.
-    static let currentVersion = 3
+    /// Version 2 added `pdfFile`; version 3 added `paperColor` and `elements`;
+    /// version 4 added `pages`. Older files still decode unchanged.
+    static let currentVersion = 4
 
     var version: Int
     /// Paper for pages that are not PDF pages.
     var template: PageTemplate
-    /// Number of template pages. In a PDF note they follow the PDF's pages.
+    /// Number of template pages. Only used when `pages` is `nil` (older
+    /// notes), where they follow the PDF's pages.
     var pageCount: Int
     /// File name of the imported PDF inside the note's folder, if any.
     var pdfFile: String?
@@ -93,6 +102,12 @@ struct NoteMetadata: Codable, Equatable {
     var paperColor: PaperColor?
     /// Text boxes and images, in canvas coordinates.
     var elements: [PageElement]?
+    /// The pages in order. `nil` means the PDF's pages followed by `pageCount` paper pages.
+    var pages: [PageSource]?
+
+    func resolvedPages(pdfPageCount: Int) -> [PageSource] {
+        pages ?? (0..<pdfPageCount).map { PageSource.pdf($0) } + Array(repeating: .paper, count: max(pageCount, 0))
+    }
 
     init(template: PageTemplate, pageCount: Int = 1, pdfFile: String? = nil) {
         self.version = Self.currentVersion
@@ -117,7 +132,7 @@ struct NoteContent {
         NoteBackground(
             template: metadata.template,
             paper: metadata.paperColor ?? .white,
-            templatePageCount: metadata.pageCount,
+            pages: metadata.resolvedPages(pdfPageCount: pdf?.pageCount ?? 0),
             pdf: pdf
         )
     }

@@ -123,6 +123,24 @@ final class ElementLayerView: UIView {
         onChange?()
     }
 
+    /// Moves elements whose middle is below `y` by `delta`, and removes those
+    /// whose middle falls in `removing`. Used when pages are inserted or deleted.
+    func shiftElements(below y: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
+        var changed = false
+        for case let view as PageElementView in subviews {
+            let middle = view.frame.midY
+            if let removing, removing.contains(middle) {
+                if view === selected { selectElement(nil) }
+                view.removeFromSuperview()
+                changed = true
+            } else if middle > y {
+                view.center.y += delta
+                changed = true
+            }
+        }
+        if changed { elementsDidChange() }
+    }
+
     /// Re-rasterizes text for the current zoom so it stays sharp.
     func setRenderScale(_ scale: CGFloat) {
         renderScale = scale

@@ -9,8 +9,9 @@ Done:
 
 - Library: nested folders with colors, notes grid with thumbnails, title
   search, quick actions (New Note, Import a File, Find a Template)
-- Floating toolbar combining Notability and Apple Notes: fountain pen, pen,
-  pencil, highlighter, eraser (pixel or whole stroke), text, lasso, insert
+- Floating toolbar combining Notability and Apple Notes: quill, fountain
+  pen, pen, monoline, pencil, crayon, watercolor, highlighter, eraser
+  (pixel or whole stroke), text, lasso, insert
   menu, ruler, finger drawing; per-tool colors plus custom colors, three
   widths per tool with a fine-tuning slider; collapses to a small pill
 - Apple Pencil double-tap switches to the eraser and back
@@ -22,7 +23,8 @@ Done:
 - PDF import (one or several files), writing and highlighting on PDF pages
 - Quick export, or "Export as..." with background paper, page margins,
   page range and password options
-- Page counter with previous/next, page overview grid
+- Page sidebar with thumbnails (insert a blank page after any page, delete
+  pages), page counter with previous/next
 - Undo / redo for ink; autosave in the background
 
 See [ROADMAP.md](ROADMAP.md) for the next phases.

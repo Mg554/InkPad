@@ -14,7 +14,7 @@ struct NoteEditorView: View {
     @State private var isExporting = false
     @State private var isShowingExportOptions = false
     @State private var isShowingTemplates = false
-    @State private var isShowingPages = false
+    @AppStorage("showPageSidebar") private var isShowingPages = false
     @State private var isPickingPhoto = false
     @State private var isPickingImageFile = false
     @State private var photoItem: PhotosPickerItem?
@@ -27,25 +27,22 @@ struct NoteEditorView: View {
     var body: some View {
         Group {
             if let content = session.initialContent, let background = session.background {
-                NoteCanvas(
-                    initialContent: content,
-                    background: background,
-                    pencilOnly: pencilOnly,
-                    controller: canvas,
-                    palette: palette
-                )
-                .ignoresSafeArea(edges: .bottom)
-                .safeAreaInset(edge: .top) {
-                    DrawingToolbar(canvas: canvas, pencilOnly: $pencilOnly) {
-                        insertMenu
+                HStack(spacing: 0) {
+                    canvasArea(content: content, background: background)
+                    if isShowingPages, let snapshot = session.snapshot {
+                        Divider()
+                        PageSidebar(
+                            canvas: canvas,
+                            content: snapshot,
+                            revision: session.snapshotRevision,
+                            background: background,
+                            insertPage: { session.insertPage(after: $0) },
+                            deletePage: { session.deletePage(at: $0) }
+                        )
+                        .transition(.move(edge: .trailing))
                     }
-                    .padding(.top, 6)
-                    .padding(.bottom, 4)
                 }
-                .overlay(alignment: .bottomTrailing) {
-                    PageNavigator(canvas: canvas) { isShowingPages = true }
-                        .padding(16)
-                }
+                .animation(.snappy(duration: 0.25), value: isShowingPages)
             } else if let loadError = session.loadError {
                 ContentUnavailableView(
                     "Could Not Open Note",
@@ -86,15 +83,6 @@ struct NoteEditorView: View {
                 }
             }
         }
-        .sheet(isPresented: $isShowingPages) {
-            if let content = session.currentContent(), let background = session.background {
-                PageOverview(
-                    content: content,
-                    background: background,
-                    currentPage: canvas.currentPage
-                ) { canvas.scrollToPage($0) }
-            }
-        }
         .sheet(isPresented: $isPickingImageFile) {
             DocumentPicker(contentTypes: [.image]) { urls in
                 for url in urls {
@@ -121,6 +109,28 @@ struct NoteEditorView: View {
         }
     }
 
+    private func canvasArea(content: NoteContent, background: NoteBackground) -> some View {
+        NoteCanvas(
+            initialContent: content,
+            background: background,
+            pencilOnly: pencilOnly,
+            controller: canvas,
+            palette: palette
+        )
+        .ignoresSafeArea(edges: .bottom)
+        .safeAreaInset(edge: .top) {
+            DrawingToolbar(canvas: canvas, pencilOnly: $pencilOnly) {
+                insertMenu
+            }
+            .padding(.top, 6)
+            .padding(.bottom, 4)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            PageNavigator(canvas: canvas) { isShowingPages.toggle() }
+                .padding(16)
+        }
+    }
+
     // MARK: Menus
 
     @ViewBuilder
@@ -143,7 +153,7 @@ struct NoteEditorView: View {
         }
         Divider()
         Button {
-            session.updateMetadata { $0.pageCount += 1 }
+            session.insertPage(after: canvas.currentPage)
         } label: {
             Label("Add Page", systemImage: "doc.badge.plus")
         }
@@ -181,9 +191,9 @@ struct NoteEditorView: View {
                         Label("Template Settings", systemImage: "doc.richtext")
                     }
                     Button {
-                        session.updateMetadata { $0.pageCount += 1 }
+                        session.insertPage(after: canvas.currentPage)
                     } label: {
-                        Label("Add Page", systemImage: "doc.badge.plus")
+                        Label("Add Page After This One", systemImage: "doc.badge.plus")
                     }
                 }
                 Section {
@@ -206,9 +216,9 @@ struct NoteEditorView: View {
             .disabled(session.metadata == nil)
 
             Button {
-                isShowingPages = true
+                isShowingPages.toggle()
             } label: {
-                Label("Pages", systemImage: "square.on.square")
+                Label("Pages", systemImage: "sidebar.right")
             }
             .disabled(session.metadata == nil)
         }
