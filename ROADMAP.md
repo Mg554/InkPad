@@ -1,7 +1,8 @@
 # Roadmap
 
 1. **Library + handwriting canvas** — done
-2. **PDF** — import, annotate, export — done (needs on-device testing)
+2. **PDF** — import, annotate, export — done
+   - Notability-style toolbar, page navigator, nested colored folders — done (needs on-device testing)
 3. **Text boxes** — movable, resizable boxes with bold/italic/underline,
    size, color and lists
 4. **Audio recording synced to ink** — record while writing; playback
@@ -12,3 +13,7 @@
    AirPlay, with laser pointer
 7. **Backup and polish** — export/import a whole library to iCloud Drive,
    page delete/reorder, recently deleted, dark-mode chrome
+
+Not planned: Notability's AI features (chat with notes, smart notes,
+flashcards) need a cloud AI service, which conflicts with keeping InkPad
+free and fully on-device.

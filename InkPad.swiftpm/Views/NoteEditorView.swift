@@ -3,6 +3,7 @@ import SwiftUI
 
 struct NoteEditorView: View {
     @EnvironmentObject private var store: LibraryStore
+    @EnvironmentObject private var palette: ToolPalette
     @Environment(\.scenePhase) private var scenePhase
     let noteID: UUID
 
@@ -11,6 +12,7 @@ struct NoteEditorView: View {
     /// Derived from `content`; rebuilt only when pages or paper change.
     @State private var background: NoteBackground?
     @State private var exportedFile: ExportedFile?
+    @State private var isShowingPages = false
     @State private var loadError: String?
     @State private var isDirty = false
     @State private var saveTask: Task<Void, Never>?
@@ -25,9 +27,19 @@ struct NoteEditorView: View {
                     background: background,
                     pencilOnly: pencilOnly,
                     controller: canvas,
+                    palette: palette,
                     onDrawingChange: drawingChanged
                 )
                 .ignoresSafeArea(edges: .bottom)
+                .safeAreaInset(edge: .top) {
+                    DrawingToolbar(canvas: canvas, pencilOnly: $pencilOnly)
+                        .padding(.top, 6)
+                        .padding(.bottom, 4)
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    PageNavigator(canvas: canvas) { isShowingPages = true }
+                        .padding(16)
+                }
             } else if let loadError {
                 ContentUnavailableView(
                     "Could Not Open Note",
@@ -44,6 +56,15 @@ struct NoteEditorView: View {
         .namePrompt($prompt)
         .sheet(item: $exportedFile) { file in
             ShareSheet(items: [file.url])
+        }
+        .sheet(isPresented: $isShowingPages) {
+            if let content, let background {
+                PageOverview(
+                    drawing: canvas.drawing ?? content.drawing,
+                    background: background,
+                    currentPage: canvas.currentPage
+                ) { canvas.scrollToPage($0) }
+            }
         }
         .task { load() }
         .onDisappear { saveNow() }
@@ -69,19 +90,27 @@ struct NoteEditorView: View {
             }
             .disabled(!canvas.canRedo)
 
-            Toggle(isOn: $pencilOnly) {
-                Label("Pencil Only", systemImage: "applepencil")
+            Button {
+                exportPDF()
+            } label: {
+                Label("Export PDF", systemImage: "square.and.arrow.up")
             }
-            .toggleStyle(.button)
+            .disabled(content == nil)
 
             Button {
-                addPage()
+                isShowingPages = true
             } label: {
-                Label("Add Page", systemImage: "doc.badge.plus")
+                Label("Pages", systemImage: "square.on.square")
             }
             .disabled(content == nil)
 
             Menu {
+                Button {
+                    addPage()
+                } label: {
+                    Label("Add Page", systemImage: "doc.badge.plus")
+                }
+
                 Picker(selection: templateBinding) {
                     ForEach(PageTemplate.allCases) { template in
                         Label(template.title, systemImage: template.systemImage)
@@ -91,16 +120,6 @@ struct NoteEditorView: View {
                     Label("Paper", systemImage: "doc.richtext")
                 }
                 .pickerStyle(.menu)
-
-                Toggle(isOn: $canvas.isToolPickerVisible) {
-                    Label("Tool Palette", systemImage: "paintpalette")
-                }
-
-                Button {
-                    exportPDF()
-                } label: {
-                    Label("Export PDF", systemImage: "square.and.arrow.up")
-                }
 
                 Button {
                     prompt = NamePrompt(

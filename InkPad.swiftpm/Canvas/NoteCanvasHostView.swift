@@ -11,6 +11,8 @@ final class NoteCanvasHostView: UIView {
     private let pageBackground = PageBackgroundView()
     private var background: NoteBackground?
     private var fitScale: CGFloat = 0
+    /// Reports the page in the middle of the screen and the page count.
+    var onVisiblePageChange: ((_ current: Int, _ count: Int) -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -77,5 +79,22 @@ final class NoteCanvasHostView: UIView {
             x: size.width * zoom / 2 - offset.x,
             y: size.height * zoom / 2 - offset.y
         )
+        reportVisiblePage()
+    }
+
+    func scrollToPage(_ index: Int) {
+        guard let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
+        let inset = canvas.adjustedContentInset
+        let zoom = canvas.zoomScale
+        let maxY = max(canvas.contentSize.height + inset.bottom - canvas.bounds.height, -inset.top)
+        let y = min(rects[index].minY * zoom - inset.top, maxY)
+        canvas.setContentOffset(CGPoint(x: canvas.contentOffset.x, y: y), animated: false)
+    }
+
+    private func reportVisiblePage() {
+        guard let rects = background?.layout.pageRects, !rects.isEmpty, canvas.zoomScale > 0 else { return }
+        let middleY = (canvas.contentOffset.y + canvas.bounds.height / 2) / canvas.zoomScale
+        let current = rects.lastIndex { $0.minY <= middleY } ?? 0
+        onVisiblePageChange?(current, rects.count)
     }
 }

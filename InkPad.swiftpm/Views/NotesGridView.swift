@@ -34,14 +34,19 @@ struct NotesGridView: View {
 
     var body: some View {
         ScrollView {
-            VStack {
+            VStack(alignment: .leading) {
+                if searchText.isEmpty {
+                    quickActions
+                        .padding([.horizontal, .top], 24)
+                }
                 if visibleNotes.isEmpty {
                     ContentUnavailableView(
                         searchText.isEmpty ? "No Notes" : "No Results",
                         systemImage: searchText.isEmpty ? "square.and.pencil" : "magnifyingglass",
-                        description: Text(searchText.isEmpty ? "Tap the pencil button to create a note." : "")
+                        description: Text(searchText.isEmpty ? "Create a note or import a PDF." : "")
                     )
-                    .padding(.top, 80)
+                    .padding(.top, 40)
+                    .frame(maxWidth: .infinity)
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 24)], spacing: 28) {
                     ForEach(visibleNotes) { note in
@@ -62,34 +67,23 @@ struct NotesGridView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    ForEach(PageTemplate.allCases) { template in
-                        Button {
-                            createNote(template)
-                        } label: {
-                            Label(template.title, systemImage: template.systemImage)
-                        }
+                    templateButtons
+                    Divider()
+                    Button {
+                        isImportingPDF = true
+                    } label: {
+                        Label("Import PDF", systemImage: "square.and.arrow.down")
                     }
                 } label: {
-                    Label("New Note", systemImage: "square.and.pencil")
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    isImportingPDF = true
-                } label: {
-                    Label("Import PDF", systemImage: "doc.badge.arrow.up")
+                    Label("New", systemImage: "plus.circle.fill")
                 }
             }
         }
-        .fileImporter(isPresented: $isImportingPDF, allowedContentTypes: [.pdf]) { result in
-            switch result {
-            case let .success(url):
-                if let note = store.importPDF(from: url, into: targetFolderID) {
-                    openNote(note.id)
-                }
-            case let .failure(error):
-                store.errorMessage = "Could not open the file: \(error.localizedDescription)"
+        .sheet(isPresented: $isImportingPDF) {
+            DocumentPicker(contentTypes: [.pdf]) { urls in
+                importPDFs(urls)
             }
+            .ignoresSafeArea()
         }
         .namePrompt($prompt)
         .confirmationDialog(
@@ -124,9 +118,11 @@ struct NotesGridView: View {
         Menu {
             Button("Unfiled") { store.moveNote(note.id, to: nil) }
                 .disabled(note.folderID == nil)
-            ForEach(store.folders) { folder in
-                Button(folder.name) { store.moveNote(note.id, to: folder.id) }
-                    .disabled(note.folderID == folder.id)
+            ForEach(store.folderTree()) { row in
+                Button(String(repeating: "    ", count: row.depth) + row.folder.name) {
+                    store.moveNote(note.id, to: row.folder.id)
+                }
+                .disabled(note.folderID == row.folder.id)
             }
         } label: {
             Label("Move to", systemImage: "folder")
@@ -139,9 +135,88 @@ struct NotesGridView: View {
         }
     }
 
+    /// Notability-style shortcut cards above the notes.
+    private var quickActions: some View {
+        HStack(spacing: 16) {
+            QuickActionCard(title: "New Note", systemImage: "square.and.pencil", tint: .indigo) {
+                createNote(.lined)
+            }
+            QuickActionCard(title: "Import a File", systemImage: "square.and.arrow.down", tint: .teal) {
+                isImportingPDF = true
+            }
+            Menu {
+                templateButtons
+            } label: {
+                QuickActionLabel(title: "Templates", systemImage: "doc.on.doc", tint: .orange)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private var templateButtons: some View {
+        ForEach(PageTemplate.allCases) { template in
+            Button {
+                createNote(template)
+            } label: {
+                Label("\(template.title) Note", systemImage: template.systemImage)
+            }
+        }
+    }
+
+    private func importPDFs(_ urls: [URL]) {
+        var lastImported: NoteSummary?
+        for url in urls {
+            if let note = store.importPDF(from: url, into: targetFolderID) {
+                lastImported = note
+            }
+            // The picker handed us a temporary copy; the store has its own now.
+            try? FileManager.default.removeItem(at: url)
+        }
+        if urls.count == 1, let lastImported {
+            openNote(lastImported.id)
+        }
+    }
+
     private func createNote(_ template: PageTemplate) {
         if let note = store.createNote(in: targetFolderID, template: template) {
             openNote(note.id)
         }
+    }
+}
+
+
+private struct QuickActionCard: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            QuickActionLabel(title: title, systemImage: systemImage, tint: tint)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct QuickActionLabel: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.title2)
+                .foregroundStyle(tint)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 96)
+        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(tint.opacity(0.35)))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
     }
 }

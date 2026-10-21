@@ -1,57 +1,81 @@
 import PencilKit
 import SwiftUI
 
-/// Lets SwiftUI toolbar buttons drive the UIKit canvas: undo/redo and the
-/// floating PencilKit tool palette.
+/// Lets SwiftUI controls drive the UIKit canvas: tools, undo/redo, the
+/// ruler, and page navigation.
 @MainActor
-final class CanvasController: ObservableObject {
+final class CanvasController: NSObject, ObservableObject {
     @Published private(set) var canUndo = false
     @Published private(set) var canRedo = false
-    @Published var isToolPickerVisible = true {
-        didSet { applyToolPickerVisibility() }
+    @Published private(set) var currentPage = 0
+    @Published private(set) var pageCount = 1
+    @Published var isRulerActive = false {
+        didSet { host?.canvas.isRulerActive = isRulerActive }
     }
 
-    private weak var canvas: PKCanvasView?
-    private let toolPicker = PKToolPicker()
+    private weak var host: NoteCanvasHostView?
+    private weak var palette: ToolPalette?
 
-    func attach(_ canvas: PKCanvasView) {
-        self.canvas = canvas
-        toolPicker.addObserver(canvas)
-        // The canvas must be in a window before it can become first responder.
+    var drawing: PKDrawing? { host?.canvas.drawing }
+
+    func attach(_ host: NoteCanvasHostView, palette: ToolPalette) {
+        self.host = host
+        self.palette = palette
+        host.canvas.isRulerActive = isRulerActive
+        let pencilInteraction = UIPencilInteraction()
+        pencilInteraction.delegate = self
+        host.canvas.addInteraction(pencilInteraction)
+        applyTool()
         DispatchQueue.main.async { [weak self] in
-            self?.applyToolPickerVisibility()
             self?.refreshUndoState()
         }
     }
 
-    func detach(_ canvas: PKCanvasView) {
-        toolPicker.setVisible(false, forFirstResponder: canvas)
-        toolPicker.removeObserver(canvas)
-        if self.canvas === canvas {
-            self.canvas = nil
+    func detach(_ host: NoteCanvasHostView) {
+        if self.host === host {
+            self.host = nil
         }
     }
 
+    func applyTool() {
+        guard let host, let palette else { return }
+        host.canvas.tool = palette.pkTool
+    }
+
     func undo() {
-        canvas?.undoManager?.undo()
+        host?.canvas.undoManager?.undo()
         refreshUndoState()
     }
 
     func redo() {
-        canvas?.undoManager?.redo()
+        host?.canvas.undoManager?.redo()
         refreshUndoState()
     }
 
     func refreshUndoState() {
-        canUndo = canvas?.undoManager?.canUndo ?? false
-        canRedo = canvas?.undoManager?.canRedo ?? false
+        canUndo = host?.canvas.undoManager?.canUndo ?? false
+        canRedo = host?.canvas.undoManager?.canRedo ?? false
     }
 
-    private func applyToolPickerVisibility() {
-        guard let canvas else { return }
-        toolPicker.setVisible(isToolPickerVisible, forFirstResponder: canvas)
-        if isToolPickerVisible {
-            canvas.becomeFirstResponder()
+    func pageDidChange(current: Int, count: Int) {
+        if current != currentPage { currentPage = current }
+        if count != pageCount { pageCount = count }
+    }
+
+    func scrollToPage(_ index: Int) {
+        host?.scrollToPage(index)
+    }
+}
+
+extension CanvasController: UIPencilInteractionDelegate {
+    /// Apple Pencil (2nd generation / Pro) double-tap, following the system setting.
+    func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
+        switch UIPencilInteraction.preferredTapAction {
+        case .switchEraser, .switchPrevious:
+            palette?.toggleEraser()
+            applyTool()
+        default:
+            break
         }
     }
 }

@@ -7,16 +7,20 @@ A free, private, Notability-style note-taking app for iPad, built as a
 
 Done:
 
-- Folders and notes library (create, rename, move, delete, title search)
-- Handwriting canvas with Apple Pencil (PencilKit tool palette: pens,
-  highlighter, eraser, lasso, ruler, colors)
+- Library: nested folders with colors, notes grid with thumbnails, title
+  search, quick actions (New Note, Import a File, Templates)
+- Notability-style floating toolbar: pen, pencil, fountain pen,
+  highlighter, eraser (pixel or whole strokes), lasso, ruler, color presets
+  plus custom colors, three widths per tool; remembered between launches
+- Apple Pencil double-tap switches to the eraser and back
 - "Pencil only" mode: the pencil draws, fingers scroll and zoom
-- Pinch-to-zoom, stacked pages, Add Page
+- Pinch-to-zoom, stacked pages, page counter with previous/next, page
+  overview grid
 - Page templates: blank, lined, grid, dotted
-- Undo / redo, autosave, first-page thumbnails
-- PDF import from Files, handwriting and highlighting on PDF pages, extra
-  blank/lined/grid/dotted pages after the PDF
+- PDF import (one or several files), handwriting and highlighting on PDF
+  pages, extra paper pages after the PDF
 - Export any note as a PDF (Save to Files, AirDrop, Mail, ...)
+- Undo / redo, autosave
 
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 

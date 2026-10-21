@@ -8,6 +8,7 @@ struct NoteCanvas: UIViewRepresentable {
     let background: NoteBackground
     let pencilOnly: Bool
     let controller: CanvasController
+    let palette: ToolPalette
     let onDrawingChange: (PKDrawing) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -20,7 +21,13 @@ struct NoteCanvas: UIViewRepresentable {
         // Set the delegate after loading so the initial drawing is not reported as an edit.
         host.canvas.delegate = context.coordinator
         context.coordinator.host = host
-        controller.attach(host.canvas)
+        host.onVisiblePageChange = { [weak controller] current, count in
+            // May be reported during a SwiftUI update; publish afterwards.
+            DispatchQueue.main.async {
+                controller?.pageDidChange(current: current, count: count)
+            }
+        }
+        controller.attach(host, palette: palette)
         return host
     }
 
@@ -32,7 +39,7 @@ struct NoteCanvas: UIViewRepresentable {
 
     static func dismantleUIView(_ host: NoteCanvasHostView, coordinator: Coordinator) {
         host.canvas.delegate = nil
-        coordinator.controller.detach(host.canvas)
+        coordinator.controller.detach(host)
     }
 
     final class Coordinator: NSObject, PKCanvasViewDelegate {

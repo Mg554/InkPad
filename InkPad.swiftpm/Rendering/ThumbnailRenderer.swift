@@ -1,30 +1,37 @@
 import PencilKit
 import UIKit
 
-/// Renders a small preview of a note's first page for the library grid.
+/// Renders small page previews for the library grid and the page overview.
 @MainActor
 enum ThumbnailRenderer {
-    static let scale: CGFloat = 0.3
+    static let libraryScale: CGFloat = 0.3
 
+    /// First-page preview stored with the note.
     static func pngData(for content: NoteContent) -> Data? {
         let background = content.makeBackground()
-        guard let pageRect = background.layout.pageRects.first else { return nil }
+        guard !background.layout.pageRects.isEmpty else { return nil }
+        return image(ofPage: 0, drawing: content.drawing, background: background, scale: libraryScale).pngData()
+    }
+
+    static func image(ofPage index: Int, drawing: PKDrawing, background: NoteBackground, scale: CGFloat) -> UIImage {
+        let pageRect = background.layout.pageRects[index]
 
         // Render ink with light-mode colors so it matches the white paper.
-        var ink = UIImage()
-        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-            ink = content.drawing.image(from: pageRect, scale: 1)
+        var ink: UIImage?
+        if drawing.bounds.intersects(pageRect) {
+            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+                ink = drawing.image(from: pageRect, scale: max(scale * 2, 0.5))
+            }
         }
 
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         let size = CGSize(width: pageRect.width * scale, height: pageRect.height * scale)
-        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
             context.cgContext.scaleBy(x: scale, y: scale)
             context.cgContext.translateBy(x: -pageRect.minX, y: -pageRect.minY)
-            background.drawPage(at: 0, in: context.cgContext)
-            ink.draw(in: pageRect)
+            background.drawPage(at: index, in: context.cgContext)
+            ink?.draw(in: pageRect)
         }
-        return image.pngData()
     }
 }

@@ -79,13 +79,41 @@ final class LibraryStore: ObservableObject {
 
     // MARK: Folders
 
+    /// Folders in tree order. A folder whose parent is missing is shown at the
+    /// top level, and its stored `parentID` is kept as-is.
+    func folderTree(expanded: Set<UUID>? = nil) -> [FolderRow] {
+        let ids = Set(folders.map(\.id))
+        var children: [UUID?: [Folder]] = [:]
+        for folder in folders {
+            let parent = folder.parentID.flatMap { ids.contains($0) ? $0 : nil }
+            children[parent, default: []].append(folder)
+        }
+        var rows: [FolderRow] = []
+        var visited: Set<UUID> = []
+        func visit(_ parent: UUID?, depth: Int) {
+            let sorted = (children[parent] ?? []).sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+            for folder in sorted where visited.insert(folder.id).inserted {
+                let hasChildren = !(children[folder.id] ?? []).isEmpty
+                rows.append(FolderRow(folder: folder, depth: depth, hasChildren: hasChildren))
+                if expanded?.contains(folder.id) ?? true {
+                    visit(folder.id, depth: depth + 1)
+                }
+            }
+        }
+        visit(nil, depth: 0)
+        return rows
+    }
+
     @discardableResult
-    func createFolder(named name: String) -> Folder? {
+    func createFolder(named name: String, in parentID: UUID? = nil) -> Folder? {
         guard canWrite() else { return nil }
-        let folder = Folder(name: cleaned(name, fallback: "New Folder"))
-        folders.append(folder)
+        let parent = parentID.flatMap { folder($0) }
+        let newFolder = Folder(name: cleaned(name, fallback: "New Folder"), parentID: parent?.id, color: parent?.color)
+        folders.append(newFolder)
         saveIndex()
-        return folder
+        return newFolder
     }
 
     func renameFolder(_ id: UUID, to name: String) {
@@ -94,12 +122,22 @@ final class LibraryStore: ObservableObject {
         saveIndex()
     }
 
-    /// Deletes the folder only. Its notes move to Unfiled.
+    func setFolderColor(_ id: UUID, to color: FolderColor?) {
+        guard canWrite(), let index = folders.firstIndex(where: { $0.id == id }) else { return }
+        folders[index].color = color
+        saveIndex()
+    }
+
+    /// Deletes the folder only. Its notes and subfolders move to its parent
+    /// (or to the top level / Unfiled).
     func deleteFolder(_ id: UUID) {
-        guard canWrite() else { return }
+        guard canWrite(), let deleted = folder(id) else { return }
         folders.removeAll { $0.id == id }
+        for index in folders.indices where folders[index].parentID == id {
+            folders[index].parentID = deleted.parentID
+        }
         for index in notes.indices where notes[index].folderID == id {
-            notes[index].folderID = nil
+            notes[index].folderID = deleted.parentID
         }
         saveIndex()
     }
