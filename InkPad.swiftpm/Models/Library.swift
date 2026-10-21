@@ -49,6 +49,9 @@ enum LibraryScope: Hashable {
     case allNotes
     case unfiled
     case folder(UUID)
+    /// The workspace pages; they hold no notes.
+    case planner
+    case expenses
 }
 
 /// A folder positioned in the folder tree, for sidebars and menus.

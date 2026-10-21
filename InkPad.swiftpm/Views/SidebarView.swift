@@ -20,6 +20,13 @@ struct SidebarView: View {
                     .tag(LibraryScope.unfiled)
             }
 
+            Section("Workspace") {
+                Label("Planner", systemImage: "checklist")
+                    .tag(LibraryScope.planner)
+                Label("Expenses", systemImage: "creditcard")
+                    .tag(LibraryScope.expenses)
+            }
+
             Section {
                 ForEach(store.folderTree(expanded: expandedFolders)) { row in
                     folderRow(row)

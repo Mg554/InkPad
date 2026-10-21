@@ -2,7 +2,7 @@ import PencilKit
 import SwiftUI
 
 enum DrawingTool: String, Codable, CaseIterable, Identifiable {
-    case quill, fountainPen, pen, monoline, pencil, crayon, watercolor, highlighter, eraser, text, lasso
+    case quill, fountainPen, pen, monoline, pencil, crayon, watercolor, marker, highlighter, eraser, text, lasso
 
     var id: Self { self }
 
@@ -15,6 +15,7 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .pencil: "Pencil"
         case .crayon: "Crayon"
         case .watercolor: "Watercolor"
+        case .marker: "Marker"
         case .highlighter: "Highlighter"
         case .eraser: "Eraser"
         case .text: "Text"
@@ -31,6 +32,7 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .pencil: "pencil"
         case .crayon: "pencil.and.scribble"
         case .watercolor: "paintbrush"
+        case .marker: "highlighter"
         case .highlighter: "highlighter"
         case .eraser: "eraser"
         case .text: "textformat"
@@ -50,18 +52,24 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
 
     /// The PencilKit ink behind each pen. The quill is a broad fountain-pen
     /// nib (thick downstrokes, thin sideways strokes), like an old dip pen.
+    /// The highlighter is Notability-style: an even, see-through stroke that
+    /// does not change with pressure (see `highlighterOpacity`); the marker is
+    /// PencilKit's own felt-tip marker, as in Apple Notes.
     var inkType: PKInkingTool.InkType? {
         switch self {
         case .quill, .fountainPen: .fountainPen
         case .pen: .pen
-        case .monoline: .monoline
+        case .monoline, .highlighter: .monoline
         case .pencil: .pencil
         case .crayon: .crayon
         case .watercolor: .watercolor
-        case .highlighter: .marker
+        case .marker: .marker
         case .eraser, .text, .lasso: nil
         }
     }
+
+    /// Highlighter ink is translucent so text underneath stays readable.
+    static let highlighterOpacity: CGFloat = 0.38
 
     /// The range offered by the width slider.
     var widthRange: ClosedRange<CGFloat> {
@@ -70,6 +78,7 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .quill: 2...30
         case .pencil, .crayon: 1...24
         case .watercolor: 2...40
+        case .marker: 2...40
         case .highlighter: 4...60
         case .eraser: 4...100
         case .text, .lasso: 1...1
@@ -83,6 +92,7 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .quill: [5, 9, 15]
         case .pencil, .crayon: [2.5, 5, 10]
         case .watercolor: [6, 12, 22]
+        case .marker: [4, 8, 16]
         case .highlighter: [10, 18, 30]
         case .eraser: [8, 20, 50]
         case .text, .lasso: []
@@ -161,6 +171,7 @@ final class ToolPalette: ObservableObject {
         var tool: DrawingTool
         var styles: [DrawingTool: ToolStyle]
         var erasesWholeStrokes: Bool
+        var snapsShapes: Bool?
     }
 
     private static let defaultsKey = "toolPalette"
@@ -168,6 +179,9 @@ final class ToolPalette: ObservableObject {
     @Published var tool: DrawingTool = .pen { didSet { save() } }
     @Published private(set) var styles: [DrawingTool: ToolStyle] = [:] { didSet { save() } }
     @Published var erasesWholeStrokes = false { didSet { save() } }
+    /// Hold the pencil still at the end of a stroke to turn it into a straight
+    /// line or shape.
+    @Published var snapsShapes = true { didSet { save() } }
 
     /// The tool to return to after a temporary switch (Apple Pencil double-tap).
     private var previousTool: DrawingTool = .pen
@@ -178,6 +192,7 @@ final class ToolPalette: ObservableObject {
             tool = saved.tool
             styles = saved.styles
             erasesWholeStrokes = saved.erasesWholeStrokes
+            snapsShapes = saved.snapsShapes ?? true
         }
     }
 
@@ -256,13 +271,15 @@ final class ToolPalette: ObservableObject {
         case .lasso, .text:
             // Drawing is switched off while the Text tool is active.
             return PKLassoTool()
+        case .highlighter:
+            return PKInkingTool(.monoline, color: color.withAlphaComponent(DrawingTool.highlighterOpacity), width: width)
         default:
             return PKInkingTool(tool.inkType ?? .pen, color: color, width: width)
         }
     }
 
     private func save() {
-        let saved = Saved(tool: tool, styles: styles, erasesWholeStrokes: erasesWholeStrokes)
+        let saved = Saved(tool: tool, styles: styles, erasesWholeStrokes: erasesWholeStrokes, snapsShapes: snapsShapes)
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: Self.defaultsKey)
         }

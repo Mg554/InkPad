@@ -29,6 +29,7 @@ final class CanvasController: NSObject, ObservableObject {
     // Kept when the canvas goes away, so a final save still has the content.
     private var lastDrawing: PKDrawing?
     private var lastElements: [PageElement]?
+    private var strokeCountAtTouch = 0
 
     var drawing: PKDrawing? { host?.canvas.drawing ?? lastDrawing }
     var elements: [PageElement]? { host?.elementLayer.elements ?? lastElements }
@@ -44,6 +45,15 @@ final class CanvasController: NSObject, ObservableObject {
         host.elementLayer.onSelectionChange = { [weak self] view in
             self?.selection = view is TextBoxView ? .text : view is ImageElementView ? .image : nil
         }
+        let holdTracker = StrokeHoldTracker()
+        holdTracker.onTouchBegan = { [weak self, weak host] in
+            self?.strokeCountAtTouch = host?.canvas.drawing.strokes.count ?? 0
+        }
+        holdTracker.onHoldEnded = { [weak self] in
+            // PencilKit adds the finished stroke right after the touch ends.
+            DispatchQueue.main.async { self?.snapLastStroke() }
+        }
+        host.canvas.addGestureRecognizer(holdTracker)
         let pencilInteraction = UIPencilInteraction()
         pencilInteraction.delegate = self
         host.canvas.addInteraction(pencilInteraction)
@@ -84,6 +94,30 @@ final class CanvasController: NSObject, ObservableObject {
     func refreshUndoState() {
         canUndo = host?.canvas.undoManager?.canUndo ?? false
         canRedo = host?.canvas.undoManager?.canRedo ?? false
+    }
+
+    /// Replaces the stroke just drawn with a clean line or shape, if it looks like one.
+    private func snapLastStroke() {
+        guard let host, let palette, palette.snapsShapes, palette.tool.isInking else { return }
+        let drawing = host.canvas.drawing
+        guard drawing.strokes.count > strokeCountAtTouch, let original = drawing.strokes.last else { return }
+        let points = ShapeRecognizer.points(of: original)
+        let shape: ShapeRecognizer.Shape
+        if palette.tool == .highlighter {
+            // Highlighting follows lines of text, so the highlighter always snaps straight.
+            guard let first = points.first, let last = points.last, first != last else { return }
+            shape = .polyline([first, last], closed: false)
+        } else {
+            guard let recognized = ShapeRecognizer.recognize(points) else { return }
+            shape = recognized
+        }
+        var snapped = drawing
+        snapped.strokes[snapped.strokes.count - 1] = ShapeRecognizer.stroke(for: shape, replacing: original)
+        host.canvas.drawing = snapped
+        host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
+            canvas.drawing = drawing
+        }
+        contentDidChange()
     }
 
     // MARK: Pages

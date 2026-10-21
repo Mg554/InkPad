@@ -51,6 +51,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 }
                 .accessibilityLabel("Insert")
                 toggleButton("Ruler", systemImage: "ruler", isOn: $canvas.isRulerActive)
+                toggleButton("Hold to Snap Shapes", systemImage: "skew", isOn: $palette.snapsShapes)
                 toggleButton(
                     "Draw with Finger",
                     systemImage: pencilOnly ? "hand.raised.slash" : "hand.draw",
@@ -92,7 +93,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     private var optionsRow: some View {
         let style = palette.style(for: palette.tool)
         switch palette.tool {
-        case .quill, .fountainPen, .pen, .monoline, .pencil, .crayon, .watercolor, .highlighter:
+        case .quill, .fountainPen, .pen, .monoline, .pencil, .crayon, .watercolor, .marker, .highlighter:
             HStack(spacing: 8) {
                 ForEach(style.colors, id: \.self) { color in
                     colorSwatch(color, isSelected: color == style.selectedColor) {
@@ -192,18 +193,32 @@ struct DrawingToolbar<InsertMenu: View>: View {
             palette.select(tool)
             canvas.applyTool()
         } label: {
-            VStack(spacing: 3) {
-                Image(systemName: tool.systemImage)
-                    .font(.title3)
-                    .symbolVariant(isSelected ? .fill : .none)
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                Capsule()
-                    .fill(tipColor)
-                    .frame(width: 18, height: 4)
+            Group {
+                if tool.isInking {
+                    // Realistic pens that rise when picked, like Apple Notes,
+                    // with Notability's underline for the selected tool.
+                    VStack(spacing: 2) {
+                        PenIcon(tool: tool, color: tipColor)
+                            .frame(width: 22, height: 38)
+                            .offset(y: isSelected ? -4 : 2)
+                        Capsule()
+                            .fill(isSelected ? Color.accentColor : Color.clear)
+                            .frame(width: 18, height: 3)
+                    }
+                    .clipped()
+                } else {
+                    VStack(spacing: 3) {
+                        Image(systemName: tool.systemImage)
+                            .font(.title3)
+                            .symbolVariant(isSelected ? .fill : .none)
+                            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                        Capsule()
+                            .fill(isSelected ? Color.accentColor : Color.clear)
+                            .frame(width: 18, height: 3)
+                    }
+                }
             }
-            .frame(width: 36, height: 40)
-            // The picked pen rises, like Apple Notes.
-            .offset(y: isSelected ? -3 : 0)
+            .frame(width: 34, height: 44)
         }
         .accessibilityLabel(tool.title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -237,23 +252,67 @@ struct DrawingToolbar<InsertMenu: View>: View {
         }
     }
 
+    /// Notability-style stepped width picker with a live preview stroke.
     private var widthSlider: some View {
-        let range = palette.tool.widthRange
-        let width = Binding<Double>(
-            get: { Double(palette.style(for: palette.tool).selectedWidth(for: palette.tool)) },
-            set: {
-                palette.setSelectedWidth(CGFloat($0))
-                canvas.applyTool()
+        let tool = palette.tool
+        let style = palette.style(for: tool)
+        let range = tool.widthRange
+        let steps = 13
+        let current = style.selectedWidth(for: tool)
+        let stepValue = { (step: Int) -> CGFloat in
+            range.lowerBound + (range.upperBound - range.lowerBound) * CGFloat(step) / CGFloat(steps - 1)
+        }
+        let selectedStep = (0..<steps).min { abs(stepValue($0) - current) < abs(stepValue($1) - current) } ?? 0
+        let previewColor = tool.isInking ? style.selectedColor.color : Color.secondary
+
+        return VStack(spacing: 14) {
+            // Preview of the stroke at the chosen width.
+            Canvas { context, size in
+                var wave = Path()
+                wave.move(to: CGPoint(x: 12, y: size.height / 2))
+                wave.addCurve(
+                    to: CGPoint(x: size.width - 12, y: size.height / 2),
+                    control1: CGPoint(x: size.width * 0.35, y: -size.height * 0.2),
+                    control2: CGPoint(x: size.width * 0.65, y: size.height * 1.2)
+                )
+                let opacity = tool == .highlighter ? DrawingTool.highlighterOpacity : 1
+                context.stroke(
+                    wave,
+                    with: .color(previewColor.opacity(opacity)),
+                    style: StrokeStyle(lineWidth: min(current, size.height - 4), lineCap: .round)
+                )
             }
-        )
-        return HStack(spacing: 12) {
-            Slider(value: width, in: Double(range.lowerBound)...Double(range.upperBound), step: 0.5)
-            Text(width.wrappedValue, format: .number.precision(.fractionLength(1)))
-                .font(.callout.monospacedDigit())
-                .frame(width: 44)
+            .frame(height: 44)
+
+            HStack(spacing: 4) {
+                ForEach(0..<steps, id: \.self) { step in
+                    Button {
+                        palette.setSelectedWidth(stepValue(step))
+                        canvas.applyTool()
+                    } label: {
+                        ZStack {
+                            Capsule()
+                                .fill(step <= selectedStep ? Color.accentColor : Color.secondary.opacity(0.3))
+                                .frame(height: 6 + CGFloat(step))
+                            if step == selectedStep {
+                                Text("\(step + 1)")
+                                    .font(.caption.bold())
+                                    .frame(width: 26, height: 26)
+                                    .background(.background, in: Circle())
+                                    .shadow(radius: 1)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Text(current, format: .number.precision(.fractionLength(1)))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
         }
         .padding()
-        .frame(width: 320)
+        .frame(width: 340)
     }
 
     private func colorSwatch(_ color: InkColor, isSelected: Bool, size: CGFloat = 26, action: @escaping () -> Void) -> some View {
