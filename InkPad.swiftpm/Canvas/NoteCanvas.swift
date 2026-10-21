@@ -1,12 +1,11 @@
 import PencilKit
 import SwiftUI
 
-/// SwiftUI wrapper around `InkCanvasView`.
+/// SwiftUI wrapper around `NoteCanvasHostView`.
 struct NoteCanvas: UIViewRepresentable {
     /// Only read when the canvas is created; afterwards the canvas owns the drawing.
     let initialDrawing: PKDrawing
-    let template: PageTemplate
-    let pageCount: Int
+    let background: NoteBackground
     let pencilOnly: Bool
     let controller: CanvasController
     let onDrawingChange: (PKDrawing) -> Void
@@ -15,29 +14,31 @@ struct NoteCanvas: UIViewRepresentable {
         Coordinator(controller: controller, onDrawingChange: onDrawingChange)
     }
 
-    func makeUIView(context: Context) -> InkCanvasView {
-        let canvas = InkCanvasView()
-        canvas.drawing = initialDrawing
+    func makeUIView(context: Context) -> NoteCanvasHostView {
+        let host = NoteCanvasHostView()
+        host.canvas.drawing = initialDrawing
         // Set the delegate after loading so the initial drawing is not reported as an edit.
-        canvas.delegate = context.coordinator
-        controller.attach(canvas)
-        return canvas
+        host.canvas.delegate = context.coordinator
+        context.coordinator.host = host
+        controller.attach(host.canvas)
+        return host
     }
 
-    func updateUIView(_ canvas: InkCanvasView, context: Context) {
+    func updateUIView(_ host: NoteCanvasHostView, context: Context) {
         context.coordinator.onDrawingChange = onDrawingChange
-        canvas.drawingPolicy = pencilOnly ? .pencilOnly : .anyInput
-        canvas.configure(template: template, pageCount: pageCount)
+        host.canvas.drawingPolicy = pencilOnly ? .pencilOnly : .anyInput
+        host.configure(background)
     }
 
-    static func dismantleUIView(_ canvas: InkCanvasView, coordinator: Coordinator) {
-        canvas.delegate = nil
-        coordinator.controller.detach(canvas)
+    static func dismantleUIView(_ host: NoteCanvasHostView, coordinator: Coordinator) {
+        host.canvas.delegate = nil
+        coordinator.controller.detach(host.canvas)
     }
 
     final class Coordinator: NSObject, PKCanvasViewDelegate {
         let controller: CanvasController
         var onDrawingChange: (PKDrawing) -> Void
+        weak var host: NoteCanvasHostView?
 
         init(controller: CanvasController, onDrawingChange: @escaping (PKDrawing) -> Void) {
             self.controller = controller
@@ -49,8 +50,12 @@ struct NoteCanvas: UIViewRepresentable {
             controller.refreshUndoState()
         }
 
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            host?.updateScrollPosition()
+        }
+
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
-            (scrollView as? InkCanvasView)?.updateContentSize()
+            host?.updateZoomGeometry()
         }
     }
 }

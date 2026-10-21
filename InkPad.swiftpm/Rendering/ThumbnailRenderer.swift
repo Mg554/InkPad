@@ -7,8 +7,8 @@ enum ThumbnailRenderer {
     static let scale: CGFloat = 0.3
 
     static func pngData(for content: NoteContent) -> Data? {
-        let pageRect = PageLayout.pageRect(at: 0)
-        let pageBounds = CGRect(origin: .zero, size: pageRect.size)
+        let background = content.makeBackground()
+        guard let pageRect = background.layout.pageRects.first else { return nil }
 
         // Render ink with light-mode colors so it matches the white paper.
         var ink = UIImage()
@@ -21,8 +21,9 @@ enum ThumbnailRenderer {
         let size = CGSize(width: pageRect.width * scale, height: pageRect.height * scale)
         let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
             context.cgContext.scaleBy(x: scale, y: scale)
-            TemplateRenderer.drawPage(content.metadata.template, in: pageBounds, context: context.cgContext)
-            ink.draw(in: pageBounds)
+            context.cgContext.translateBy(x: -pageRect.minX, y: -pageRect.minY)
+            background.drawPage(at: 0, in: context.cgContext)
+            ink.draw(in: pageRect)
         }
         return image.pngData()
     }

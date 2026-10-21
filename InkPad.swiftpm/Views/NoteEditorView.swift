@@ -8,6 +8,9 @@ struct NoteEditorView: View {
 
     @StateObject private var canvas = CanvasController()
     @State private var content: NoteContent?
+    /// Derived from `content`; rebuilt only when pages or paper change.
+    @State private var background: NoteBackground?
+    @State private var exportedFile: ExportedFile?
     @State private var loadError: String?
     @State private var isDirty = false
     @State private var saveTask: Task<Void, Never>?
@@ -16,11 +19,10 @@ struct NoteEditorView: View {
 
     var body: some View {
         Group {
-            if let content {
+            if let content, let background {
                 NoteCanvas(
                     initialDrawing: content.drawing,
-                    template: content.metadata.template,
-                    pageCount: content.metadata.pageCount,
+                    background: background,
                     pencilOnly: pencilOnly,
                     controller: canvas,
                     onDrawingChange: drawingChanged
@@ -40,6 +42,9 @@ struct NoteEditorView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
         .namePrompt($prompt)
+        .sheet(item: $exportedFile) { file in
+            ShareSheet(items: [file.url])
+        }
         .task { load() }
         .onDisappear { saveNow() }
         .onChange(of: scenePhase) {
@@ -92,6 +97,12 @@ struct NoteEditorView: View {
                 }
 
                 Button {
+                    exportPDF()
+                } label: {
+                    Label("Export PDF", systemImage: "square.and.arrow.up")
+                }
+
+                Button {
                     prompt = NamePrompt(
                         title: "Rename Note",
                         initialText: store.note(noteID)?.title ?? "",
@@ -113,7 +124,7 @@ struct NoteEditorView: View {
             set: { template in
                 guard content?.metadata.template != template else { return }
                 content?.metadata.template = template
-                markDirty()
+                pagesChanged()
             }
         )
     }
@@ -122,6 +133,7 @@ struct NoteEditorView: View {
         guard content == nil, loadError == nil else { return }
         do {
             content = try store.loadContent(for: noteID)
+            background = content?.makeBackground()
         } catch {
             loadError = error.localizedDescription
         }
@@ -134,7 +146,23 @@ struct NoteEditorView: View {
 
     private func addPage() {
         content?.metadata.pageCount += 1
+        pagesChanged()
+    }
+
+    private func pagesChanged() {
+        background = content?.makeBackground()
         markDirty()
+    }
+
+    private func exportPDF() {
+        guard let content else { return }
+        saveNow()
+        do {
+            let url = try PDFExporter.export(content, title: store.note(noteID)?.title ?? "Note")
+            exportedFile = ExportedFile(url: url)
+        } catch {
+            store.errorMessage = "Could not export the PDF: \(error.localizedDescription)"
+        }
     }
 
     /// Saves shortly after the last change so fast writing is not slowed by disk I/O.

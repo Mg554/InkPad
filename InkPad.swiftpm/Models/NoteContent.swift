@@ -30,16 +30,22 @@ enum PageTemplate: String, Codable, CaseIterable, Identifiable {
 
 /// Per-note settings stored next to the drawing (`note.json`).
 struct NoteMetadata: Codable, Equatable {
-    static let currentVersion = 1
+    /// Version 2 added `pdfFile`. Version 1 files still decode unchanged.
+    static let currentVersion = 2
 
     var version: Int
+    /// Paper for pages that are not PDF pages.
     var template: PageTemplate
+    /// Number of template pages. In a PDF note they follow the PDF's pages.
     var pageCount: Int
+    /// File name of the imported PDF inside the note's folder, if any.
+    var pdfFile: String?
 
-    init(template: PageTemplate, pageCount: Int = 1) {
+    init(template: PageTemplate, pageCount: Int = 1, pdfFile: String? = nil) {
         self.version = Self.currentVersion
         self.template = template
         self.pageCount = pageCount
+        self.pdfFile = pdfFile
     }
 }
 
@@ -47,4 +53,10 @@ struct NoteMetadata: Codable, Equatable {
 struct NoteContent {
     var metadata: NoteMetadata
     var drawing: PKDrawing
+    /// The opened PDF named by `metadata.pdfFile`.
+    let pdf: PDFBackground?
+
+    func makeBackground() -> NoteBackground {
+        NoteBackground(template: metadata.template, templatePageCount: metadata.pageCount, pdf: pdf)
+    }
 }

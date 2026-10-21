@@ -5,7 +5,7 @@ A free, private, Notability-style note-taking app for iPad, built as a
 
 ## Status
 
-Phase 1 (this version):
+Done:
 
 - Folders and notes library (create, rename, move, delete, title search)
 - Handwriting canvas with Apple Pencil (PencilKit tool palette: pens,
@@ -14,11 +14,15 @@ Phase 1 (this version):
 - Pinch-to-zoom, stacked pages, Add Page
 - Page templates: blank, lined, grid, dotted
 - Undo / redo, autosave, first-page thumbnails
+- PDF import from Files, handwriting and highlighting on PDF pages, extra
+  blank/lined/grid/dotted pages after the PDF
+- Export any note as a PDF (Save to Files, AirDrop, Mail, ...)
 
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 
-> This code was written without access to Apple's iOS SDK, so it has not been
-> compiled yet. Please report any Swift Playgrounds error messages exactly.
+> This code is written without access to Apple's iOS SDK, so each change is
+> first compiled on the iPad. Please report any Swift Playgrounds error
+> messages exactly.
 
 ## Run it on your iPad
 
@@ -55,6 +59,7 @@ Stored under the app's `Documents/InkPad/`:
 - `library.json` — folders and note summaries
 - `notes/<id>/note.json` — page template and page count
 - `notes/<id>/drawing.data` — PencilKit drawing
+- `notes/<id>/document.pdf` — imported PDF (copied, never modified)
 - `notes/<id>/thumbnail.png` — preview (regenerated on save)
 
 If `library.json` cannot be read, InkPad opens read-only instead of

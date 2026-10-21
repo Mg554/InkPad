@@ -5,6 +5,7 @@ import UIKit
 enum StoreError: LocalizedError {
     case newerFormat(file: String, version: Int)
     case noteNotFound
+    case invalidPDFReference(String)
 
     var errorDescription: String? {
         switch self {
@@ -12,6 +13,8 @@ enum StoreError: LocalizedError {
             "\(file) was written by a newer version of InkPad (format \(version))."
         case .noteNotFound:
             "This note no longer exists."
+        case let .invalidPDFReference(name):
+            "note.json refers to an invalid PDF file name (\(name))."
         }
     }
 }
@@ -22,6 +25,7 @@ enum StoreError: LocalizedError {
 /// - `library.json`: folders and note summaries
 /// - `notes/<id>/note.json`: per-note metadata
 /// - `notes/<id>/drawing.data`: PencilKit drawing
+/// - `notes/<id>/document.pdf`: imported PDF (PDF notes only, never modified)
 /// - `notes/<id>/thumbnail.png`: first-page preview (derived, safe to lose)
 @MainActor
 final class LibraryStore: ObservableObject {
@@ -35,6 +39,7 @@ final class LibraryStore: ObservableObject {
     private static let metadataFile = "note.json"
     private static let drawingFile = "drawing.data"
     private static let thumbnailFile = "thumbnail.png"
+    private static let pdfFile = "document.pdf"
 
     private let rootURL: URL
     private let fileManager = FileManager.default
@@ -104,24 +109,42 @@ final class LibraryStore: ObservableObject {
     func createNote(in folderID: UUID?, template: PageTemplate) -> NoteSummary? {
         guard canWrite() else { return nil }
         let now = Date()
-        let summary = NoteSummary(
-            id: UUID(),
-            title: "Note \(now.formatted(date: .abbreviated, time: .shortened))",
-            folderID: folderID,
-            createdAt: now,
-            modifiedAt: now
-        )
-        let content = NoteContent(metadata: NoteMetadata(template: template), drawing: PKDrawing())
+        let id = UUID()
+        let content = NoteContent(metadata: NoteMetadata(template: template), drawing: PKDrawing(), pdf: nil)
         do {
-            try writeContent(content, for: summary.id)
+            try writeContent(content, for: id)
         } catch {
-            try? fileManager.removeItem(at: noteDirectory(summary.id))
+            try? fileManager.removeItem(at: noteDirectory(id))
             errorMessage = "Could not create the note: \(error.localizedDescription)"
             return nil
         }
-        notes.append(summary)
-        saveIndex()
-        return summary
+        return addNote(id: id, title: "Note \(now.formatted(date: .abbreviated, time: .shortened))", folderID: folderID)
+    }
+
+    /// Copies the PDF into a new note; the original file is left untouched.
+    func importPDF(from sourceURL: URL, into folderID: UUID?) -> NoteSummary? {
+        guard canWrite() else { return nil }
+        let id = UUID()
+        let directory = noteDirectory(id)
+        do {
+            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+            let pdfURL = directory.appendingPathComponent(Self.pdfFile)
+            let isScoped = sourceURL.startAccessingSecurityScopedResource()
+            defer { if isScoped { sourceURL.stopAccessingSecurityScopedResource() } }
+            try fileManager.copyItem(at: sourceURL, to: pdfURL)
+            let content = NoteContent(
+                metadata: NoteMetadata(template: .blank, pageCount: 0, pdfFile: Self.pdfFile),
+                drawing: PKDrawing(),
+                pdf: try PDFBackground(url: pdfURL)
+            )
+            try writeContent(content, for: id)
+        } catch {
+            try? fileManager.removeItem(at: directory)
+            errorMessage = "Could not import the PDF: \(error.localizedDescription)"
+            return nil
+        }
+        let title = sourceURL.deletingPathExtension().lastPathComponent
+        return addNote(id: id, title: cleaned(title, fallback: "Imported PDF"), folderID: folderID)
     }
 
     func renameNote(_ id: UUID, to title: String) {
@@ -161,7 +184,15 @@ final class LibraryStore: ObservableObject {
             throw StoreError.newerFormat(file: Self.metadataFile, version: metadata.version)
         }
         let drawingData = try Data(contentsOf: directory.appendingPathComponent(Self.drawingFile))
-        return NoteContent(metadata: metadata, drawing: try PKDrawing(data: drawingData))
+        var pdf: PDFBackground?
+        if let pdfFile = metadata.pdfFile {
+            // Only a plain file name inside the note's own folder is accepted.
+            guard !pdfFile.isEmpty, (pdfFile as NSString).lastPathComponent == pdfFile, pdfFile != ".." else {
+                throw StoreError.invalidPDFReference(pdfFile)
+            }
+            pdf = try PDFBackground(url: directory.appendingPathComponent(pdfFile))
+        }
+        return NoteContent(metadata: metadata, drawing: try PKDrawing(data: drawingData), pdf: pdf)
     }
 
     /// Returns `false` when nothing was written, so the caller keeps its unsaved changes.
@@ -185,6 +216,14 @@ final class LibraryStore: ObservableObject {
         rootURL
             .appendingPathComponent("notes", isDirectory: true)
             .appendingPathComponent(id.uuidString, isDirectory: true)
+    }
+
+    private func addNote(id: UUID, title: String, folderID: UUID?) -> NoteSummary {
+        let now = Date()
+        let summary = NoteSummary(id: id, title: title, folderID: folderID, createdAt: now, modifiedAt: now)
+        notes.append(summary)
+        saveIndex()
+        return summary
     }
 
     private func writeContent(_ content: NoteContent, for id: UUID) throws {

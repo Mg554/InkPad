@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct NotesGridView: View {
     @EnvironmentObject private var store: LibraryStore
@@ -8,6 +9,7 @@ struct NotesGridView: View {
     @State private var searchText = ""
     @State private var prompt: NamePrompt?
     @State private var noteToDelete: NoteSummary?
+    @State private var isImportingPDF = false
 
     private var visibleNotes: [NoteSummary] {
         let notes = store.notes(in: scope)
@@ -70,6 +72,23 @@ struct NotesGridView: View {
                 } label: {
                     Label("New Note", systemImage: "square.and.pencil")
                 }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isImportingPDF = true
+                } label: {
+                    Label("Import PDF", systemImage: "doc.badge.arrow.up")
+                }
+            }
+        }
+        .fileImporter(isPresented: $isImportingPDF, allowedContentTypes: [.pdf]) { result in
+            switch result {
+            case let .success(url):
+                if let note = store.importPDF(from: url, into: targetFolderID) {
+                    openNote(note.id)
+                }
+            case let .failure(error):
+                store.errorMessage = "Could not open the file: \(error.localizedDescription)"
             }
         }
         .namePrompt($prompt)

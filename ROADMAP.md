@@ -1,8 +1,7 @@
 # Roadmap
 
-1. **Library + handwriting canvas** — done (needs on-device testing)
-2. **PDF** — import from Files, annotate with PencilKit over PDFKit pages,
-   export a flattened PDF via the share sheet
+1. **Library + handwriting canvas** — done
+2. **PDF** — import, annotate, export — done (needs on-device testing)
 3. **Text boxes** — movable, resizable boxes with bold/italic/underline,
    size, color and lists
 4. **Audio recording synced to ink** — record while writing; playback

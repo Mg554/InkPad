@@ -1,25 +1,27 @@
 import CoreGraphics
 
-/// Page geometry in canvas points. Pages are A4-proportioned and stacked
-/// vertically; the canvas is zoomed so a page fits the screen width.
-enum PageLayout {
-    static let pageSize = CGSize(width: 768, height: 1086)
+/// Page geometry in canvas points. Every page is `pageWidth` wide and pages
+/// are stacked vertically; the canvas is zoomed so a page fits the screen width.
+struct PageLayout: Equatable {
+    static let pageWidth: CGFloat = 768
+    /// Template paper is A4-proportioned.
+    static let templatePageSize = CGSize(width: pageWidth, height: 1086)
     static let pageGap: CGFloat = 24
 
-    static func pageRect(at index: Int) -> CGRect {
-        CGRect(
-            x: 0,
-            y: CGFloat(index) * (pageSize.height + pageGap),
-            width: pageSize.width,
-            height: pageSize.height
-        )
-    }
+    let pageRects: [CGRect]
+    let contentSize: CGSize
 
-    static func contentSize(pageCount: Int) -> CGSize {
-        let count = CGFloat(max(pageCount, 1))
-        return CGSize(
-            width: pageSize.width,
-            height: count * pageSize.height + (count - 1) * pageGap
+    init(pageSizes: [CGSize]) {
+        var rects: [CGRect] = []
+        var y: CGFloat = 0
+        for size in pageSizes {
+            rects.append(CGRect(origin: CGPoint(x: 0, y: y), size: size))
+            y += size.height + Self.pageGap
+        }
+        pageRects = rects
+        contentSize = CGSize(
+            width: Self.pageWidth,
+            height: max(y - Self.pageGap, Self.templatePageSize.height)
         )
     }
 }

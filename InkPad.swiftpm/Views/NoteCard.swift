@@ -15,7 +15,7 @@ struct NoteCard: View {
                         .scaledToFit()
                 }
             }
-            .aspectRatio(PageLayout.pageSize.width / PageLayout.pageSize.height, contentMode: .fit)
+            .aspectRatio(PageLayout.templatePageSize.width / PageLayout.templatePageSize.height, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
             .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
