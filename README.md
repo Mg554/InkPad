@@ -9,11 +9,17 @@ Done:
 
 - Library: nested folders with colors, notes grid with thumbnails, title
   search, quick actions (New Note, Import a File, Find a Template)
-- Floating toolbar combining Notability and Apple Notes: quill, fountain
-  pen, pen, monoline, pencil, crayon, watercolor, highlighter, eraser
-  (pixel or whole stroke), text, lasso, insert
-  menu, ruler, finger drawing; per-tool colors plus custom colors, three
-  widths per tool with a fine-tuning slider; collapses to a small pill
+- Floating toolbar combining Notability and Apple Notes: realistic pens
+  (quill, fountain pen, pen, monoline, pencil, crayon, watercolor, marker,
+  highlighter), eraser (pixel or whole stroke), text, lasso, insert menu,
+  ruler, finger drawing; per-tool colors plus custom colors, three widths
+  per tool with a 13-step width picker and preview; collapses to a pill
+- Notability-style highlighter: even, see-through, pressure-independent
+- Hold to snap: pause at the end of a stroke before lifting to turn it into
+  a straight line, circle, ellipse, triangle, rectangle or polygon
+- Workspace (Notion-style): Planner with Board (drag between columns),
+  List and Calendar views; Expenses with income, monthly budget, category
+  chart and currency
 - Apple Pencil double-tap switches to the eraser and back
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
   strikethrough, size, color, bulleted lists; move and resize
