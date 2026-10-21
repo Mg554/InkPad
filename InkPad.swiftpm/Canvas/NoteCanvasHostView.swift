@@ -66,7 +66,7 @@ final class NoteCanvasHostView: UIView {
     @objc private func handleTextTap(_ gesture: UITapGestureRecognizer) {
         if elementLayer.selected != nil {
             elementLayer.endEditing(true)
-            elementLayer.select(nil)
+            elementLayer.selectElement(nil)
             return
         }
         let point = gesture.location(in: elementLayer)

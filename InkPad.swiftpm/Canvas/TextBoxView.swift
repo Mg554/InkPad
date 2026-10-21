@@ -23,8 +23,8 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
         textView.delegate = self
         addSubview(textView)
 
-        moveHandle = makeHandle(systemImage: "arrow.up.and.down.and.arrow.left.and.right", action: #selector(move(_:)))
-        resizeHandle = makeHandle(systemImage: "arrow.left.and.right", action: #selector(resize(_:)))
+        moveHandle = makeHandle(systemImage: "arrow.up.and.down.and.arrow.left.and.right", action: #selector(handleMove(_:)))
+        resizeHandle = makeHandle(systemImage: "arrow.left.and.right", action: #selector(handleResize(_:)))
         fitHeight()
     }
 
@@ -71,13 +71,13 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
 
     // MARK: Gestures
 
-    @objc private func move(_ gesture: UIPanGestureRecognizer) {
+    @objc private func handleMove(_ gesture: UIPanGestureRecognizer) {
         let translation = takeTranslation(gesture)
         center = CGPoint(x: center.x + translation.x, y: center.y + translation.y)
         if gesture.state == .ended { layerView?.elementsDidChange() }
     }
 
-    @objc private func resize(_ gesture: UIPanGestureRecognizer) {
+    @objc private func handleResize(_ gesture: UIPanGestureRecognizer) {
         let translation = takeTranslation(gesture)
         frame.size.width = max(TextBoxStyle.minimumWidth, frame.width + translation.x)
         fitHeight()
@@ -87,7 +87,7 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     // MARK: UITextViewDelegate
 
     func textViewDidBeginEditing(_ textView: UITextView) {
-        layerView?.select(self)
+        layerView?.selectElement(self)
     }
 
     func textViewDidChange(_ textView: UITextView) {
@@ -123,9 +123,9 @@ final class ImageElementView: PageElementView {
         imageView.image = image ?? UIImage(systemName: "photo")
         imageView.tintColor = .secondaryLabel
         addSubview(imageView)
-        addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(move(_:))))
-        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tap)))
-        resizeHandle = makeHandle(systemImage: "arrow.up.left.and.arrow.down.right", action: #selector(resize(_:)))
+        addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(handleMove(_:))))
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+        resizeHandle = makeHandle(systemImage: "arrow.up.left.and.arrow.down.right", action: #selector(handleResize(_:)))
     }
 
     required init?(coder: NSCoder) {
@@ -153,22 +153,22 @@ final class ImageElementView: PageElementView {
         PageElement(id: id, frame: frame, content: .image(file: file))
     }
 
-    @objc private func tap() {
+    @objc private func handleTap() {
         layerView?.endEditing(true)
-        layerView?.select(self)
+        layerView?.selectElement(self)
     }
 
-    @objc private func move(_ gesture: UIPanGestureRecognizer) {
+    @objc private func handleMove(_ gesture: UIPanGestureRecognizer) {
         if gesture.state == .began {
             layerView?.endEditing(true)
-            layerView?.select(self)
+            layerView?.selectElement(self)
         }
         let translation = takeTranslation(gesture)
         center = CGPoint(x: center.x + translation.x, y: center.y + translation.y)
         if gesture.state == .ended { layerView?.elementsDidChange() }
     }
 
-    @objc private func resize(_ gesture: UIPanGestureRecognizer) {
+    @objc private func handleResize(_ gesture: UIPanGestureRecognizer) {
         let translation = takeTranslation(gesture)
         let aspect = frame.height / max(frame.width, 1)
         let width = max(40, frame.width + translation.x)

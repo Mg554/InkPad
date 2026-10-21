@@ -19,7 +19,7 @@ final class ElementLayerView: UIView {
             guard isInteractive != oldValue else { return }
             if !isInteractive {
                 endEditing(true)
-                select(nil)
+                selectElement(nil)
             }
         }
     }
@@ -83,7 +83,7 @@ final class ElementLayerView: UIView {
         let frame = CGRect(x: center.x - width / 2, y: center.y - height / 2, width: width, height: height)
         let view = ImageElementView(id: UUID(), frame: frame, file: file, image: image)
         add(view)
-        select(view)
+        selectElement(view)
         elementsDidChange()
     }
 
@@ -95,7 +95,7 @@ final class ElementLayerView: UIView {
 
     // MARK: Selection and editing
 
-    func select(_ view: PageElementView?) {
+    func selectElement(_ view: PageElementView?) {
         guard view !== selected else { return }
         selected?.isSelected = false
         selected = view
@@ -113,7 +113,7 @@ final class ElementLayerView: UIView {
 
     func remove(_ view: PageElementView) {
         if view === selected {
-            select(nil)
+            selectElement(nil)
         }
         view.removeFromSuperview()
         elementsDidChange()
