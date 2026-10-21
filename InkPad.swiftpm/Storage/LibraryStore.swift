@@ -6,6 +6,7 @@ enum StoreError: LocalizedError {
     case newerFormat(file: String, version: Int)
     case noteNotFound
     case invalidPDFReference(String)
+    case unreadableImage
 
     var errorDescription: String? {
         switch self {
@@ -15,6 +16,8 @@ enum StoreError: LocalizedError {
             "This note no longer exists."
         case let .invalidPDFReference(name):
             "note.json refers to an invalid PDF file name (\(name))."
+        case .unreadableImage:
+            "The image could not be read."
         }
     }
 }
@@ -26,6 +29,7 @@ enum StoreError: LocalizedError {
 /// - `notes/<id>/note.json`: per-note metadata
 /// - `notes/<id>/drawing.data`: PencilKit drawing
 /// - `notes/<id>/document.pdf`: imported PDF (PDF notes only, never modified)
+/// - `notes/<id>/images/<name>.jpg`: images placed on the pages
 /// - `notes/<id>/thumbnail.png`: first-page preview (derived, safe to lose)
 @MainActor
 final class LibraryStore: ObservableObject {
@@ -36,13 +40,15 @@ final class LibraryStore: ObservableObject {
     /// refused so the unreadable data is never overwritten.
     @Published private(set) var isReadOnly = false
 
-    private static let metadataFile = "note.json"
-    private static let drawingFile = "drawing.data"
-    private static let thumbnailFile = "thumbnail.png"
-    private static let pdfFile = "document.pdf"
+    private nonisolated static let metadataFile = "note.json"
+    private nonisolated static let drawingFile = "drawing.data"
+    private nonisolated static let thumbnailFile = "thumbnail.png"
+    private nonisolated static let pdfFile = "document.pdf"
 
     private let rootURL: URL
     private let fileManager = FileManager.default
+    /// Note files are written here, off the main thread, one save at a time.
+    private let writeQueue = DispatchQueue(label: "InkPad.noteWrites", qos: .userInitiated)
 
     private var indexURL: URL { rootURL.appendingPathComponent("library.json") }
 
@@ -144,13 +150,20 @@ final class LibraryStore: ObservableObject {
 
     // MARK: Notes
 
-    func createNote(in folderID: UUID?, template: PageTemplate) -> NoteSummary? {
+    func createNote(in folderID: UUID?, template: PageTemplate, paper: PaperColor = .white) -> NoteSummary? {
         guard canWrite() else { return nil }
         let now = Date()
         let id = UUID()
-        let content = NoteContent(metadata: NoteMetadata(template: template), drawing: PKDrawing(), pdf: nil)
+        var metadata = NoteMetadata(template: template)
+        metadata.paperColor = paper == .white ? nil : paper
+        let content = NoteContent(
+            metadata: metadata,
+            drawing: PKDrawing(),
+            pdf: nil,
+            directory: noteDirectory(id)
+        )
         do {
-            try writeContent(content, for: id)
+            try Self.write(content, thumbnail: true)
         } catch {
             try? fileManager.removeItem(at: noteDirectory(id))
             errorMessage = "Could not create the note: \(error.localizedDescription)"
@@ -173,9 +186,10 @@ final class LibraryStore: ObservableObject {
             let content = NoteContent(
                 metadata: NoteMetadata(template: .blank, pageCount: 0, pdfFile: Self.pdfFile),
                 drawing: PKDrawing(),
-                pdf: try PDFBackground(url: pdfURL)
+                pdf: try PDFBackground(url: pdfURL),
+                directory: directory
             )
-            try writeContent(content, for: id)
+            try Self.write(content, thumbnail: true)
         } catch {
             try? fileManager.removeItem(at: directory)
             errorMessage = "Could not import the PDF: \(error.localizedDescription)"
@@ -225,27 +239,55 @@ final class LibraryStore: ObservableObject {
         var pdf: PDFBackground?
         if let pdfFile = metadata.pdfFile {
             // Only a plain file name inside the note's own folder is accepted.
-            guard !pdfFile.isEmpty, (pdfFile as NSString).lastPathComponent == pdfFile, pdfFile != ".." else {
-                throw StoreError.invalidPDFReference(pdfFile)
-            }
+            guard isPlainFileName(pdfFile) else { throw StoreError.invalidPDFReference(pdfFile) }
             pdf = try PDFBackground(url: directory.appendingPathComponent(pdfFile))
         }
-        return NoteContent(metadata: metadata, drawing: try PKDrawing(data: drawingData), pdf: pdf)
+        return NoteContent(
+            metadata: metadata,
+            drawing: try PKDrawing(data: drawingData),
+            pdf: pdf,
+            directory: directory
+        )
     }
 
-    /// Returns `false` when nothing was written, so the caller keeps its unsaved changes.
-    @discardableResult
-    func saveContent(_ content: NoteContent, for id: UUID) -> Bool {
-        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return false }
-        do {
-            try writeContent(content, for: id)
-        } catch {
+    /// Writes the note off the main thread. Returns `false` when nothing was
+    /// written, so the caller keeps its unsaved changes.
+    func saveContent(_ content: NoteContent, for id: UUID, thumbnail: Bool) async -> Bool {
+        guard canWrite(), note(id) != nil else { return false }
+        let result: Result<Void, Error> = await withCheckedContinuation { continuation in
+            writeQueue.async {
+                continuation.resume(returning: Result { try Self.write(content, thumbnail: thumbnail) })
+            }
+        }
+        switch result {
+        case .success:
+            if let index = notes.firstIndex(where: { $0.id == id }) {
+                notes[index].modifiedAt = Date()
+                saveIndex()
+            }
+            return true
+        case let .failure(error):
             errorMessage = "Could not save the note: \(error.localizedDescription)"
             return false
         }
-        notes[index].modifiedAt = Date()
-        saveIndex()
-        return true
+    }
+
+    /// Stores an image for placing on a page. Returns its file name and pixel size.
+    func addImage(_ data: Data, to id: UUID) async -> (file: String, size: CGSize)? {
+        guard canWrite(), note(id) != nil else { return nil }
+        let directory = noteDirectory(id).appendingPathComponent("images", isDirectory: true)
+        let result: Result<(String, CGSize), Error> = await withCheckedContinuation { continuation in
+            writeQueue.async {
+                continuation.resume(returning: Result { try Self.writeImage(data, to: directory) })
+            }
+        }
+        switch result {
+        case let .success((file, size)):
+            return (file, size)
+        case let .failure(error):
+            errorMessage = "Could not add the image: \(error.localizedDescription)"
+            return nil
+        }
     }
 
     // MARK: Persistence
@@ -264,17 +306,36 @@ final class LibraryStore: ObservableObject {
         return summary
     }
 
-    private func writeContent(_ content: NoteContent, for id: UUID) throws {
-        let directory = noteDirectory(id)
-        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+    private nonisolated static func write(_ content: NoteContent, thumbnail: Bool) throws {
+        let directory = content.directory
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try content.drawing.dataRepresentation()
-            .write(to: directory.appendingPathComponent(Self.drawingFile), options: .atomic)
+            .write(to: directory.appendingPathComponent(drawingFile), options: .atomic)
         try JSONEncoder.inkpad.encode(content.metadata)
-            .write(to: directory.appendingPathComponent(Self.metadataFile), options: .atomic)
+            .write(to: directory.appendingPathComponent(metadataFile), options: .atomic)
         // The thumbnail is derived data; failing to write it must not fail the save.
-        if let thumbnail = ThumbnailRenderer.pngData(for: content) {
-            try? thumbnail.write(to: directory.appendingPathComponent(Self.thumbnailFile), options: .atomic)
+        if thumbnail, let png = ThumbnailRenderer.pngData(for: content) {
+            try? png.write(to: directory.appendingPathComponent(thumbnailFile), options: .atomic)
         }
+    }
+
+    /// Downscales large photos so pages stay responsive; keeps the aspect ratio.
+    private nonisolated static func writeImage(_ data: Data, to directory: URL) throws -> (String, CGSize) {
+        guard let image = UIImage(data: data) else { throw StoreError.unreadableImage }
+        let maxSide: CGFloat = 2048
+        let pixelSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+        let factor = min(1, maxSide / max(pixelSize.width, pixelSize.height))
+        let size = CGSize(width: (pixelSize.width * factor).rounded(), height: (pixelSize.height * factor).rounded())
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        guard let jpeg = resized.jpegData(compressionQuality: 0.85) else { throw StoreError.unreadableImage }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let file = UUID().uuidString + ".jpg"
+        try jpeg.write(to: directory.appendingPathComponent(file), options: .atomic)
+        return (file, size)
     }
 
     private func loadIndex() {

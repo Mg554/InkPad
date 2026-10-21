@@ -10,6 +10,7 @@ struct NotesGridView: View {
     @State private var prompt: NamePrompt?
     @State private var noteToDelete: NoteSummary?
     @State private var isImportingPDF = false
+    @State private var isShowingTemplates = false
 
     private var visibleNotes: [NoteSummary] {
         let notes = store.notes(in: scope)
@@ -68,6 +69,11 @@ struct NotesGridView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     templateButtons
+                    Button {
+                        isShowingTemplates = true
+                    } label: {
+                        Label("More Templates…", systemImage: "doc.on.doc")
+                    }
                     Divider()
                     Button {
                         isImportingPDF = true
@@ -76,6 +82,13 @@ struct NotesGridView: View {
                     }
                 } label: {
                     Label("New", systemImage: "plus.circle.fill")
+                }
+            }
+        }
+        .sheet(isPresented: $isShowingTemplates) {
+            TemplateGallery(title: "New Note", applyTitle: "Create") { template, paper in
+                if let note = store.createNote(in: targetFolderID, template: template, paper: paper) {
+                    openNote(note.id)
                 }
             }
         }
@@ -144,18 +157,15 @@ struct NotesGridView: View {
             QuickActionCard(title: "Import a File", systemImage: "square.and.arrow.down", tint: .teal) {
                 isImportingPDF = true
             }
-            Menu {
-                templateButtons
-            } label: {
-                QuickActionLabel(title: "Templates", systemImage: "doc.on.doc", tint: .orange)
+            QuickActionCard(title: "Find a Template", systemImage: "doc.on.doc", tint: .orange) {
+                isShowingTemplates = true
             }
-            .buttonStyle(.plain)
         }
     }
 
     @ViewBuilder
     private var templateButtons: some View {
-        ForEach(PageTemplate.allCases) { template in
+        ForEach(PageTemplate.allCases.filter { $0.section == .basic }) { template in
             Button {
                 createNote(template)
             } label: {

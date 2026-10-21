@@ -7,11 +7,13 @@ struct NoteBackground: Equatable {
     static let templateExportSize = CGSize(width: 595.28, height: 841.89)
 
     let template: PageTemplate
+    let paper: PaperColor
     let pdf: PDFBackground?
     let layout: PageLayout
 
-    init(template: PageTemplate, templatePageCount: Int, pdf: PDFBackground?) {
+    init(template: PageTemplate, paper: PaperColor, templatePageCount: Int, pdf: PDFBackground?) {
         self.template = template
+        self.paper = paper
         self.pdf = pdf
         var sizes: [CGSize] = []
         for index in 0..<(pdf?.pageCount ?? 0) {
@@ -30,12 +32,16 @@ struct NoteBackground: Equatable {
         index < (pdf?.pageCount ?? 0)
     }
 
-    func drawPage(at index: Int, in context: CGContext) {
+    /// - Parameter includePaper: `false` draws template pages as plain white
+    ///   (PDF pages are always drawn).
+    func drawPage(at index: Int, in context: CGContext, includePaper: Bool = true) {
         let rect = layout.pageRects[index]
         if let pdf, isPDFPage(index) {
             pdf.draw(page: index, in: rect, context: context)
+        } else if includePaper {
+            TemplateRenderer.drawPage(template, paper: paper, in: rect, context: context)
         } else {
-            TemplateRenderer.drawPage(template, in: rect, context: context)
+            TemplateRenderer.drawPage(.blank, paper: .white, in: rect, context: context)
         }
     }
 
@@ -48,6 +54,6 @@ struct NoteBackground: Equatable {
     }
 
     static func == (lhs: NoteBackground, rhs: NoteBackground) -> Bool {
-        lhs.template == rhs.template && lhs.pdf === rhs.pdf && lhs.layout == rhs.layout
+        lhs.template == rhs.template && lhs.paper == rhs.paper && lhs.pdf === rhs.pdf && lhs.layout == rhs.layout
     }
 }

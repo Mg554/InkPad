@@ -2,7 +2,7 @@ import PencilKit
 import SwiftUI
 
 enum DrawingTool: String, Codable, CaseIterable, Identifiable {
-    case pen, pencil, fountainPen, highlighter, eraser, lasso
+    case fountainPen, pen, pencil, highlighter, eraser, text, lasso
 
     var id: Self { self }
 
@@ -13,6 +13,7 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .fountainPen: "Fountain Pen"
         case .highlighter: "Highlighter"
         case .eraser: "Eraser"
+        case .text: "Text"
         case .lasso: "Lasso"
         }
     }
@@ -24,12 +25,31 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .fountainPen: "paintbrush.pointed"
         case .highlighter: "highlighter"
         case .eraser: "eraser"
+        case .text: "textformat"
         case .lasso: "lasso"
         }
     }
 
-    var usesColor: Bool { self != .eraser && self != .lasso }
-    var usesWidth: Bool { self != .lasso }
+    /// Pens and the highlighter: they have colors and draw ink.
+    var isInking: Bool {
+        switch self {
+        case .fountainPen, .pen, .pencil, .highlighter: true
+        case .eraser, .text, .lasso: false
+        }
+    }
+
+    var usesWidth: Bool { isInking || self == .eraser }
+
+    /// The range offered by the width slider.
+    var widthRange: ClosedRange<CGFloat> {
+        switch self {
+        case .pen, .fountainPen: 0.5...20
+        case .pencil: 1...24
+        case .highlighter: 4...60
+        case .eraser: 4...100
+        case .text, .lasso: 1...1
+        }
+    }
 
     /// Three width presets (thin, medium, thick) in canvas points.
     var widthPresets: [CGFloat] {
@@ -38,7 +58,7 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .pencil: [2.5, 5, 10]
         case .highlighter: [10, 18, 30]
         case .eraser: [8, 20, 50]
-        case .lasso: []
+        case .text, .lasso: []
         }
     }
 
@@ -81,6 +101,19 @@ struct ToolStyle: Codable, Equatable {
     var colors: [InkColor]
     var selectedColor: InkColor
     var widthIndex: Int
+    /// Widths the user set with the slider, replacing the tool's presets.
+    var customWidths: [CGFloat]?
+
+    func widths(for tool: DrawingTool) -> [CGFloat] {
+        let presets = tool.widthPresets
+        guard let customWidths, customWidths.count == presets.count else { return presets }
+        return customWidths
+    }
+
+    func selectedWidth(for tool: DrawingTool) -> CGFloat {
+        let widths = widths(for: tool)
+        return widths.isEmpty ? 0 : widths[min(max(widthIndex, 0), widths.count - 1)]
+    }
 
     init(tool: DrawingTool) {
         colors = tool.defaultColors
@@ -164,6 +197,17 @@ final class ToolPalette: ObservableObject {
         styles[tool] = style
     }
 
+    /// Changes the selected width preset's value (from the slider).
+    func setSelectedWidth(_ width: CGFloat) {
+        var style = style(for: tool)
+        var widths = style.widths(for: tool)
+        guard widths.indices.contains(style.widthIndex) else { return }
+        let range = tool.widthRange
+        widths[style.widthIndex] = min(max(width, range.lowerBound), range.upperBound)
+        style.customWidths = widths
+        styles[tool] = style
+    }
+
     func selectWidth(_ index: Int) {
         var style = style(for: tool)
         style.widthIndex = index
@@ -173,8 +217,7 @@ final class ToolPalette: ObservableObject {
     /// The PencilKit tool for the current selection.
     var pkTool: PKTool {
         let style = style(for: tool)
-        let presets = tool.widthPresets
-        let width = presets.isEmpty ? 0 : presets[min(max(style.widthIndex, 0), presets.count - 1)]
+        let width = style.selectedWidth(for: tool)
         let color = style.selectedColor.uiColor
         switch tool {
         case .pen: return PKInkingTool(.pen, color: color, width: width)
@@ -182,7 +225,8 @@ final class ToolPalette: ObservableObject {
         case .fountainPen: return PKInkingTool(.fountainPen, color: color, width: width)
         case .highlighter: return PKInkingTool(.marker, color: color, width: width)
         case .eraser: return PKEraserTool(erasesWholeStrokes ? .vector : .bitmap, width: width)
-        case .lasso: return PKLassoTool()
+        // Drawing is switched off while the Text tool is active.
+        case .lasso, .text: return PKLassoTool()
         }
     }
 

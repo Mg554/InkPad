@@ -3,22 +3,23 @@ import SwiftUI
 
 /// SwiftUI wrapper around `NoteCanvasHostView`.
 struct NoteCanvas: UIViewRepresentable {
-    /// Only read when the canvas is created; afterwards the canvas owns the drawing.
-    let initialDrawing: PKDrawing
+    /// Only read when the canvas is created; afterwards the views own the content.
+    let initialContent: NoteContent
     let background: NoteBackground
     let pencilOnly: Bool
     let controller: CanvasController
     let palette: ToolPalette
-    let onDrawingChange: (PKDrawing) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(controller: controller, onDrawingChange: onDrawingChange)
+        Coordinator(controller: controller)
     }
 
     func makeUIView(context: Context) -> NoteCanvasHostView {
         let host = NoteCanvasHostView()
-        host.canvas.drawing = initialDrawing
-        // Set the delegate after loading so the initial drawing is not reported as an edit.
+        host.canvas.drawing = initialContent.drawing
+        host.elementLayer.imageDirectory = initialContent.imageDirectory
+        host.elementLayer.load(initialContent.metadata.elements ?? [])
+        // Connect change reporting after loading so loading is not reported as an edit.
         host.canvas.delegate = context.coordinator
         context.coordinator.host = host
         host.onVisiblePageChange = { [weak controller] current, count in
@@ -32,8 +33,10 @@ struct NoteCanvas: UIViewRepresentable {
     }
 
     func updateUIView(_ host: NoteCanvasHostView, context: Context) {
-        context.coordinator.onDrawingChange = onDrawingChange
-        host.canvas.drawingPolicy = pencilOnly ? .pencilOnly : .anyInput
+        let policy: PKCanvasViewDrawingPolicy = pencilOnly ? .pencilOnly : .anyInput
+        if host.canvas.drawingPolicy != policy {
+            host.canvas.drawingPolicy = policy
+        }
         host.configure(background)
     }
 
@@ -44,17 +47,14 @@ struct NoteCanvas: UIViewRepresentable {
 
     final class Coordinator: NSObject, PKCanvasViewDelegate {
         let controller: CanvasController
-        var onDrawingChange: (PKDrawing) -> Void
         weak var host: NoteCanvasHostView?
 
-        init(controller: CanvasController, onDrawingChange: @escaping (PKDrawing) -> Void) {
+        init(controller: CanvasController) {
             self.controller = controller
-            self.onDrawingChange = onDrawingChange
         }
 
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-            onDrawingChange(canvasView.drawing)
-            controller.refreshUndoState()
+            controller.contentDidChange()
         }
 
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -63,6 +63,10 @@ struct NoteCanvas: UIViewRepresentable {
 
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
             host?.updateZoomGeometry()
+        }
+
+        func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
+            host?.zoomDidEnd()
         }
     }
 }

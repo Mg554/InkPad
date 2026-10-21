@@ -1,3 +1,4 @@
+import PhotosUI
 import PencilKit
 import SwiftUI
 
@@ -7,40 +8,44 @@ struct NoteEditorView: View {
     @Environment(\.scenePhase) private var scenePhase
     let noteID: UUID
 
-    @StateObject private var canvas = CanvasController()
-    @State private var content: NoteContent?
-    /// Derived from `content`; rebuilt only when pages or paper change.
-    @State private var background: NoteBackground?
+    @StateObject private var session = EditorSession()
     @State private var exportedFile: ExportedFile?
+    @State private var isExporting = false
+    @State private var isShowingExportOptions = false
+    @State private var isShowingTemplates = false
     @State private var isShowingPages = false
-    @State private var loadError: String?
-    @State private var isDirty = false
-    @State private var saveTask: Task<Void, Never>?
+    @State private var isPickingPhoto = false
+    @State private var isPickingImageFile = false
+    @State private var photoItem: PhotosPickerItem?
     @State private var prompt: NamePrompt?
     @AppStorage("pencilOnly") private var pencilOnly = true
 
+    private var canvas: CanvasController { session.canvas }
+    private var title: String { store.note(noteID)?.title ?? "Note" }
+
     var body: some View {
         Group {
-            if let content, let background {
+            if let content = session.initialContent, let background = session.background {
                 NoteCanvas(
-                    initialDrawing: content.drawing,
+                    initialContent: content,
                     background: background,
                     pencilOnly: pencilOnly,
                     controller: canvas,
-                    palette: palette,
-                    onDrawingChange: drawingChanged
+                    palette: palette
                 )
                 .ignoresSafeArea(edges: .bottom)
                 .safeAreaInset(edge: .top) {
-                    DrawingToolbar(canvas: canvas, pencilOnly: $pencilOnly)
-                        .padding(.top, 6)
-                        .padding(.bottom, 4)
+                    DrawingToolbar(canvas: canvas, pencilOnly: $pencilOnly) {
+                        insertMenu
+                    }
+                    .padding(.top, 6)
+                    .padding(.bottom, 4)
                 }
                 .overlay(alignment: .bottomTrailing) {
                     PageNavigator(canvas: canvas) { isShowingPages = true }
                         .padding(16)
                 }
-            } else if let loadError {
+            } else if let loadError = session.loadError {
                 ContentUnavailableView(
                     "Could Not Open Note",
                     systemImage: "exclamationmark.triangle",
@@ -50,157 +55,213 @@ struct NoteEditorView: View {
                 ProgressView()
             }
         }
-        .navigationTitle(store.note(noteID)?.title ?? "Note")
+        .overlay {
+            if isExporting {
+                ProgressView("Exporting…")
+                    .padding(24)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            }
+        }
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
         .namePrompt($prompt)
         .sheet(item: $exportedFile) { file in
             ShareSheet(items: [file.url])
         }
+        .sheet(isPresented: $isShowingExportOptions) {
+            ExportOptionsView(pageCount: canvas.pageCount, currentPage: canvas.currentPage) { options in
+                export(options)
+            }
+        }
+        .sheet(isPresented: $isShowingTemplates) {
+            TemplateGallery(
+                template: session.metadata?.template ?? .lined,
+                paper: session.metadata?.paperColor ?? .white
+            ) { template, paper in
+                session.updateMetadata {
+                    $0.template = template
+                    $0.paperColor = paper == .white ? nil : paper
+                }
+            }
+        }
         .sheet(isPresented: $isShowingPages) {
-            if let content, let background {
+            if let content = session.currentContent(), let background = session.background {
                 PageOverview(
-                    drawing: canvas.drawing ?? content.drawing,
+                    content: content,
                     background: background,
                     currentPage: canvas.currentPage
                 ) { canvas.scrollToPage($0) }
             }
         }
-        .task { load() }
-        .onDisappear { saveNow() }
+        .sheet(isPresented: $isPickingImageFile) {
+            DocumentPicker(contentTypes: [.image]) { urls in
+                for url in urls {
+                    if let data = try? Data(contentsOf: url) { insertImage(data) }
+                    try? FileManager.default.removeItem(at: url)
+                }
+            }
+            .ignoresSafeArea()
+        }
+        .photosPicker(isPresented: $isPickingPhoto, selection: $photoItem, matching: .images)
+        .onChange(of: photoItem) {
+            guard let item = photoItem else { return }
+            photoItem = nil
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    insertImage(data)
+                }
+            }
+        }
+        .task { session.load(noteID: noteID, store: store) }
+        .onDisappear { session.save(thumbnail: true) }
         .onChange(of: scenePhase) {
-            if scenePhase != .active { saveNow() }
+            if scenePhase != .active { session.save(thumbnail: true) }
+        }
+    }
+
+    // MARK: Menus
+
+    @ViewBuilder
+    private var insertMenu: some View {
+        Button {
+            isPickingPhoto = true
+        } label: {
+            Label("Photo", systemImage: "photo")
+        }
+        Button {
+            isPickingImageFile = true
+        } label: {
+            Label("Image from Files", systemImage: "folder")
+        }
+        Button {
+            palette.select(.text)
+            canvas.applyTool()
+        } label: {
+            Label("Text Box", systemImage: "textformat")
+        }
+        Divider()
+        Button {
+            session.updateMetadata { $0.pageCount += 1 }
+        } label: {
+            Label("Add Page", systemImage: "doc.badge.plus")
         }
     }
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Button {
-                canvas.undo()
-            } label: {
-                Label("Undo", systemImage: "arrow.uturn.backward")
-            }
-            .disabled(!canvas.canUndo)
+            UndoRedoButtons(canvas: canvas)
 
             Button {
-                canvas.redo()
+                export(PDFExportOptions())
             } label: {
-                Label("Redo", systemImage: "arrow.uturn.forward")
+                Label("Quick Export", systemImage: "square.and.arrow.up")
             }
-            .disabled(!canvas.canRedo)
+            .disabled(session.metadata == nil || isExporting)
 
-            Button {
-                exportPDF()
+            Menu {
+                Section {
+                    Button {
+                        export(PDFExportOptions())
+                    } label: {
+                        Label("Quick Export (PDF, All Pages)", systemImage: "square.and.arrow.up")
+                    }
+                    Button {
+                        isShowingExportOptions = true
+                    } label: {
+                        Label("Export as…", systemImage: "square.and.arrow.up.on.square")
+                    }
+                }
+                Section {
+                    Button {
+                        isShowingTemplates = true
+                    } label: {
+                        Label("Template Settings", systemImage: "doc.richtext")
+                    }
+                    Button {
+                        session.updateMetadata { $0.pageCount += 1 }
+                    } label: {
+                        Label("Add Page", systemImage: "doc.badge.plus")
+                    }
+                }
+                Section {
+                    Button {
+                        prompt = NamePrompt(
+                            title: "Rename Note",
+                            initialText: title,
+                            confirmTitle: "Rename"
+                        ) { store.renameNote(noteID, to: $0) }
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+                    if let note = store.note(noteID) {
+                        Text("Edited \(note.modifiedAt.formatted(date: .abbreviated, time: .shortened))")
+                    }
+                }
             } label: {
-                Label("Export PDF", systemImage: "square.and.arrow.up")
+                Label("More", systemImage: "ellipsis.circle")
             }
-            .disabled(content == nil)
+            .disabled(session.metadata == nil)
 
             Button {
                 isShowingPages = true
             } label: {
                 Label("Pages", systemImage: "square.on.square")
             }
-            .disabled(content == nil)
+            .disabled(session.metadata == nil)
+        }
+    }
 
-            Menu {
-                Button {
-                    addPage()
-                } label: {
-                    Label("Add Page", systemImage: "doc.badge.plus")
-                }
+    // MARK: Actions
 
-                Picker(selection: templateBinding) {
-                    ForEach(PageTemplate.allCases) { template in
-                        Label(template.title, systemImage: template.systemImage)
-                            .tag(template)
-                    }
-                } label: {
-                    Label("Paper", systemImage: "doc.richtext")
-                }
-                .pickerStyle(.menu)
-
-                Button {
-                    prompt = NamePrompt(
-                        title: "Rename Note",
-                        initialText: store.note(noteID)?.title ?? "",
-                        confirmTitle: "Rename"
-                    ) { store.renameNote(noteID, to: $0) }
-                } label: {
-                    Label("Rename", systemImage: "pencil")
-                }
-            } label: {
-                Label("More", systemImage: "ellipsis.circle")
+    private func export(_ options: PDFExportOptions) {
+        guard !isExporting, let content = session.currentContent() else { return }
+        session.save(thumbnail: false)
+        isExporting = true
+        let noteTitle = title
+        Task {
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try PDFExporter.export(content, title: noteTitle, options: options) }
+            }.value
+            isExporting = false
+            switch result {
+            case let .success(url):
+                exportedFile = ExportedFile(url: url)
+            case let .failure(error):
+                store.errorMessage = "Could not export the PDF: \(error.localizedDescription)"
             }
-            .disabled(content == nil)
         }
     }
 
-    private var templateBinding: Binding<PageTemplate> {
-        Binding(
-            get: { content?.metadata.template ?? .blank },
-            set: { template in
-                guard content?.metadata.template != template else { return }
-                content?.metadata.template = template
-                pagesChanged()
-            }
-        )
-    }
-
-    private func load() {
-        guard content == nil, loadError == nil else { return }
-        do {
-            content = try store.loadContent(for: noteID)
-            background = content?.makeBackground()
-        } catch {
-            loadError = error.localizedDescription
+    private func insertImage(_ data: Data) {
+        Task {
+            guard let added = await store.addImage(data, to: noteID),
+                  let directory = session.imageDirectory,
+                  let image = UIImage(contentsOfFile: directory.appendingPathComponent(added.file).path)
+            else { return }
+            canvas.insertImage(file: added.file, image: image, pixelSize: added.size)
         }
     }
+}
 
-    private func drawingChanged(_ drawing: PKDrawing) {
-        content?.drawing = drawing
-        markDirty()
-    }
+/// Observes the canvas directly so undo state updates without re-rendering the editor.
+private struct UndoRedoButtons: View {
+    @ObservedObject var canvas: CanvasController
 
-    private func addPage() {
-        content?.metadata.pageCount += 1
-        pagesChanged()
-    }
-
-    private func pagesChanged() {
-        background = content?.makeBackground()
-        markDirty()
-    }
-
-    private func exportPDF() {
-        guard let content else { return }
-        saveNow()
-        do {
-            let url = try PDFExporter.export(content, title: store.note(noteID)?.title ?? "Note")
-            exportedFile = ExportedFile(url: url)
-        } catch {
-            store.errorMessage = "Could not export the PDF: \(error.localizedDescription)"
+    var body: some View {
+        Button {
+            canvas.undo()
+        } label: {
+            Label("Undo", systemImage: "arrow.uturn.backward")
         }
-    }
+        .disabled(!canvas.canUndo)
 
-    /// Saves shortly after the last change so fast writing is not slowed by disk I/O.
-    private func markDirty() {
-        isDirty = true
-        saveTask?.cancel()
-        saveTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1))
-            guard !Task.isCancelled else { return }
-            saveNow()
+        Button {
+            canvas.redo()
+        } label: {
+            Label("Redo", systemImage: "arrow.uturn.forward")
         }
-    }
-
-    private func saveNow() {
-        saveTask?.cancel()
-        saveTask = nil
-        guard isDirty, let content else { return }
-        if store.saveContent(content, for: noteID) {
-            isDirty = false
-        }
+        .disabled(!canvas.canRedo)
     }
 }

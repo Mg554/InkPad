@@ -8,19 +8,22 @@ A free, private, Notability-style note-taking app for iPad, built as a
 Done:
 
 - Library: nested folders with colors, notes grid with thumbnails, title
-  search, quick actions (New Note, Import a File, Templates)
-- Notability-style floating toolbar: pen, pencil, fountain pen,
-  highlighter, eraser (pixel or whole strokes), lasso, ruler, color presets
-  plus custom colors, three widths per tool; remembered between launches
+  search, quick actions (New Note, Import a File, Find a Template)
+- Floating toolbar combining Notability and Apple Notes: fountain pen, pen,
+  pencil, highlighter, eraser (pixel or whole stroke), text, lasso, insert
+  menu, ruler, finger drawing; per-tool colors plus custom colors, three
+  widths per tool with a fine-tuning slider; collapses to a small pill
 - Apple Pencil double-tap switches to the eraser and back
-- "Pencil only" mode: the pencil draws, fingers scroll and zoom
-- Pinch-to-zoom, stacked pages, page counter with previous/next, page
-  overview grid
-- Page templates: blank, lined, grid, dotted
-- PDF import (one or several files), handwriting and highlighting on PDF
-  pages, extra paper pages after the PDF
-- Export any note as a PDF (Save to Files, AirDrop, Mail, ...)
-- Undo / redo, autosave
+- Text boxes: tap the page with the Text tool; bold, italic, underline,
+  strikethrough, size, color, bulleted lists; move and resize
+- Photos and images from Files placed on pages; move and resize
+- Templates: Plain, Lined, Grid, Dot, Hexagonal Grid, Cornell Note,
+  College Rule, Manuscript, Two and Three Column; six paper colors
+- PDF import (one or several files), writing and highlighting on PDF pages
+- Quick export, or "Export as..." with background paper, page margins,
+  page range and password options
+- Page counter with previous/next, page overview grid
+- Undo / redo for ink; autosave in the background
 
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 
@@ -61,9 +64,10 @@ InkPad.swiftpm/
 Stored under the app's `Documents/InkPad/`:
 
 - `library.json` — folders and note summaries
-- `notes/<id>/note.json` — page template and page count
+- `notes/<id>/note.json` — template, paper color, page count, text boxes
 - `notes/<id>/drawing.data` — PencilKit drawing
 - `notes/<id>/document.pdf` — imported PDF (copied, never modified)
+- `notes/<id>/images/` — images placed on pages
 - `notes/<id>/thumbnail.png` — preview (regenerated on save)
 
 If `library.json` cannot be read, InkPad opens read-only instead of

@@ -44,7 +44,7 @@ struct PageNavigator: View {
 /// A grid of all pages; tap one to jump to it.
 struct PageOverview: View {
     @Environment(\.dismiss) private var dismiss
-    let drawing: PKDrawing
+    let content: NoteContent
     let background: NoteBackground
     let currentPage: Int
     let selectPage: (Int) -> Void
@@ -60,7 +60,7 @@ struct PageOverview: View {
                                 dismiss()
                             } label: {
                                 VStack(spacing: 6) {
-                                    PageThumbnail(index: index, drawing: drawing, background: background)
+                                    PageThumbnail(index: index, content: content, background: background)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 6)
                                                 .stroke(index == currentPage ? Color.accentColor : Color.secondary.opacity(0.3),
@@ -90,7 +90,7 @@ struct PageOverview: View {
 
 private struct PageThumbnail: View {
     let index: Int
-    let drawing: PKDrawing
+    let content: NoteContent
     let background: NoteBackground
     @State private var image: UIImage?
 
@@ -105,7 +105,14 @@ private struct PageThumbnail: View {
         .aspectRatio(rect.width / rect.height, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .task {
-            image = ThumbnailRenderer.image(ofPage: index, drawing: drawing, background: background, scale: 0.25)
+            image = ThumbnailRenderer.image(
+                ofPage: index,
+                drawing: content.drawing,
+                elements: content.metadata.elements ?? [],
+                imageDirectory: content.imageDirectory,
+                background: background,
+                scale: 0.25
+            )
         }
     }
 }
