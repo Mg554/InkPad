@@ -22,6 +22,14 @@ enum StoreError: LocalizedError {
     }
 }
 
+/// File names inside a note's folder.
+private enum NoteFiles {
+    static let metadataFile = "note.json"
+    static let drawingFile = "drawing.data"
+    static let thumbnailFile = "thumbnail.png"
+    static let pdfFile = "document.pdf"
+}
+
 /// Owns everything InkPad stores on disk.
 ///
 /// Layout under `Documents/InkPad/`:
@@ -40,10 +48,6 @@ final class LibraryStore: ObservableObject {
     /// refused so the unreadable data is never overwritten.
     @Published private(set) var isReadOnly = false
 
-    private nonisolated static let metadataFile = "note.json"
-    private nonisolated static let drawingFile = "drawing.data"
-    private nonisolated static let thumbnailFile = "thumbnail.png"
-    private nonisolated static let pdfFile = "document.pdf"
 
     private let rootURL: URL
     private let fileManager = FileManager.default
@@ -80,7 +84,7 @@ final class LibraryStore: ObservableObject {
     }
 
     func thumbnail(for id: UUID) -> UIImage? {
-        UIImage(contentsOfFile: noteDirectory(id).appendingPathComponent(Self.thumbnailFile).path)
+        UIImage(contentsOfFile: noteDirectory(id).appendingPathComponent(NoteFiles.thumbnailFile).path)
     }
 
     // MARK: Folders
@@ -179,12 +183,12 @@ final class LibraryStore: ObservableObject {
         let directory = noteDirectory(id)
         do {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-            let pdfURL = directory.appendingPathComponent(Self.pdfFile)
+            let pdfURL = directory.appendingPathComponent(NoteFiles.pdfFile)
             let isScoped = sourceURL.startAccessingSecurityScopedResource()
             defer { if isScoped { sourceURL.stopAccessingSecurityScopedResource() } }
             try fileManager.copyItem(at: sourceURL, to: pdfURL)
             let content = NoteContent(
-                metadata: NoteMetadata(template: .blank, pageCount: 0, pdfFile: Self.pdfFile),
+                metadata: NoteMetadata(template: .blank, pageCount: 0, pdfFile: NoteFiles.pdfFile),
                 drawing: PKDrawing(),
                 pdf: try PDFBackground(url: pdfURL),
                 directory: directory
@@ -230,12 +234,12 @@ final class LibraryStore: ObservableObject {
     func loadContent(for id: UUID) throws -> NoteContent {
         guard note(id) != nil else { throw StoreError.noteNotFound }
         let directory = noteDirectory(id)
-        let metadataData = try Data(contentsOf: directory.appendingPathComponent(Self.metadataFile))
+        let metadataData = try Data(contentsOf: directory.appendingPathComponent(NoteFiles.metadataFile))
         let metadata = try JSONDecoder.inkpad.decode(NoteMetadata.self, from: metadataData)
         guard metadata.version <= NoteMetadata.currentVersion else {
-            throw StoreError.newerFormat(file: Self.metadataFile, version: metadata.version)
+            throw StoreError.newerFormat(file: NoteFiles.metadataFile, version: metadata.version)
         }
-        let drawingData = try Data(contentsOf: directory.appendingPathComponent(Self.drawingFile))
+        let drawingData = try Data(contentsOf: directory.appendingPathComponent(NoteFiles.drawingFile))
         var pdf: PDFBackground?
         if let pdfFile = metadata.pdfFile {
             // Only a plain file name inside the note's own folder is accepted.
@@ -310,12 +314,12 @@ final class LibraryStore: ObservableObject {
         let directory = content.directory
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try content.drawing.dataRepresentation()
-            .write(to: directory.appendingPathComponent(drawingFile), options: .atomic)
+            .write(to: directory.appendingPathComponent(NoteFiles.drawingFile), options: .atomic)
         try JSONEncoder.inkpad.encode(content.metadata)
-            .write(to: directory.appendingPathComponent(metadataFile), options: .atomic)
+            .write(to: directory.appendingPathComponent(NoteFiles.metadataFile), options: .atomic)
         // The thumbnail is derived data; failing to write it must not fail the save.
         if thumbnail, let png = ThumbnailRenderer.pngData(for: content) {
-            try? png.write(to: directory.appendingPathComponent(thumbnailFile), options: .atomic)
+            try? png.write(to: directory.appendingPathComponent(NoteFiles.thumbnailFile), options: .atomic)
         }
     }
 

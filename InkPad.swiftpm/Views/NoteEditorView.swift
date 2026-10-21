@@ -1,6 +1,7 @@
 import PhotosUI
 import PencilKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct NoteEditorView: View {
     @EnvironmentObject private var store: LibraryStore

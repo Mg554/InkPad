@@ -64,12 +64,12 @@ enum PaperColor: String, Codable, CaseIterable, Identifiable {
 
     var rgb: (red: Double, green: Double, blue: Double) {
         switch self {
-        case .white: (1, 1, 1)
-        case .ivory: (0.99, 0.98, 0.93)
-        case .sand: (0.94, 0.89, 0.78)
-        case .mist: (0.87, 0.89, 0.91)
-        case .charcoal: (0.25, 0.26, 0.28)
-        case .black: (0.09, 0.09, 0.10)
+        case .white: return (red: 1, green: 1, blue: 1)
+        case .ivory: return (red: 0.99, green: 0.98, blue: 0.93)
+        case .sand: return (red: 0.94, green: 0.89, blue: 0.78)
+        case .mist: return (red: 0.87, green: 0.89, blue: 0.91)
+        case .charcoal: return (red: 0.25, green: 0.26, blue: 0.28)
+        case .black: return (red: 0.09, green: 0.09, blue: 0.10)
         }
     }
 
