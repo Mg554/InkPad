@@ -25,6 +25,8 @@ struct SidebarView: View {
                     .tag(LibraryScope.planner)
                 Label("Expenses", systemImage: "creditcard")
                     .tag(LibraryScope.expenses)
+                Label("Mind Maps", systemImage: "point.3.connected.trianglepath.dotted")
+                    .tag(LibraryScope.mindMaps)
             }
 
             Section {

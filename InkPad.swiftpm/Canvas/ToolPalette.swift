@@ -144,6 +144,13 @@ struct ToolStyle: Codable, Equatable {
     var widthIndex: Int
     /// Widths the user set with the slider, replacing the tool's presets.
     var customWidths: [CGFloat]?
+    /// `true` keeps the width even however hard the pencil presses.
+    /// `nil` uses the tool's default.
+    var pressureOff: Bool?
+
+    func ignoresPressure(for tool: DrawingTool) -> Bool {
+        pressureOff ?? (tool == .highlighter)
+    }
 
     func widths(for tool: DrawingTool) -> [CGFloat] {
         let presets = tool.widthPresets
@@ -240,6 +247,12 @@ final class ToolPalette: ObservableObject {
         if style.selectedColor == color, let first = style.colors.first {
             style.selectedColor = first
         }
+        styles[tool] = style
+    }
+
+    func setIgnoresPressure(_ ignores: Bool) {
+        var style = style(for: tool)
+        style.pressureOff = ignores
         styles[tool] = style
     }
 

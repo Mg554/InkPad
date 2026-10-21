@@ -29,7 +29,11 @@ final class CanvasController: NSObject, ObservableObject {
     // Kept when the canvas goes away, so a final save still has the content.
     private var lastDrawing: PKDrawing?
     private var lastElements: [PageElement]?
-    private var strokeCountAtTouch = 0
+    /// The drawing when the current touch began, to undo a snap.
+    private var drawingAtTouch: PKDrawing?
+    /// Set when a touch ends; the next added stroke is the one just drawn.
+    private var expectsNewStroke = false
+    private var isReplacingStroke = false
 
     var drawing: PKDrawing? { host?.canvas.drawing ?? lastDrawing }
     var elements: [PageElement]? { host?.elementLayer.elements ?? lastElements }
@@ -46,12 +50,18 @@ final class CanvasController: NSObject, ObservableObject {
             self?.selection = view is TextBoxView ? .text : view is ImageElementView ? .image : nil
         }
         let holdTracker = StrokeHoldTracker()
+        holdTracker.coordinateView = host.elementLayer
         holdTracker.onTouchBegan = { [weak self, weak host] in
-            self?.strokeCountAtTouch = host?.canvas.drawing.strokes.count ?? 0
+            self?.drawingAtTouch = host?.canvas.drawing
+            self?.expectsNewStroke = false
         }
-        holdTracker.onHoldEnded = { [weak self] in
-            // PencilKit adds the finished stroke right after the touch ends.
-            DispatchQueue.main.async { self?.snapLastStroke() }
+        holdTracker.onHold = { [weak self] points in
+            self?.snapHeldStroke(points)
+        }
+        holdTracker.onTouchEnded = { [weak self] in
+            // PencilKit may add the stroke before or after this; handle both.
+            guard let self else { return }
+            self.expectsNewStroke = !self.evenOutNewStroke()
         }
         host.canvas.addGestureRecognizer(holdTracker)
         let pencilInteraction = UIPencilInteraction()
@@ -71,6 +81,9 @@ final class CanvasController: NSObject, ObservableObject {
     }
 
     func contentDidChange() {
+        if expectsNewStroke, !isReplacingStroke, evenOutNewStroke() {
+            expectsNewStroke = false
+        }
         refreshUndoState()
         onEdit?()
     }
@@ -96,28 +109,57 @@ final class CanvasController: NSObject, ObservableObject {
         canRedo = host?.canvas.undoManager?.canRedo ?? false
     }
 
-    /// Replaces the stroke just drawn with a clean line or shape, if it looks like one.
-    private func snapLastStroke() {
-        guard let host, let palette, palette.snapsShapes, palette.tool.isInking else { return }
-        let drawing = host.canvas.drawing
-        guard drawing.strokes.count > strokeCountAtTouch, let original = drawing.strokes.last else { return }
-        let points = ShapeRecognizer.points(of: original)
+    /// Called while the pencil rests at the end of a stroke: ends the stroke
+    /// and puts a clean line or shape in its place, like Notability.
+    private func snapHeldStroke(_ points: [CGPoint]) {
+        guard let host, let palette, palette.snapsShapes, palette.tool.isInking,
+              let before = drawingAtTouch, let tool = palette.pkTool as? PKInkingTool,
+              let first = points.first, let last = points.last
+        else { return }
         let shape: ShapeRecognizer.Shape
         if palette.tool == .highlighter {
             // Highlighting follows lines of text, so the highlighter always snaps straight.
-            guard let first = points.first, let last = points.last, first != last else { return }
+            guard hypot(last.x - first.x, last.y - first.y) > 8 else { return }
             shape = .polyline([first, last], closed: false)
         } else {
             guard let recognized = ShapeRecognizer.recognize(points) else { return }
             shape = recognized
         }
-        var snapped = drawing
-        snapped.strokes[snapped.strokes.count - 1] = ShapeRecognizer.stroke(for: shape, replacing: original)
-        host.canvas.drawing = snapped
-        host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
-            canvas.drawing = drawing
+
+        // Stop PencilKit's stroke; whether it keeps or drops it, ours replaces it.
+        isReplacingStroke = true
+        host.canvas.drawingGestureRecognizer.isEnabled = false
+        host.canvas.drawingGestureRecognizer.isEnabled = true
+        DispatchQueue.main.async { [weak self, weak host] in
+            guard let self, let host else { return }
+            var snapped = before
+            snapped.strokes.append(ShapeRecognizer.stroke(for: shape, ink: tool.ink, width: tool.width))
+            host.canvas.drawing = snapped
+            host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
+                canvas.drawing = before
+            }
+            self.expectsNewStroke = false
+            self.isReplacingStroke = false
+            self.contentDidChange()
         }
-        contentDidChange()
+    }
+
+    /// With pressure turned off for the tool, gives the new stroke an even
+    /// width. Returns `true` once the new stroke has been handled.
+    @discardableResult
+    private func evenOutNewStroke() -> Bool {
+        guard let host, let palette, let before = drawingAtTouch,
+              host.canvas.drawing.strokes.count == before.strokes.count + 1,
+              let stroke = host.canvas.drawing.strokes.last
+        else { return false }
+        guard palette.tool.isInking, palette.style(for: palette.tool).ignoresPressure(for: palette.tool) else { return true }
+        let width = palette.style(for: palette.tool).selectedWidth(for: palette.tool)
+        var even = host.canvas.drawing
+        even.strokes[even.strokes.count - 1] = ShapeRecognizer.withoutPressure(stroke, width: width)
+        isReplacingStroke = true
+        host.canvas.drawing = even
+        isReplacingStroke = false
+        return true
     }
 
     // MARK: Pages

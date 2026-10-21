@@ -9,6 +9,8 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var expenses: [Expense] = []
     @Published private(set) var monthlyBudget: Decimal?
     @Published private(set) var currencyCode: String = Locale.current.currency?.identifier ?? "USD"
+    @Published private(set) var showsCents = false
+    @Published private(set) var mindMaps: [MindMap] = []
     @Published var errorMessage: String?
     @Published private(set) var isReadOnly = false
 
@@ -70,9 +72,39 @@ final class WorkspaceStore: ObservableObject {
         persist()
     }
 
+    var money: MoneyFormatter {
+        MoneyFormatter(currencyCode: currencyCode, showsCents: showsCents)
+    }
+
+    func setShowsCents(_ shows: Bool) {
+        guard canWrite() else { return }
+        showsCents = shows
+        persist()
+    }
+
     func setCurrency(_ code: String) {
         guard canWrite() else { return }
         currencyCode = code
+        persist()
+    }
+
+    // MARK: Mind maps
+
+    func save(_ map: MindMap) {
+        guard canWrite() else { return }
+        var map = map
+        map.modifiedAt = Date()
+        if let index = mindMaps.firstIndex(where: { $0.id == map.id }) {
+            mindMaps[index] = map
+        } else {
+            mindMaps.append(map)
+        }
+        persist()
+    }
+
+    func deleteMindMap(_ id: UUID) {
+        guard canWrite() else { return }
+        mindMaps.removeAll { $0.id == id }
         persist()
     }
 
@@ -89,6 +121,8 @@ final class WorkspaceStore: ObservableObject {
             expenses = file.expenses
             monthlyBudget = file.monthlyBudget
             if let code = file.currencyCode { currencyCode = code }
+            showsCents = file.showsCents ?? false
+            mindMaps = file.mindMaps ?? []
         } catch {
             isReadOnly = true
             errorMessage = "Your planner and expenses could not be read (\(error.localizedDescription)). "
@@ -102,7 +136,9 @@ final class WorkspaceStore: ObservableObject {
             tasks: tasks,
             expenses: expenses,
             monthlyBudget: monthlyBudget,
-            currencyCode: currencyCode
+            currencyCode: currencyCode,
+            showsCents: showsCents,
+            mindMaps: mindMaps
         )
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)

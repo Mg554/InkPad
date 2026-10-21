@@ -50,21 +50,8 @@ enum ShapeRecognizer {
         stroke.path.interpolatedPoints(by: .distance(4)).map { $0.location.applying(stroke.transform) }
     }
 
-    /// A clean stroke for `shape`, using the original stroke's ink, width and timing.
-    static func stroke(for shape: Shape, replacing original: PKStroke) -> PKStroke {
-        let sample = original.path.first
-        func point(_ location: CGPoint, _ index: Int) -> PKStrokePoint {
-            PKStrokePoint(
-                location: location,
-                timeOffset: TimeInterval(index) * 0.005,
-                size: sample?.size ?? CGSize(width: 3, height: 3),
-                opacity: sample?.opacity ?? 1,
-                force: sample?.force ?? 1,
-                azimuth: sample?.azimuth ?? 0,
-                altitude: sample?.altitude ?? .pi / 2
-            )
-        }
-
+    /// A clean, even-width stroke for `shape`.
+    static func stroke(for shape: Shape, ink: PKInk, width: CGFloat) -> PKStroke {
         var locations: [CGPoint] = []
         switch shape {
         case let .polyline(corners, closed):
@@ -83,12 +70,45 @@ enum ShapeRecognizer {
                 locations.append(CGPoint(x: rect.midX + rect.width / 2 * cos(angle), y: rect.midY + rect.height / 2 * sin(angle)))
             }
         }
+        let size = CGSize(width: width, height: width)
+        let points = locations.enumerated().map { index, location in
+            PKStrokePoint(
+                location: location,
+                timeOffset: TimeInterval(index) * 0.005,
+                size: size,
+                opacity: 1,
+                force: 1,
+                azimuth: 0,
+                altitude: .pi / 2
+            )
+        }
+        return PKStroke(ink: ink, path: PKStrokePath(controlPoints: points, creationDate: Date()))
+    }
 
-        let path = PKStrokePath(
-            controlPoints: locations.enumerated().map { point($0.element, $0.offset) },
-            creationDate: original.path.creationDate
-        )
-        return PKStroke(ink: original.ink, path: path)
+    /// The same stroke with an even width and opacity, as if drawn with
+    /// constant pressure. The nib shape of each point is kept.
+    static func withoutPressure(_ stroke: PKStroke, width: CGFloat) -> PKStroke {
+        let path = stroke.path
+        guard !path.isEmpty else { return stroke }
+        let sizes = path.map(\.size).sorted { $0.width < $1.width }
+        let median = sizes[sizes.count / 2]
+        let aspect = median.width > 0 ? median.height / median.width : 1
+        let size = CGSize(width: width, height: width * aspect)
+        let opacity = path.map(\.opacity).max() ?? 1
+        let points = path.map { point in
+            PKStrokePoint(
+                location: point.location,
+                timeOffset: point.timeOffset,
+                size: size,
+                opacity: opacity,
+                force: 1,
+                azimuth: point.azimuth,
+                altitude: point.altitude
+            )
+        }
+        var even = stroke
+        even.path = PKStrokePath(controlPoints: points, creationDate: path.creationDate)
+        return even
     }
 
     // MARK: Geometry
@@ -180,18 +200,25 @@ enum ShapeRecognizer {
     }
 }
 
-/// Watches pencil and finger touches on the canvas without taking them over,
-/// and reports a stroke that ended after the touch was held still.
+/// Watches touches on the canvas without taking them over. Records the
+/// stroke's points, and reports when the touch has rested in place long
+/// enough to snap (while still down, like Notability), and when it ends.
 final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate {
-    /// How long the touch must rest before lifting to snap.
-    static let holdDuration: TimeInterval = 0.45
-    static let stillDistance: CGFloat = 4
+    /// How long the touch must rest to snap.
+    static let holdDuration: TimeInterval = 0.5
+    static let stillDistance: CGFloat = 3
 
+    /// Points are recorded in this view's coordinates (the canvas content).
+    weak var coordinateView: UIView?
     var onTouchBegan: (() -> Void)?
-    var onHoldEnded: (() -> Void)?
+    /// Called once per touch, with the points drawn so far.
+    var onHold: (([CGPoint]) -> Void)?
+    var onTouchEnded: (() -> Void)?
 
-    private var lastMoveTime: TimeInterval = 0
+    private var points: [CGPoint] = []
     private var lastMoveLocation: CGPoint = .zero
+    private var holdTimer: Timer?
+    private var didHold = false
 
     init() {
         super.init(target: nil, action: nil)
@@ -206,29 +233,54 @@ final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate 
             state = .failed
             return
         }
-        lastMoveTime = touch.timestamp
-        lastMoveLocation = touch.location(in: view)
+        didHold = false
+        let location = touch.location(in: coordinateView)
+        points = [location]
+        lastMoveLocation = location
         onTouchBegan?()
+        restartHoldTimer()
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
-        guard let touch = touches.first else { return }
-        let location = touch.location(in: view)
+        guard let touch = touches.first, !didHold else { return }
+        for sample in event.coalescedTouches(for: touch) ?? [touch] {
+            points.append(sample.location(in: coordinateView))
+        }
+        let location = touch.location(in: coordinateView)
         if hypot(location.x - lastMoveLocation.x, location.y - lastMoveLocation.y) > Self.stillDistance {
             lastMoveLocation = location
-            lastMoveTime = touch.timestamp
+            restartHoldTimer()
         }
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
-        if let touch = touches.first, touch.timestamp - lastMoveTime >= Self.holdDuration {
-            onHoldEnded?()
-        }
+        finish()
+        onTouchEnded?()
         state = .failed
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+        finish()
         state = .failed
+    }
+
+    override func reset() {
+        super.reset()
+        finish()
+    }
+
+    private func restartHoldTimer() {
+        holdTimer?.invalidate()
+        holdTimer = Timer.scheduledTimer(withTimeInterval: Self.holdDuration, repeats: false) { [weak self] _ in
+            guard let self, !self.didHold, self.points.count > 2 else { return }
+            self.didHold = true
+            self.onHold?(self.points)
+        }
+    }
+
+    private func finish() {
+        holdTimer?.invalidate()
+        holdTimer = nil
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {

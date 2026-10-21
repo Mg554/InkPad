@@ -13,6 +13,7 @@ struct PlannerView: View {
     @AppStorage("plannerMode") private var mode: Mode = .board
     @State private var editing: PlanTask?
     @State private var selectedDay = Date()
+    @State private var targetedColumn: PlanTask.Status?
 
     var body: some View {
         Group {
@@ -73,10 +74,17 @@ struct PlannerView: View {
                 }
             }
             ForEach(tasks) { task in
-                TaskCard(task: task)
-                    .onTapGesture { editing = task }
-                    .draggable(task.id.uuidString)
-                    .contextMenu { taskMenu(task) }
+                Button {
+                    editing = task
+                } label: {
+                    TaskCard(task: task)
+                }
+                .buttonStyle(PressableStyle())
+                .draggable(task.id.uuidString) {
+                    TaskCard(task: task).frame(width: 260)
+                }
+                .contextMenu { taskMenu(task) }
+                .transition(.scale.combined(with: .opacity))
             }
             if tasks.isEmpty {
                 Text("Drop tasks here")
@@ -89,13 +97,24 @@ struct PlannerView: View {
         .padding(12)
         .frame(width: 300)
         .frame(minHeight: 400, alignment: .top)
-        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+        .glowCard(Self.color(for: status), isActive: targetedColumn == status)
+        .scaleEffect(targetedColumn == status ? 1.02 : 1)
+        .animation(.snappy, value: targetedColumn)
+        .animation(.snappy, value: tasks.map(\.id))
         // Drag a card onto another column to change its status.
         .dropDestination(for: String.self) { ids, _ in
-            for id in ids.compactMap(UUID.init(uuidString:)) {
-                workspace.setStatus(status, for: id)
+            withAnimation(.snappy) {
+                for id in ids.compactMap(UUID.init(uuidString:)) {
+                    workspace.setStatus(status, for: id)
+                }
             }
             return true
+        } isTargeted: { isTargeted in
+            if isTargeted {
+                targetedColumn = status
+            } else if targetedColumn == status {
+                targetedColumn = nil
+            }
         }
     }
 
@@ -133,13 +152,18 @@ struct PlannerView: View {
     private func taskRow(_ task: PlanTask) -> some View {
         HStack(spacing: 12) {
             Button {
-                workspace.setStatus(task.status == .done ? .todo : .done, for: task.id)
+                withAnimation(.snappy) {
+                    workspace.setStatus(task.status == .done ? .todo : .done, for: task.id)
+                }
             } label: {
                 Image(systemName: task.status.systemImage)
                     .font(.title3)
                     .foregroundStyle(task.status == .done ? Color.green : Color.secondary)
+                    .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.bounce, value: task.status)
+                    .shadow(color: task.status == .done ? .green.opacity(0.6) : .clear, radius: 6)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressableStyle())
             TaskSummary(task: task)
             Spacer()
         }
@@ -200,6 +224,14 @@ struct PlannerView: View {
         }
     }
 
+    static func color(for status: PlanTask.Status) -> Color {
+        switch status {
+        case .todo: return .blue
+        case .inProgress: return .orange
+        case .done: return .green
+        }
+    }
+
     private static func byDueDate(_ a: PlanTask, _ b: PlanTask) -> Bool {
         switch (a.dueDate, b.dueDate) {
         case let (x?, y?): x < y
@@ -217,8 +249,13 @@ private struct TaskCard: View {
         TaskSummary(task: task)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
-            .background(.background, in: RoundedRectangle(cornerRadius: 10))
-            .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
+            .background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            // High-priority and in-progress tasks glow.
+            .glowCard(
+                task.priority == .high ? .red : PlannerView.color(for: task.status),
+                isActive: task.priority == .high || task.status == .inProgress
+            )
+            .foregroundStyle(.primary)
     }
 }
 

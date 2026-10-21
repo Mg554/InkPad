@@ -78,7 +78,7 @@ final class LibraryStore: ObservableObject {
         switch scope {
         case .allNotes: matching = notes
         case .unfiled: matching = notes.filter { $0.folderID == nil }
-        case .planner, .expenses: matching = []
+        case .planner, .expenses, .mindMaps: matching = []
         case let .folder(id): matching = notes.filter { $0.folderID == id }
         }
         return matching.sorted { $0.modifiedAt > $1.modifiedAt }

@@ -8,8 +8,11 @@ struct ExpensesView: View {
     @State private var month = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
     @State private var editing: Expense?
     @State private var isEditingSettings = false
+    @State private var selectedAmount: Double?
+    @State private var glowPhase = false
 
     private var currency: String { workspace.currencyCode }
+    private var money: MoneyFormatter { workspace.money }
 
     private var monthItems: [Expense] {
         guard let interval = Calendar.current.dateInterval(of: .month, for: month) else { return [] }
@@ -122,15 +125,19 @@ struct ExpensesView: View {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(value, format: .currency(code: currency))
+            Text(money.string(value))
                 .font(.title3.bold())
                 .foregroundStyle(color)
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
+                .contentTransition(.numericText())
+                .animation(.snappy, value: value)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+        .glowCard(color, isActive: glowPhase || title != "Balance")
+        .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: glowPhase)
+        .onAppear { glowPhase = true }
     }
 
     private func budgetBar(_ budget: Decimal) -> some View {
@@ -139,14 +146,17 @@ struct ExpensesView: View {
             HStack {
                 Text("Budget")
                 Spacer()
-                Text("\(spent.formatted(.currency(code: currency))) of \(budget.formatted(.currency(code: currency)))")
+                Text("\(money.string(spent)) of \(money.string(budget))")
                     .foregroundStyle(.secondary)
             }
             .font(.subheadline)
+            let tint: Color = used < 0.8 ? .green : used < 1 ? .orange : .red
             ProgressView(value: min(used, 1))
-                .tint(used < 0.8 ? .green : used < 1 ? .orange : .red)
+                .tint(tint)
+                .shadow(color: tint.opacity(0.7), radius: 6)
+                .animation(.snappy, value: used)
             if used >= 1 {
-                Text("Over budget by \((spent - budget).formatted(.currency(code: currency)))")
+                Text("Over budget by \(money.string(spent - budget))")
                     .font(.caption)
                     .foregroundStyle(.red)
             }
@@ -158,23 +168,46 @@ struct ExpensesView: View {
             let sum = total(monthItems.filter { $0.kind == .expense && $0.category == category })
             return sum > 0 ? (category, NSDecimalNumber(decimal: sum).doubleValue) : nil
         }
+        let selected = selectedCategory(in: totals)
         return HStack(spacing: 24) {
             Chart(totals, id: \.0) { item in
-                SectorMark(angle: .value("Amount", item.1), innerRadius: .ratio(0.6), angularInset: 1.5)
-                    .foregroundStyle(by: .value("Category", item.0.title))
+                SectorMark(
+                    angle: .value("Amount", item.1),
+                    innerRadius: .ratio(selected == item.0 ? 0.55 : 0.62),
+                    outerRadius: .ratio(selected == item.0 ? 1 : 0.92),
+                    angularInset: 1.5
+                )
+                .cornerRadius(4)
+                .foregroundStyle(by: .value("Category", item.0.title))
+                .opacity(selected == nil || selected == item.0 ? 1 : 0.4)
             }
             .chartLegend(.hidden)
-            .frame(width: 180, height: 180)
+            .chartAngleSelection(value: $selectedAmount)
+            .chartBackground { _ in
+                VStack(spacing: 2) {
+                    Text(selected?.title ?? "Spent")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(money.string(selected.flatMap { category in totals.first { $0.0 == category }?.1 } ?? NSDecimalNumber(decimal: spent).doubleValue))
+                        .font(.headline)
+                        .contentTransition(.numericText())
+                }
+            }
+            .frame(width: 200, height: 200)
+            .shadow(color: .accentColor.opacity(0.25), radius: 14)
+            .animation(.snappy, value: selected)
 
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(totals, id: \.0) { item in
                     HStack {
                         Label(item.0.title, systemImage: item.0.systemImage)
+                            .symbolEffect(.bounce, value: selected == item.0)
                         Spacer()
-                        Text(item.1, format: .currency(code: currency))
+                        Text(money.string(item.1))
                             .foregroundStyle(.secondary)
                     }
                     .font(.subheadline)
+                    .fontWeight(selected == item.0 ? .bold : .regular)
                 }
             }
         }
@@ -182,10 +215,12 @@ struct ExpensesView: View {
     }
 
     private func row(_ item: Expense) -> some View {
-        HStack(spacing: 12) {
+        let tint: Color = item.kind == .income ? .green : .accentColor
+        return HStack(spacing: 12) {
             Image(systemName: item.category.systemImage)
-                .frame(width: 32, height: 32)
-                .background(Color.accentColor.opacity(0.12), in: Circle())
+                .frame(width: 34, height: 34)
+                .background(tint.opacity(0.15), in: Circle())
+                .shadow(color: tint.opacity(0.5), radius: 6)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title.isEmpty ? item.category.title : item.title)
                 if !item.note.isEmpty {
@@ -196,7 +231,7 @@ struct ExpensesView: View {
                 }
             }
             Spacer()
-            Text((item.kind == .income ? item.amount : -item.amount), format: .currency(code: currency))
+            Text(money.string(item.kind == .income ? item.amount : -item.amount))
                 .foregroundStyle(item.kind == .income ? Color.green : Color.primary)
                 .monospacedDigit()
         }
@@ -216,6 +251,17 @@ struct ExpensesView: View {
     private var days: [Date] {
         let starts = monthItems.map { Calendar.current.startOfDay(for: $0.date) }
         return Array(Set(starts)).sorted(by: >)
+    }
+
+    /// The category under the chart selection (which reports an amount along the ring).
+    private func selectedCategory(in totals: [(Expense.Category, Double)]) -> Expense.Category? {
+        guard let selectedAmount else { return nil }
+        var running = 0.0
+        for (category, amount) in totals {
+            running += amount
+            if selectedAmount <= running { return category }
+        }
+        return nil
     }
 
     private func total(_ items: [Expense]) -> Decimal {
@@ -257,9 +303,13 @@ private struct ExpenseEditor: View {
                         ForEach(Expense.Kind.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    TextField("Amount", value: $expense.amount, format: .currency(code: currency))
-                        .keyboardType(.decimalPad)
-                        .font(.title2)
+                    HStack {
+                        Text(currency)
+                            .foregroundStyle(.secondary)
+                        TextField("Amount", value: $expense.amount, format: .number)
+                            .keyboardType(.decimalPad)
+                            .font(.title2)
+                    }
                     TextField("Title", text: $expense.title)
                 }
                 Section {
@@ -293,16 +343,23 @@ private struct BudgetSettings: View {
     @EnvironmentObject private var workspace: WorkspaceStore
     @State private var budget: Decimal = 0
     @State private var currency = ""
+    @State private var showsCents = false
 
-    private static let currencies = ["USD", "EUR", "GBP", "SAR", "AED", "JOD", "EGP", "KWD", "QAR", "TRY", "SYP", "LBP", "IQD"]
+    private static let currencies = ["USD", "EUR", "GBP", "ILS", "SAR", "AED", "JOD", "EGP", "KWD", "QAR", "TRY", "SYP", "LBP", "IQD"]
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Monthly Budget") {
-                    TextField("Budget", value: $budget, format: .currency(code: currency.isEmpty ? workspace.currencyCode : currency))
+                    TextField("Budget", value: $budget, format: .number)
                         .keyboardType(.decimalPad)
                     Text("Set to 0 for no budget.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Numbers") {
+                    Toggle("Always Show Decimals (1,000.00)", isOn: $showsCents)
+                    Text(showsCents ? "Amounts always show two decimals." : "Whole amounts show without decimals, like 1,000.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -324,6 +381,7 @@ private struct BudgetSettings: View {
                     Button("Save") {
                         workspace.setCurrency(currency)
                         workspace.setMonthlyBudget(budget)
+                        workspace.setShowsCents(showsCents)
                         dismiss()
                     }
                 }
@@ -331,6 +389,7 @@ private struct BudgetSettings: View {
             .onAppear {
                 budget = workspace.monthlyBudget ?? 0
                 currency = workspace.currencyCode
+                showsCents = workspace.showsCents
             }
         }
     }

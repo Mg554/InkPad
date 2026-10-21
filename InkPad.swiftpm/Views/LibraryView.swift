@@ -18,6 +18,8 @@ struct LibraryView: View {
                 NavigationStack { PlannerView() }
             case .expenses:
                 NavigationStack { ExpensesView() }
+            case .mindMaps:
+                MindMapsView()
             default:
                 NavigationStack(path: $path) {
                     NotesGridView(scope: scope ?? .allNotes) { path.append($0) }

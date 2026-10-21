@@ -52,6 +52,7 @@ enum LibraryScope: Hashable {
     /// The workspace pages; they hold no notes.
     case planner
     case expenses
+    case mindMaps
 }
 
 /// A folder positioned in the folder tree, for sidebars and menus.

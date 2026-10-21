@@ -15,11 +15,14 @@ Done:
   ruler, finger drawing; per-tool colors plus custom colors, three widths
   per tool with a 13-step width picker and preview; collapses to a pill
 - Notability-style highlighter: even, see-through, pressure-independent
-- Hold to snap: pause at the end of a stroke before lifting to turn it into
-  a straight line, circle, ellipse, triangle, rectangle or polygon
+- Pressure sensitivity per pen: switch it off to keep the width even
+- Hold to snap: rest the pencil at the end of a stroke and it turns into a
+  straight line, circle, ellipse, triangle, rectangle or polygon while you
+  are still holding (the highlighter snaps straight)
 - Workspace (Notion-style): Planner with Board (drag between columns),
-  List and Calendar views; Expenses with income, monthly budget, category
-  chart and currency
+  List and Calendar views; Expenses with income, monthly budget,
+  interactive category chart, currency and optional decimals; Mind Maps
+  with curved glowing branches, drag, pinch-zoom and one-tap tidy layout
 - Apple Pencil double-tap switches to the eraser and back
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
   strikethrough, size, color, bulleted lists; move and resize

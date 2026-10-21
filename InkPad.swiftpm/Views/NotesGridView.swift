@@ -24,6 +24,7 @@ struct NotesGridView: View {
         case .unfiled: "Unfiled"
         case .planner: "Planner"
         case .expenses: "Expenses"
+        case .mindMaps: "Mind Maps"
         case let .folder(id): store.folder(id)?.name ?? "Folder"
         }
     }
@@ -31,7 +32,7 @@ struct NotesGridView: View {
     private var targetFolderID: UUID? {
         switch scope {
         case let .folder(id): return id
-        case .allNotes, .unfiled, .planner, .expenses: return nil
+        case .allNotes, .unfiled, .planner, .expenses, .mindMaps: return nil
         }
     }
 

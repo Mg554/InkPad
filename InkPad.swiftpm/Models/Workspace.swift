@@ -107,4 +107,99 @@ struct WorkspaceFile: Codable {
     var monthlyBudget: Decimal?
     /// ISO 4217 code, e.g. "USD".
     var currencyCode: String?
+    /// `false` (default) shows whole amounts without decimals.
+    var showsCents: Bool?
+    var mindMaps: [MindMap]?
+}
+
+// MARK: Mind maps
+
+struct MindNode: Codable, Identifiable, Equatable {
+    let id: UUID
+    var text: String
+    /// `nil` for the central topic.
+    var parentID: UUID?
+    /// Position in map coordinates; the central topic starts at (0, 0).
+    var x: Double
+    var y: Double
+    /// `nil` uses the branch's default color.
+    var color: FolderColor?
+
+    init(text: String, parentID: UUID?, x: Double, y: Double, color: FolderColor? = nil) {
+        id = UUID()
+        self.text = text
+        self.parentID = parentID
+        self.x = x
+        self.y = y
+        self.color = color
+    }
+}
+
+struct MindMap: Codable, Identifiable, Equatable {
+    let id: UUID
+    var title: String
+    var nodes: [MindNode]
+    let createdAt: Date
+    var modifiedAt: Date
+
+    init(title: String) {
+        id = UUID()
+        self.title = title
+        nodes = [MindNode(text: title, parentID: nil, x: 0, y: 0, color: .purple)]
+        createdAt = Date()
+        modifiedAt = Date()
+    }
+
+    var root: MindNode? { nodes.first { $0.parentID == nil } }
+
+    func children(of id: UUID) -> [MindNode] {
+        nodes.filter { $0.parentID == id }
+    }
+
+    /// The node and everything below it.
+    func subtree(of id: UUID) -> Set<UUID> {
+        var result: Set<UUID> = [id]
+        var queue = [id]
+        while let next = queue.popLast() {
+            for child in children(of: next) where result.insert(child.id).inserted {
+                queue.append(child.id)
+            }
+        }
+        return result
+    }
+
+    /// Lays the map out as a tree growing right from the central topic,
+    /// each branch getting vertical room for its leaves.
+    mutating func autoLayout(horizontalSpacing: Double = 230, verticalSpacing: Double = 64) {
+        guard let root else { return }
+        var leafCounts: [UUID: Int] = [:]
+        func leaves(_ id: UUID, visited: inout Set<UUID>) -> Int {
+            guard visited.insert(id).inserted else { return 0 }
+            let kids = children(of: id)
+            let count = kids.isEmpty ? 1 : kids.reduce(0) { $0 + leaves($1.id, visited: &visited) }
+            leafCounts[id] = count
+            return count
+        }
+        var visited: Set<UUID> = []
+        _ = leaves(root.id, visited: &visited)
+
+        var positions: [UUID: (Double, Double)] = [:]
+        func place(_ id: UUID, depth: Int, top: Double) {
+            let span = Double(leafCounts[id] ?? 1) * verticalSpacing
+            positions[id] = (Double(depth) * horizontalSpacing, top + span / 2)
+            var childTop = top
+            for child in children(of: id) where leafCounts[child.id] != nil && positions[child.id] == nil {
+                place(child.id, depth: depth + 1, top: childTop)
+                childTop += Double(leafCounts[child.id] ?? 1) * verticalSpacing
+            }
+        }
+        let total = Double(leafCounts[root.id] ?? 1) * verticalSpacing
+        place(root.id, depth: 0, top: -total / 2)
+        for index in nodes.indices {
+            if let position = positions[nodes[index].id] {
+                nodes[index].x = position.0
+                nodes[index].y = position.1
+            }
+        }
+    }
 }

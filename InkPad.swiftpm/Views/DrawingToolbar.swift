@@ -276,11 +276,23 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     control2: CGPoint(x: size.width * 0.65, y: size.height * 1.2)
                 )
                 let opacity = tool == .highlighter ? DrawingTool.highlighterOpacity : 1
-                context.stroke(
-                    wave,
-                    with: .color(previewColor.opacity(opacity)),
-                    style: StrokeStyle(lineWidth: min(current, size.height - 4), lineCap: .round)
-                )
+                let lineWidth = min(current, size.height - 4)
+                if style.ignoresPressure(for: tool) || !tool.isInking {
+                    context.stroke(
+                        wave,
+                        with: .color(previewColor.opacity(opacity)),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                    )
+                } else {
+                    // With pressure on, the stroke swells in the middle.
+                    for (fraction, factor) in [(0.0, 0.5), (0.2, 0.8), (0.4, 1.0), (0.6, 1.0), (0.8, 0.8)] {
+                        context.stroke(
+                            wave.trimmedPath(from: fraction, to: fraction + 0.2),
+                            with: .color(previewColor.opacity(opacity)),
+                            style: StrokeStyle(lineWidth: lineWidth * factor, lineCap: .round)
+                        )
+                    }
+                }
             }
             .frame(height: 44)
 
@@ -310,6 +322,20 @@ struct DrawingToolbar<InsertMenu: View>: View {
             Text(current, format: .number.precision(.fractionLength(1)))
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
+            if tool.isInking {
+                Divider()
+                Toggle(isOn: Binding(
+                    get: { !palette.style(for: tool).ignoresPressure(for: tool) },
+                    set: { palette.setIgnoresPressure(!$0) }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pressure Sensitivity")
+                        Text("Off keeps the width even however hard you press.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
         .padding()
         .frame(width: 340)
