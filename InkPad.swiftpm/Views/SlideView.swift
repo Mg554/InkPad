@@ -154,25 +154,33 @@ struct SlideCanvas: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
+    /// Numbered sections, in two columns when there are many. Plain stacks,
+    /// not a lazy grid, so PDF export draws every item.
     private var agendaLayout: some View {
-        let items = slide.visibleBullets
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 40, alignment: .leading), count: items.count > 4 ? 2 : 1)
+        let items = Array(slide.visibleBullets.enumerated())
+        let columns = items.count > 4 ? 2 : 1
+        let perColumn = max(Int((Double(items.count) / Double(columns)).rounded(.up)), 1)
         return VStack(alignment: .leading, spacing: 40) {
             header
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 26) {
-                ForEach(Array(items.enumerated()), id: \.offset) { item in
-                    HStack(spacing: 20) {
-                        Text("\(item.offset + 1)")
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
-                            .foregroundStyle(theme.onAccent)
-                            .frame(width: 54, height: 54)
-                            .background(theme.accent, in: Circle())
-                        Text(item.element)
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(theme.textColor)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.7)
+            HStack(alignment: .top, spacing: 40) {
+                ForEach(0..<columns, id: \.self) { column in
+                    VStack(alignment: .leading, spacing: 26) {
+                        ForEach(items.filter { $0.offset / perColumn == column }, id: \.offset) { item in
+                            HStack(spacing: 20) {
+                                Text("\(item.offset + 1)")
+                                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                                    .foregroundStyle(theme.onAccent)
+                                    .frame(width: 54, height: 54)
+                                    .background(theme.accent, in: Circle())
+                                Text(item.element)
+                                    .font(.system(size: 30, weight: .semibold))
+                                    .foregroundStyle(theme.textColor)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.7)
+                            }
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             Spacer(minLength: 0)
