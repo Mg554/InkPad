@@ -118,7 +118,10 @@ struct NoteMetadata: Codable, Equatable {
 }
 
 /// Everything the editor needs to show and edit one note.
-struct NoteContent {
+///
+/// Sendable so it can be handed to the background writer and renderers: it is
+/// a value, and its PDF is only ever read (drawing a CGPDFDocument is thread-safe).
+struct NoteContent: @unchecked Sendable {
     var metadata: NoteMetadata
     var drawing: PKDrawing
     /// The opened PDF named by `metadata.pdfFile`.

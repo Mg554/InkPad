@@ -91,8 +91,11 @@ final class CanvasController: NSObject, ObservableObject {
 
     func applyTool() {
         guard let host, let palette else { return }
-        host.setTextMode(palette.tool == .text)
-        host.setLassoMode(palette.tool == .lasso)
+        switch palette.tool {
+        case .text: host.setMode(.text)
+        case .lasso: host.setMode(.lasso)
+        default: host.setMode(.draw)
+        }
         host.canvas.tool = palette.pkTool
     }
 

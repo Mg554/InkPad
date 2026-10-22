@@ -165,7 +165,7 @@ final class LassoSelection: NSObject, UIEditMenuInteractionDelegate, UIGestureRe
     }
 
     private func endMove(by offset: CGPoint) {
-        guard let host, let before = drawingBeforeMove else { return }
+        guard let before = drawingBeforeMove else { return }
         moveStart = nil
         drawingBeforeMove = nil
         overlay.endSnapshot()
@@ -269,16 +269,16 @@ final class LassoSelection: NSObject, UIEditMenuInteractionDelegate, UIGestureRe
         if hasSelection {
             actions += [
                 UIAction(title: "Style", image: UIImage(systemName: "paintpalette")) { [weak self] _ in self?.showStylePanel() },
-                UIAction(title: "Duplicate", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in self?.duplicate() },
-                UIAction(title: "Cut", image: UIImage(systemName: "scissors")) { [weak self] _ in self?.cut() },
-                UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in self?.copy() },
+                UIAction(title: "Duplicate", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in self?.duplicateSelection() },
+                UIAction(title: "Cut", image: UIImage(systemName: "scissors")) { [weak self] _ in self?.cutSelection() },
+                UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in self?.copySelection() },
             ]
         }
         if UIPasteboard.general.contains(pasteboardTypes: [Self.pasteboardType]) {
-            actions.append(UIAction(title: "Paste", image: UIImage(systemName: "doc.on.clipboard")) { [weak self] _ in self?.paste() })
+            actions.append(UIAction(title: "Paste", image: UIImage(systemName: "doc.on.clipboard")) { [weak self] _ in self?.pasteFromClipboard() })
         }
         if hasSelection {
-            actions.append(UIAction(title: "Delete", image: UIImage(systemName: "trash"), attributes: .destructive) { [weak self] _ in self?.delete() })
+            actions.append(UIAction(title: "Delete", image: UIImage(systemName: "trash"), attributes: .destructive) { [weak self] _ in self?.deleteSelection() })
         }
         return actions.isEmpty ? nil : UIMenu(children: actions)
     }
@@ -288,21 +288,23 @@ final class LassoSelection: NSObject, UIEditMenuInteractionDelegate, UIGestureRe
         return overlay.convert(selectionBounds, to: host)
     }
 
-    private func copy() {
+    // Not named copy(), cut() or delete(): NSObject and UIResponder already
+    // define methods with those names, which makes calls ambiguous.
+    private func copySelection() {
         UIPasteboard.general.setData(PKDrawing(strokes: selected).dataRepresentation(), forPasteboardType: Self.pasteboardType)
     }
 
-    private func cut() {
-        copy()
-        delete()
+    private func cutSelection() {
+        copySelection()
+        deleteSelection()
     }
 
-    private func delete() {
+    private func deleteSelection() {
         edit { selected = [] }
         clearSelection()
     }
 
-    private func duplicate() {
+    private func duplicateSelection() {
         let copies = Self.offset(selected, by: CGPoint(x: 24, y: 24))
         edit {
             others += selected.flatMap { Self.dashed($0, style: dash) }
@@ -311,7 +313,7 @@ final class LassoSelection: NSObject, UIEditMenuInteractionDelegate, UIGestureRe
         presentMenu()
     }
 
-    private func paste() {
+    private func pasteFromClipboard() {
         guard let host,
               let data = UIPasteboard.general.data(forPasteboardType: Self.pasteboardType),
               let pasted = try? PKDrawing(data: data), !pasted.strokes.isEmpty

@@ -14,7 +14,6 @@ final class NoteCanvasHostView: UIView {
     /// Above the ink: the lasso line and selection box.
     let selectionOverlay = SelectionOverlayView()
     private(set) var lasso: LassoSelection!
-    private var isLassoMode = false
     private var savedPanTouchTypes: [NSNumber]?
     private var savedPanMinimumTouches = 1
     private let pageBackground = PageBackgroundView()
@@ -45,35 +44,6 @@ final class NoteCanvasHostView: UIView {
         lasso = LassoSelection(host: self, overlay: selectionOverlay)
     }
 
-    /// In lasso mode the pencil (or a finger, with finger drawing on) draws a
-    /// selection instead of ink; scrolling moves to fingers (or two fingers).
-    func setLassoMode(_ isOn: Bool) {
-        let pencilOnly = canvas.drawingPolicy == .pencilOnly
-        if isOn {
-            if !isLassoMode {
-                savedPanTouchTypes = canvas.panGestureRecognizer.allowedTouchTypes
-                savedPanMinimumTouches = canvas.panGestureRecognizer.minimumNumberOfTouches
-            }
-            canvas.panGestureRecognizer.allowedTouchTypes = pencilOnly
-                ? [NSNumber(value: UITouch.TouchType.direct.rawValue)]
-                : (savedPanTouchTypes ?? canvas.panGestureRecognizer.allowedTouchTypes)
-            canvas.panGestureRecognizer.minimumNumberOfTouches = pencilOnly ? 1 : 2
-        } else if isLassoMode {
-            if let savedPanTouchTypes { canvas.panGestureRecognizer.allowedTouchTypes = savedPanTouchTypes }
-            canvas.panGestureRecognizer.minimumNumberOfTouches = savedPanMinimumTouches
-        }
-        isLassoMode = isOn
-        lasso.setEnabled(isOn, pencilOnly: pencilOnly)
-        if !elementLayer.isInteractive {
-            canvas.drawingGestureRecognizer.isEnabled = !isOn
-        }
-    }
-
-    /// Re-applies lasso touch settings after "Draw with Finger" changes.
-    func refreshLassoMode() {
-        if isLassoMode { setLassoMode(true) }
-    }
-
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not supported")
     }
@@ -85,26 +55,84 @@ final class NoteCanvasHostView: UIView {
         updateZoomGeometry()
     }
 
-    /// In text mode the pencil and fingers edit text boxes and images instead of drawing.
+    enum Mode {
+        /// The pencil draws ink.
+        case draw
+        /// The pencil and fingers edit text boxes and images.
+        case text
+        /// The pencil (or a finger, with finger drawing on) draws a lasso
+        /// selection; scrolling moves to fingers (or two fingers).
+        case lasso
+    }
+
+    private(set) var mode: Mode = .draw
+
+    /// Switches between drawing, text and lasso.
     ///
-    /// PencilKit's own taps (its Select All / Paste / Insert Space menu) are
-    /// switched off meanwhile; otherwise they show that menu and make our tap
-    /// wait for them. Only scrolling, zooming and our tap stay active.
-    func setTextMode(_ isOn: Bool) {
-        guard isOn != elementLayer.isInteractive else { return }
-        elementLayer.isInteractive = isOn
-        textTap.isEnabled = isOn
-        if isOn {
-            let kept: [UIGestureRecognizer] = [canvas.panGestureRecognizer, textTap] + [canvas.pinchGestureRecognizer].compactMap { $0 }
+    /// Outside drawing, PencilKit's own taps (its Select All / Paste / Insert
+    /// Space menu) are switched off; otherwise they show that menu and delay
+    /// our own gestures. Scrolling, zooming and our gestures stay active.
+    func setMode(_ newMode: Mode) {
+        guard newMode != mode else {
+            if mode == .lasso { applyLassoTouches() }
+            return
+        }
+
+        // Leave the old mode.
+        switch mode {
+        case .text:
+            elementLayer.isInteractive = false
+            textTap.isEnabled = false
+        case .lasso:
+            if let savedPanTouchTypes { canvas.panGestureRecognizer.allowedTouchTypes = savedPanTouchTypes }
+            canvas.panGestureRecognizer.minimumNumberOfTouches = savedPanMinimumTouches
+            lasso.setEnabled(false, pencilOnly: canvas.drawingPolicy == .pencilOnly)
+        case .draw:
+            break
+        }
+
+        // Suspend PencilKit's gestures when leaving drawing, restore them when returning.
+        if mode == .draw {
+            let kept: [UIGestureRecognizer] = [
+                canvas.panGestureRecognizer, canvas.drawingGestureRecognizer, textTap, lasso.pan, lasso.tap,
+            ] + [canvas.pinchGestureRecognizer].compactMap { $0 }
             suspendedRecognizers = Self.gestureRecognizers(in: canvas).filter { recognizer in
                 recognizer.isEnabled && !kept.contains { $0 === recognizer }
             }
             suspendedRecognizers.forEach { $0.isEnabled = false }
-        } else {
+        } else if newMode == .draw {
             suspendedRecognizers.forEach { $0.isEnabled = true }
             suspendedRecognizers = []
         }
-        canvas.drawingGestureRecognizer.isEnabled = !isOn
+
+        // Enter the new mode.
+        mode = newMode
+        switch newMode {
+        case .text:
+            elementLayer.isInteractive = true
+            textTap.isEnabled = true
+        case .lasso:
+            savedPanTouchTypes = canvas.panGestureRecognizer.allowedTouchTypes
+            savedPanMinimumTouches = canvas.panGestureRecognizer.minimumNumberOfTouches
+            applyLassoTouches()
+        case .draw:
+            break
+        }
+        canvas.drawingGestureRecognizer.isEnabled = newMode == .draw
+    }
+
+    /// Re-applies lasso touch settings after "Draw with Finger" changes.
+    func refreshLassoMode() {
+        if mode == .lasso { applyLassoTouches() }
+    }
+
+    private func applyLassoTouches() {
+        let pencilOnly = canvas.drawingPolicy == .pencilOnly
+        canvas.panGestureRecognizer.allowedTouchTypes = pencilOnly
+            ? [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+            : (savedPanTouchTypes ?? canvas.panGestureRecognizer.allowedTouchTypes)
+        canvas.panGestureRecognizer.minimumNumberOfTouches = pencilOnly ? 1 : 2
+        lasso.setEnabled(true, pencilOnly: pencilOnly)
     }
 
     private static func gestureRecognizers(in view: UIView) -> [UIGestureRecognizer] {
