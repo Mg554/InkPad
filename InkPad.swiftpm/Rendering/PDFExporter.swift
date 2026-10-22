@@ -21,7 +21,7 @@ enum PDFExporter {
         let background = content.makeBackground()
         let elements = content.metadata.elements ?? []
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(fileName(for: title))
+            .appendingPathComponent(exportFileName(title, fallback: "Note"))
             .appendingPathExtension("pdf")
 
         let format = UIGraphicsPDFRendererFormat()
@@ -68,12 +68,5 @@ enum PDFExporter {
             }
         }
         return url
-    }
-
-    private static func fileName(for title: String) -> String {
-        let invalid = CharacterSet(charactersIn: "/\\:?%*|\"<>")
-        let cleaned = title.components(separatedBy: invalid).joined(separator: "-")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return cleaned.isEmpty ? "Note" : cleaned
     }
 }

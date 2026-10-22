@@ -2,16 +2,26 @@ import SwiftUI
 
 /// Floating toolbar combining Notability's two-row layout (tools above,
 /// colors and widths below) with Apple Notes-style pens that rise when picked
-/// and show their color. Collapses to a small pill.
+/// and show their color. Drag its grip to dock it on any edge: on the left or
+/// right it stands upright in two columns, pens pointing at the page.
+/// Collapses to a small pill, or hides completely.
 struct DrawingToolbar<InsertMenu: View>: View {
     @EnvironmentObject private var palette: ToolPalette
     @ObservedObject var canvas: CanvasController
     @Binding var pencilOnly: Bool
+    /// The edge the toolbar is docked to.
+    let edge: ToolbarEdge
+    /// Dragging the grip, measured in `ToolbarPlacement.coordinateSpace`.
+    let onMove: (DragGesture.Value) -> Void
+    let onMoveEnded: (DragGesture.Value) -> Void
+    let onHide: () -> Void
     @ViewBuilder let insertMenu: () -> InsertMenu
 
     @AppStorage("toolbarCollapsed") private var isCollapsed = false
     @State private var customColor = Color.black
     @State private var isAdjustingWidth = false
+
+    private var isVertical: Bool { edge.isVertical }
 
     private static var textColors: [InkColor] {
         [.init(0, 0, 0), .init(0.15, 0.40, 0.95), .init(0.90, 0.20, 0.20),
@@ -26,8 +36,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 fullBar
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, isVertical ? 6 : 10)
+        .padding(.vertical, isVertical ? 10 : 6)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.primary.opacity(0.08)))
         .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
@@ -37,42 +47,58 @@ struct DrawingToolbar<InsertMenu: View>: View {
 
     // MARK: Layout
 
+    /// Tools and options side by side when upright (tools nearest the screen
+    /// edge), otherwise in two rows.
+    @ViewBuilder
     private var fullBar: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 2) {
+        if isVertical {
+            HStack(alignment: .top, spacing: 4) {
+                if edge == .trailing {
+                    optionsStack
+                    toolsStack
+                        .padding(.leading, 4)
+                        .overlay(alignment: .leading) { hairline }
+                } else {
+                    toolsStack
+                        .padding(.trailing, 4)
+                        .overlay(alignment: .trailing) { hairline }
+                    optionsStack
+                }
+            }
+        } else {
+            VStack(spacing: 4) {
+                toolsStack
+                    .padding(.bottom, 4)
+                    .overlay(alignment: .bottom) { hairline }
+                optionsStack
+            }
+        }
+    }
+
+    /// Scrolls when the screen is too small for every tool.
+    private var toolsStack: some View {
+        scrollingIfNeeded(isVertical ? .vertical : .horizontal) {
+            AxisStack(vertical: isVertical, spacing: isVertical ? 0 : 2) {
+                grip
                 ForEach(DrawingTool.allCases) { tool in
                     toolButton(tool)
                 }
                 barDivider
-                Menu {
-                    insertMenu()
-                } label: {
-                    icon("plus.circle")
-                }
-                .accessibilityLabel("Insert")
-                toggleButton("Ruler", systemImage: "ruler", isOn: $canvas.isRulerActive)
-                toggleButton("Hold to Snap Shapes", systemImage: "skew", isOn: $palette.snapsShapes)
-                toggleButton(
-                    "Draw with Finger",
-                    systemImage: pencilOnly ? "hand.raised.slash" : "hand.draw",
-                    isOn: Binding(get: { !pencilOnly }, set: { pencilOnly = !$0 })
-                )
-                barDivider
-                Button {
-                    isCollapsed = true
-                } label: {
-                    icon("chevron.up")
-                }
-                .accessibilityLabel("Collapse Toolbar")
+                actionButtons
             }
-            Divider()
-            optionsRow
-                .frame(minHeight: 36)
         }
     }
 
+    private var optionsStack: some View {
+        AxisStack(vertical: isVertical, spacing: isVertical ? 6 : 8) {
+            optionsContent
+        }
+        .frame(minWidth: isVertical ? 38 : nil, minHeight: isVertical ? nil : 36)
+    }
+
     private var collapsedBar: some View {
-        HStack(spacing: 8) {
+        AxisStack(vertical: isVertical, spacing: 8) {
+            grip
             Image(systemName: palette.tool.systemImage)
                 .font(.title3)
             if palette.tool.isInking {
@@ -83,54 +109,75 @@ struct DrawingToolbar<InsertMenu: View>: View {
             Button {
                 isCollapsed = false
             } label: {
-                icon("chevron.down")
+                icon(expandSymbol)
             }
             .accessibilityLabel("Expand Toolbar")
         }
     }
 
     @ViewBuilder
-    private var optionsRow: some View {
+    private var actionButtons: some View {
+        Menu {
+            insertMenu()
+        } label: {
+            icon("plus.circle")
+        }
+        .accessibilityLabel("Insert")
+        toggleButton("Ruler", systemImage: "ruler", isOn: $canvas.isRulerActive)
+        toggleButton("Hold to Snap Shapes", systemImage: "skew", isOn: $palette.snapsShapes)
+        toggleButton(
+            "Draw with Finger",
+            systemImage: pencilOnly ? "hand.raised.slash" : "hand.draw",
+            isOn: Binding(get: { !pencilOnly }, set: { pencilOnly = !$0 })
+        )
+        barDivider
+        Button(action: onHide) {
+            icon("eye.slash")
+        }
+        .accessibilityLabel("Hide Toolbar")
+        Button {
+            isCollapsed = true
+        } label: {
+            icon(collapseSymbol)
+        }
+        .accessibilityLabel("Collapse Toolbar")
+    }
+
+    /// Colors and widths for pens, eraser modes, or text formatting, laid out
+    /// along the bar.
+    @ViewBuilder
+    private var optionsContent: some View {
         let style = palette.style(for: palette.tool)
         switch palette.tool {
         case .quill, .fountainPen, .pen, .monoline, .pencil, .crayon, .watercolor, .marker, .highlighter:
-            HStack(spacing: 8) {
-                ForEach(style.colors, id: \.self) { color in
-                    colorSwatch(color, isSelected: color == style.selectedColor) {
-                        palette.selectColor(color)
+            ForEach(style.colors, id: \.self) { color in
+                colorSwatch(color, isSelected: color == style.selectedColor) {
+                    palette.selectColor(color)
+                    canvas.applyTool()
+                }
+                .contextMenu {
+                    Button(role: .destructive) {
+                        palette.removeColor(color)
                         canvas.applyTool()
-                    }
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            palette.removeColor(color)
-                            canvas.applyTool()
-                        } label: {
-                            Label("Remove Color", systemImage: "trash")
-                        }
+                    } label: {
+                        Label("Remove Color", systemImage: "trash")
                     }
                 }
-                ColorPicker("Custom Color", selection: $customColor, supportsOpacity: false)
-                    .labelsHidden()
-                    .onChange(of: customColor) {
-                        palette.selectCustomColor(InkColor(customColor))
-                        canvas.applyTool()
-                    }
-                barDivider
-                widthButtons(style)
             }
+            ColorPicker("Custom Color", selection: $customColor, supportsOpacity: false)
+                .labelsHidden()
+                .onChange(of: customColor) {
+                    palette.selectCustomColor(InkColor(customColor))
+                    canvas.applyTool()
+                }
+            barDivider
+            widthButtons(style)
 
         case .eraser:
-            HStack(spacing: 12) {
-                Picker("Eraser", selection: $palette.erasesWholeStrokes) {
-                    Text("Pixel").tag(false)
-                    Text("Whole Stroke").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 220)
-                .onChange(of: palette.erasesWholeStrokes) { canvas.applyTool() }
-                barDivider
-                widthButtons(style)
-            }
+            eraserModes
+            eraserReturnToggle
+            barDivider
+            widthButtons(style)
 
         case .lasso:
             hint("Circle ink to select it, then drag to move. Tap the selection for Style, Duplicate, Cut, Copy and Paste.")
@@ -138,22 +185,20 @@ struct DrawingToolbar<InsertMenu: View>: View {
         case .text:
             switch canvas.selection {
             case .text:
-                textFormattingRow
+                textFormattingItems
             case .image:
-                HStack(spacing: 12) {
-                    hint("Drag to move. Use the corner handle to resize.")
-                    deleteButton
-                }
+                hint("Drag to move. Use the corner handle to resize.")
+                deleteButton
             case nil:
                 hint("Tap the page to add a text box. Tap a box or image to edit it.")
             }
         }
     }
 
-    private var textFormattingRow: some View {
+    private var textFormattingItems: some View {
         let textView = canvas.selectedTextView
         _ = canvas.formattingRevision
-        return HStack(spacing: 4) {
+        return Group {
             formatButton("textformat.size.smaller", label: "Smaller") { canvas.formatText { $0.adjustFontSize(by: -2) } }
             formatButton("textformat.size.larger", label: "Larger") { canvas.formatText { $0.adjustFontSize(by: 2) } }
             barDivider
@@ -181,11 +226,61 @@ struct DrawingToolbar<InsertMenu: View>: View {
         }
     }
 
-    // MARK: Controls
+    // MARK: Eraser
+
+    @ViewBuilder
+    private var eraserModes: some View {
+        if isVertical {
+            toggleButton("Pixel Eraser", systemImage: "eraser", isOn: eraserMode(wholeStrokes: false))
+            toggleButton("Whole Stroke Eraser", systemImage: "eraser.line.dashed", isOn: eraserMode(wholeStrokes: true))
+        } else {
+            Picker("Eraser", selection: $palette.erasesWholeStrokes) {
+                Text("Pixel").tag(false)
+                Text("Whole Stroke").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 220)
+            .onChange(of: palette.erasesWholeStrokes) { canvas.applyTool() }
+        }
+    }
+
+    private func eraserMode(wholeStrokes: Bool) -> Binding<Bool> {
+        Binding(
+            get: { palette.erasesWholeStrokes == wholeStrokes },
+            set: { isOn in
+                guard isOn else { return }
+                palette.erasesWholeStrokes = wholeStrokes
+                canvas.applyTool()
+            }
+        )
+    }
+
+    /// After erasing, go straight back to the tool used before the eraser.
+    private var eraserReturnToggle: some View {
+        let isOn = palette.returnsAfterErasing
+        return Button {
+            palette.returnsAfterErasing.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.uturn.backward")
+                if !isVertical {
+                    Text("Back to Last Tool")
+                        .font(.footnote.weight(.medium))
+                }
+            }
+            .padding(.horizontal, isVertical ? 0 : 10)
+            .frame(minWidth: 38, minHeight: 32)
+            .foregroundStyle(isOn ? Color.accentColor : Color.primary)
+            .background(isOn ? Color.accentColor.opacity(0.15) : Color.clear, in: Capsule())
+        }
+        .accessibilityLabel("Switch Back to the Last Tool After Erasing")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
+    // MARK: Tools
 
     private func toolButton(_ tool: DrawingTool) -> some View {
         let isSelected = palette.tool == tool
-        let tipColor = tool.isInking ? palette.style(for: tool).selectedColor.color : Color.clear
         return Button {
             if isSelected, tool.usesWidth {
                 isAdjustingWidth = true
@@ -193,40 +288,78 @@ struct DrawingToolbar<InsertMenu: View>: View {
             palette.select(tool)
             canvas.applyTool()
         } label: {
-            Group {
-                if tool.isInking {
-                    // Realistic pens that rise when picked, like Apple Notes,
-                    // with Notability's underline for the selected tool.
-                    VStack(spacing: 2) {
-                        PenIcon(tool: tool, color: tipColor)
-                            .frame(width: 22, height: 38)
-                            .offset(y: isSelected ? -4 : 2)
-                        Capsule()
-                            .fill(isSelected ? Color.accentColor : Color.clear)
-                            .frame(width: 18, height: 3)
-                    }
-                    .clipped()
-                } else {
-                    VStack(spacing: 3) {
-                        Image(systemName: tool.systemImage)
-                            .font(.title3)
-                            .symbolVariant(isSelected ? .fill : .none)
-                            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                        Capsule()
-                            .fill(isSelected ? Color.accentColor : Color.clear)
-                            .frame(width: 18, height: 3)
-                    }
-                }
+            ZStack(alignment: markAlignment) {
+                toolImage(tool, isSelected: isSelected)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: tool.isInking ? tipAlignment : .center)
+                    .offset(tool.isInking ? penSink(isSelected: isSelected) : .zero)
+                // Notability's mark under (or beside) the selected tool.
+                Capsule()
+                    .fill(isSelected ? Color.accentColor : Color.clear)
+                    .frame(width: isVertical ? 3 : 18, height: isVertical ? 18 : 3)
             }
-            .frame(width: 34, height: 44)
+            .frame(width: isVertical ? 44 : 34, height: isVertical ? 32 : 44)
+            .clipped()
         }
         .accessibilityLabel(tool.title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
+    @ViewBuilder
+    private func toolImage(_ tool: DrawingTool, isSelected: Bool) -> some View {
+        if tool.isInking {
+            // Realistic pens, like Apple Notes, pointing at the page.
+            PenIcon(tool: tool, color: palette.style(for: tool).selectedColor.color)
+                .frame(width: 22, height: 38)
+                .rotationEffect(.degrees(penAngle))
+                .frame(width: isVertical ? 38 : 22, height: isVertical ? 22 : 38)
+        } else {
+            Image(systemName: tool.systemImage)
+                .font(.title3)
+                .symbolVariant(isSelected ? .fill : .none)
+                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+        }
+    }
+
+    /// Pens point up in a horizontal bar and sideways toward the page when upright.
+    private var penAngle: Double {
+        switch edge {
+        case .leading: 90
+        case .trailing: -90
+        case .top, .bottom: 0
+        }
+    }
+
+    private var tipAlignment: Alignment {
+        switch edge {
+        case .leading: .trailing
+        case .trailing: .leading
+        case .top, .bottom: .top
+        }
+    }
+
+    private var markAlignment: Alignment {
+        switch edge {
+        case .leading: .leading
+        case .trailing: .trailing
+        case .top, .bottom: .bottom
+        }
+    }
+
+    /// Pens sit low in their slot and rise toward the page when picked.
+    private func penSink(isSelected: Bool) -> CGSize {
+        let depth: CGFloat = isSelected ? 2 : 8
+        switch edge {
+        case .leading: return CGSize(width: -depth, height: 0)
+        case .trailing: return CGSize(width: depth, height: 0)
+        case .top, .bottom: return CGSize(width: 0, height: depth)
+        }
+    }
+
+    // MARK: Widths
+
     private func widthButtons(_ style: ToolStyle) -> some View {
         let widths = style.widths(for: palette.tool)
-        return HStack(spacing: 6) {
+        return AxisStack(vertical: isVertical, spacing: 6) {
             ForEach(widths.indices, id: \.self) { index in
                 Button {
                     if index == style.widthIndex {
@@ -319,6 +452,44 @@ struct DrawingToolbar<InsertMenu: View>: View {
         .frame(width: 340)
     }
 
+    // MARK: Controls
+
+    /// The handle for dragging the toolbar to another edge.
+    private var grip: some View {
+        Image(systemName: "line.3.horizontal")
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .rotationEffect(.degrees(isVertical ? 0 : 90))
+            .frame(width: isVertical ? 44 : 22, height: isVertical ? 22 : 38)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 2, coordinateSpace: .named(ToolbarPlacement.coordinateSpace))
+                    .onChanged { onMove($0) }
+                    .onEnded { onMoveEnded($0) }
+            )
+            .accessibilityLabel("Move Toolbar")
+            .accessibilityHint("Drag to any edge of the screen.")
+    }
+
+    /// Chevrons point toward the edge to collapse and away from it to expand.
+    private var collapseSymbol: String {
+        switch edge {
+        case .top: "chevron.up"
+        case .bottom: "chevron.down"
+        case .leading: "chevron.left"
+        case .trailing: "chevron.right"
+        }
+    }
+
+    private var expandSymbol: String {
+        switch edge {
+        case .top: "chevron.down"
+        case .bottom: "chevron.up"
+        case .leading: "chevron.right"
+        case .trailing: "chevron.left"
+        }
+    }
+
     private func colorSwatch(_ color: InkColor, isSelected: Bool, size: CGFloat = 26, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Circle()
@@ -365,18 +536,86 @@ struct DrawingToolbar<InsertMenu: View>: View {
     private func icon(_ systemImage: String) -> some View {
         Image(systemName: systemImage)
             .font(.title3)
-            .frame(width: 38, height: 38)
+            .frame(width: 38, height: isVertical ? 34 : 38)
     }
 
+    /// A line of tips in a horizontal bar; an info button when upright.
+    @ViewBuilder
     private func hint(_ text: String) -> some View {
-        Text(text)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-            .frame(maxWidth: 520)
+        if isVertical {
+            HintButton(text: text)
+        } else {
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .frame(maxWidth: 520)
+        }
     }
 
     private var barDivider: some View {
-        Divider().frame(height: 26).padding(.horizontal, 2)
+        Rectangle()
+            .fill(Color.primary.opacity(0.12))
+            .frame(width: isVertical ? 26 : 1, height: isVertical ? 1 : 26)
+            .padding(isVertical ? .vertical : .horizontal, 4)
+    }
+
+    /// The line between the tools and the options, as long as what it overlays.
+    private var hairline: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(0.12))
+            .frame(width: isVertical ? 1 : nil, height: isVertical ? nil : 1)
+    }
+
+    /// The content as it is when it fits, otherwise scrollable along `axis`.
+    private func scrollingIfNeeded<Content: View>(_ axis: Axis.Set, @ViewBuilder content: () -> Content) -> some View {
+        let built = content()
+        return ViewThatFits(in: axis) {
+            built
+            ScrollView(axis, showsIndicators: false) {
+                built
+            }
+        }
+    }
+}
+
+/// An HStack, or a VStack when `vertical`.
+private struct AxisStack<Content: View>: View {
+    let vertical: Bool
+    var spacing: CGFloat?
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if vertical {
+            VStack(spacing: spacing, content: content)
+        } else {
+            HStack(spacing: spacing, content: content)
+        }
+    }
+}
+
+/// An info button showing a tip, for the upright toolbar where a line of
+/// text does not fit.
+private struct HintButton: View {
+    let text: String
+    @State private var isShowing = false
+
+    var body: some View {
+        Button {
+            isShowing = true
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.title3)
+                .frame(width: 38, height: 34)
+        }
+        .accessibilityLabel(text)
+        .popover(isPresented: $isShowing) {
+            Text(text)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 260)
+                .padding()
+                .presentationCompactAdaptation(.popover)
+        }
     }
 }

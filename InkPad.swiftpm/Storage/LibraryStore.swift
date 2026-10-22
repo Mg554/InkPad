@@ -29,6 +29,7 @@ private enum NoteFiles {
     static let thumbnailFile = "thumbnail.png"
     static let pdfFile = "document.pdf"
     static let markdownFile = "note.md"
+    static let audioFolder = "audio"
 }
 
 /// What the library knows about a text note's contents, read from its
@@ -64,6 +65,7 @@ struct TextNoteInfo: Equatable {
 /// - `notes/<id>/images/<name>.jpg`: images placed on the pages
 /// - `notes/<id>/thumbnail.png`: first-page preview (derived, safe to lose)
 /// - `notes/<id>/note.md`: a text note's Markdown
+/// - `notes/<id>/audio/<name>.m4a`: audio recordings (written by the recorder)
 @MainActor
 final class LibraryStore: ObservableObject {
     @Published private(set) var folders: [Folder] = []
@@ -106,7 +108,7 @@ final class LibraryStore: ObservableObject {
         switch scope {
         case .allNotes: matching = notes
         case .unfiled: matching = notes.filter { $0.folderID == nil }
-        case .planner, .expenses, .mindMaps, .graph: matching = []
+        case .planner, .expenses, .mindMaps, .slides, .graph: matching = []
         case let .tag(tag):
             let key = NoteLinks.key(tag)
             matching = notes.filter { tags(of: $0).contains { NoteLinks.key($0) == key } }
@@ -468,6 +470,36 @@ final class LibraryStore: ObservableObject {
             return (file, size)
         case let .failure(error):
             errorMessage = "Could not add the image: \(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    // MARK: Audio
+
+    /// Where the recorder writes a note's audio.
+    func audioDirectory(for id: UUID) -> URL {
+        noteDirectory(id).appendingPathComponent(NoteFiles.audioFolder, isDirectory: true)
+    }
+
+    func deleteAudioFile(_ file: String, for id: UUID) {
+        guard canWrite(), isPlainFileName(file) else { return }
+        try? fileManager.removeItem(at: audioDirectory(for: id).appendingPathComponent(file))
+    }
+
+    /// A copy of the recording named after the note, for sharing.
+    func exportedAudioURL(_ recording: AudioRecording, of id: UUID) -> URL? {
+        guard isPlainFileName(recording.file) else { return nil }
+        let source = audioDirectory(for: id).appendingPathComponent(recording.file)
+        let name = exportFileName("\(note(id)?.title ?? "Note") - \(recording.title)", fallback: "Recording")
+        let target = fileManager.temporaryDirectory.appendingPathComponent(name).appendingPathExtension("m4a")
+        do {
+            if fileManager.fileExists(atPath: target.path) {
+                try fileManager.removeItem(at: target)
+            }
+            try fileManager.copyItem(at: source, to: target)
+            return target
+        } catch {
+            errorMessage = "Could not share the recording: \(error.localizedDescription)"
             return nil
         }
     }

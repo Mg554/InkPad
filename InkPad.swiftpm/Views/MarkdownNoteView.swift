@@ -13,6 +13,7 @@ struct MarkdownNoteView: View {
     }
 
     @EnvironmentObject private var store: LibraryStore
+    @EnvironmentObject private var workspace: WorkspaceStore
     @Environment(\.noteNavigation) private var navigation
     @Environment(\.scenePhase) private var scenePhase
     let noteID: UUID
@@ -25,6 +26,7 @@ struct MarkdownNoteView: View {
     @State private var isDirty = false
     @State private var saveTask: Task<Void, Never>?
     @State private var prompt: NamePrompt?
+    @State private var isCreatingSlides = false
 
     var body: some View {
         Group {
@@ -71,12 +73,23 @@ struct MarkdownNoteView: View {
                     } label: {
                         Label("Save as Template", systemImage: "doc.badge.plus")
                     }
+                    Button {
+                        save()
+                        isCreatingSlides = true
+                    } label: {
+                        Label("Create Slides…", systemImage: "rectangle.on.rectangle.angled")
+                    }
                 } label: {
                     Label("More", systemImage: "ellipsis.circle")
                 }
             }
         }
         .namePrompt($prompt)
+        .fullScreenCover(isPresented: $isCreatingSlides) {
+            DeckGeneratorView(sources: [noteID])
+                .environmentObject(store)
+                .environmentObject(workspace)
+        }
         .environment(\.openURL, OpenURLAction { InkPadLink.handle($0, with: navigation) })
         .task { load() }
         .onChange(of: text) {

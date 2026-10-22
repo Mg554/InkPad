@@ -12,6 +12,7 @@ struct NotesGridView: View {
     @State private var noteToDelete: NoteSummary?
     @State private var isImportingPDF = false
     @State private var isShowingTemplates = false
+    @State private var slidesNote: NoteSummary?
 
     private var visibleNotes: [NoteSummary] {
         let notes = store.notes(in: scope)
@@ -26,6 +27,7 @@ struct NotesGridView: View {
         case .planner: "Planner"
         case .expenses: "Expenses"
         case .mindMaps: "Mind Maps"
+        case .slides: "Slides"
         case .graph: "Graph"
         case let .tag(tag): "#\(tag)"
         case let .folder(id): store.folder(id)?.name ?? "Folder"
@@ -35,7 +37,7 @@ struct NotesGridView: View {
     private var targetFolderID: UUID? {
         switch scope {
         case let .folder(id): return id
-        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .graph, .tag: return nil
+        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .graph, .tag: return nil
         }
     }
 
@@ -118,6 +120,11 @@ struct NotesGridView: View {
             .ignoresSafeArea()
         }
         .namePrompt($prompt)
+        .fullScreenCover(item: $slidesNote) { note in
+            DeckGeneratorView(sources: [note.id])
+                .environmentObject(store)
+                .environmentObject(workspace)
+        }
         .confirmationDialog(
             "Delete \"\(noteToDelete?.title ?? "")\"?",
             isPresented: Binding(
@@ -168,6 +175,12 @@ struct NotesGridView: View {
             }
         } label: {
             Label("Move to", systemImage: "folder")
+        }
+
+        Button {
+            slidesNote = note
+        } label: {
+            Label("Create Slides…", systemImage: "rectangle.on.rectangle.angled")
         }
 
         Button(role: .destructive) {

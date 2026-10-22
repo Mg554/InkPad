@@ -23,6 +23,8 @@ final class CanvasController: NSObject, ObservableObject {
 
     /// Called after every change to ink, text boxes or images.
     var onEdit: (() -> Void)?
+    /// Called when ink from the open recording is tapped, with when it was written.
+    var onInkTapped: ((Date) -> Void)?
 
     private weak var host: NoteCanvasHostView?
     private weak var palette: ToolPalette?
@@ -34,6 +36,13 @@ final class CanvasController: NSObject, ObservableObject {
     /// Set when a touch ends; the next added stroke is the one just drawn.
     private var expectsNewStroke = false
     private var isReplacingStroke = false
+    /// The eraser removed ink during the current touch.
+    private var didEraseDuringTouch = false
+    /// The touch ended before PencilKit reported its erase.
+    private var awaitsEraseAfterTouch = false
+    /// Audio playback replay, kept so a new canvas view picks it up.
+    private var replayInterval: DateInterval?
+    private var replayNow = Date.distantPast
 
     var drawing: PKDrawing? { host?.canvas.drawing ?? lastDrawing }
     var elements: [PageElement]? { host?.elementLayer.elements ?? lastElements }
@@ -55,6 +64,8 @@ final class CanvasController: NSObject, ObservableObject {
         holdTracker.onTouchBegan = { [weak self, weak host] in
             self?.drawingAtTouch = host?.canvas.drawing
             self?.expectsNewStroke = false
+            self?.didEraseDuringTouch = false
+            self?.awaitsEraseAfterTouch = false
         }
         holdTracker.onHold = { [weak self] points in
             self?.snapHeldStroke(points)
@@ -63,8 +74,13 @@ final class CanvasController: NSObject, ObservableObject {
             // PencilKit may add the stroke before or after this; handle both.
             guard let self else { return }
             self.expectsNewStroke = !self.evenOutNewStroke()
+            self.eraseTouchEnded()
         }
         host.canvas.addGestureRecognizer(holdTracker)
+        host.onInkTapped = { [weak self] date in self?.onInkTapped?(date) }
+        if replayInterval != nil {
+            host.setReplay(replayInterval, now: replayNow)
+        }
         let pencilInteraction = UIPencilInteraction()
         pencilInteraction.delegate = self
         host.canvas.addInteraction(pencilInteraction)
@@ -85,6 +101,14 @@ final class CanvasController: NSObject, ObservableObject {
         if expectsNewStroke, !isReplacingStroke, evenOutNewStroke() {
             expectsNewStroke = false
         }
+        if palette?.tool == .eraser {
+            if awaitsEraseAfterTouch {
+                returnFromEraser()
+            } else {
+                didEraseDuringTouch = true
+            }
+        }
+        host?.inkDidChange()
         refreshUndoState()
         onEdit?()
     }
@@ -98,6 +122,36 @@ final class CanvasController: NSObject, ObservableObject {
         }
         host.canvas.tool = palette.pkTool
     }
+
+    // MARK: Eraser
+
+    /// With "Back to Last Tool" on, returns to the previous tool once an erase
+    /// is done. PencilKit may report the erase before or after the touch ends.
+    private func eraseTouchEnded() {
+        guard let palette, palette.tool == .eraser, palette.returnsAfterErasing else { return }
+        if didEraseDuringTouch {
+            returnFromEraser()
+        } else {
+            awaitsEraseAfterTouch = true
+            Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(300))
+                self?.awaitsEraseAfterTouch = false
+            }
+        }
+    }
+
+    private func returnFromEraser() {
+        didEraseDuringTouch = false
+        awaitsEraseAfterTouch = false
+        // Once PencilKit has finished with the touch.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let palette = self.palette, palette.tool == .eraser, palette.returnsAfterErasing else { return }
+            palette.returnFromEraser()
+            self.applyTool()
+        }
+    }
+
+    // MARK: Undo
 
     func undo() {
         host?.canvas.undoManager?.undo()
@@ -169,6 +223,16 @@ final class CanvasController: NSObject, ObservableObject {
         host.canvas.drawing = even
         isReplacingStroke = false
         return true
+    }
+
+    // MARK: Audio replay
+
+    /// Fades ink written during `recording` after `time` into it, until
+    /// playback reaches it; `nil` shows all ink normally.
+    func showReplay(of recording: AudioRecording?, at time: TimeInterval) {
+        replayInterval = recording?.interval
+        replayNow = recording.map { $0.startDate.addingTimeInterval(time) } ?? .distantPast
+        host?.setReplay(replayInterval, now: replayNow)
     }
 
     // MARK: Pages

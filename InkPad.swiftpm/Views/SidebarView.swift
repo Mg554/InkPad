@@ -42,6 +42,8 @@ struct SidebarView: View {
                     .tag(LibraryScope.expenses)
                 Label("Mind Maps", systemImage: "point.3.connected.trianglepath.dotted")
                     .tag(LibraryScope.mindMaps)
+                Label("Slides", systemImage: "rectangle.on.rectangle.angled")
+                    .tag(LibraryScope.slides)
             }
 
             if !store.allTags.isEmpty {

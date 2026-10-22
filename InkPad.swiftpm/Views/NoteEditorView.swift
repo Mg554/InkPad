@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct NoteEditorView: View {
     @EnvironmentObject private var store: LibraryStore
     @EnvironmentObject private var palette: ToolPalette
+    @EnvironmentObject private var workspace: WorkspaceStore
     @Environment(\.scenePhase) private var scenePhase
     let noteID: UUID
 
@@ -20,9 +21,22 @@ struct NoteEditorView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var prompt: NamePrompt?
     @AppStorage("pencilOnly") private var pencilOnly = true
+    @AppStorage("toolbarEdge") private var toolbarEdge: ToolbarEdge = .top
+    @AppStorage("toolbarAlignment") private var toolbarAlignment: ToolbarAlignment = .center
+    @AppStorage("toolbarHidden") private var isToolbarHidden = false
+    /// While the toolbar is dragged: how far, and where it would dock.
+    @State private var toolbarDrag: CGSize = .zero
+    @State private var dropTarget: ToolbarPlacement?
+    /// The docked toolbar's frame in the editor area, before any drag.
+    @State private var toolbarFrame: CGRect = .zero
+    @State private var recordingToDelete: AudioRecording?
+    @State private var slidesRequest: SlidesRequest?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
+    private var toolbarPlacement: ToolbarPlacement {
+        ToolbarPlacement(edge: toolbarEdge, alignment: toolbarAlignment)
+    }
 
     var body: some View {
         Group {
@@ -102,32 +116,167 @@ struct NoteEditorView: View {
                 }
             }
         }
+        .confirmationDialog(
+            "Delete \"\(recordingToDelete?.title ?? "")\"?",
+            isPresented: Binding(
+                get: { recordingToDelete != nil },
+                set: { if !$0 { recordingToDelete = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: recordingToDelete
+        ) { recording in
+            Button("Delete Recording", role: .destructive) {
+                session.deleteRecording(recording.id)
+            }
+        } message: { _ in
+            Text("The audio is deleted. What you wrote stays.")
+        }
+        .fullScreenCover(item: $slidesRequest) { request in
+            DeckGeneratorView(sources: [noteID], liveContent: [noteID: request.content])
+                .environmentObject(store)
+                .environmentObject(workspace)
+        }
         .task { session.load(noteID: noteID, store: store) }
-        .onDisappear { session.save(thumbnail: true) }
+        .onDisappear {
+            // Stopping a recording stores it in the note before the save.
+            session.audio.stopAll()
+            session.save(thumbnail: true)
+        }
         .onChange(of: scenePhase) {
+            if scenePhase == .background {
+                // Swift Playgrounds apps can't record in the background.
+                session.audio.stopRecording()
+                session.audio.pause()
+            }
             if scenePhase != .active { session.save(thumbnail: true) }
         }
     }
 
+    /// The page, with the toolbar docked on whichever edge it was dragged to.
+    /// Docked toolbars push the page aside rather than cover it.
     private func canvasArea(content: NoteContent, background: NoteBackground) -> some View {
-        NoteCanvas(
-            initialContent: content,
-            background: background,
-            pencilOnly: pencilOnly,
-            controller: canvas,
-            palette: palette
-        )
-        .ignoresSafeArea(edges: .bottom)
-        .safeAreaInset(edge: .top) {
-            DrawingToolbar(canvas: canvas, pencilOnly: $pencilOnly) {
+        GeometryReader { proxy in
+            NoteCanvas(
+                initialContent: content,
+                background: background,
+                pencilOnly: pencilOnly,
+                controller: canvas,
+                palette: palette
+            )
+            .ignoresSafeArea(edges: isToolbarDocked(at: .bottom) ? [] : .bottom)
+            .overlay(alignment: .top) {
+                AudioPlaybackBar(
+                    audio: session.audio,
+                    recordings: session.recordings,
+                    open: { session.openRecording($0) },
+                    rename: { renameRecording($0) },
+                    share: { shareRecording($0) },
+                    delete: { recordingToDelete = $0 }
+                )
+            }
+            .overlay(alignment: .bottomTrailing) {
+                PageNavigator(canvas: canvas) { isShowingPages.toggle() }
+                    .padding(16)
+            }
+            .safeAreaInset(edge: .top, spacing: 0) { dockedToolbar(.top, area: proxy.size) }
+            .safeAreaInset(edge: .bottom, spacing: 0) { dockedToolbar(.bottom, area: proxy.size) }
+            .safeAreaInset(edge: .leading, spacing: 0) { dockedToolbar(.leading, area: proxy.size) }
+            .safeAreaInset(edge: .trailing, spacing: 0) { dockedToolbar(.trailing, area: proxy.size) }
+            .overlay {
+                if let dropTarget {
+                    ToolbarDropPreview(placement: dropTarget)
+                }
+            }
+            .overlay(alignment: toolbarPlacement.frameAlignment) {
+                if isToolbarHidden {
+                    showToolbarButton
+                }
+            }
+        }
+        .coordinateSpace(name: ToolbarPlacement.coordinateSpace)
+    }
+
+    private func isToolbarDocked(at edge: ToolbarEdge) -> Bool {
+        !isToolbarHidden && toolbarEdge == edge
+    }
+
+    @ViewBuilder
+    private func dockedToolbar(_ edge: ToolbarEdge, area: CGSize) -> some View {
+        if isToolbarDocked(at: edge) {
+            DrawingToolbar(
+                canvas: canvas,
+                pencilOnly: $pencilOnly,
+                edge: edge,
+                onMove: { value in
+                    toolbarDrag = value.translation
+                    dropTarget = dropPlacement(for: value, in: area)
+                },
+                onMoveEnded: { value in
+                    let target = dropPlacement(for: value, in: area)
+                    withAnimation(.snappy(duration: 0.3)) {
+                        toolbarEdge = target.edge
+                        toolbarAlignment = target.alignment
+                        toolbarDrag = .zero
+                        dropTarget = nil
+                    }
+                },
+                onHide: { setToolbarHidden(true) }
+            ) {
                 insertMenu
             }
-            .padding(.top, 6)
-            .padding(.bottom, 4)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.onChange(of: proxy.frame(in: .named(ToolbarPlacement.coordinateSpace)), initial: true) { _, frame in
+                        if toolbarDrag == .zero { toolbarFrame = frame }
+                    }
+                }
+            }
+            .offset(toolbarDrag)
+            .padding(ToolbarPlacement.margin)
+            .frame(
+                maxWidth: edge.isVertical ? nil : .infinity,
+                maxHeight: edge.isVertical ? .infinity : nil,
+                alignment: toolbarPlacement.frameAlignment
+            )
         }
-        .overlay(alignment: .bottomTrailing) {
-            PageNavigator(canvas: canvas) { isShowingPages.toggle() }
-                .padding(16)
+    }
+
+    private func dropPlacement(for drag: DragGesture.Value, in area: CGSize) -> ToolbarPlacement {
+        ToolbarPlacement.drop(
+            at: drag.location,
+            translation: drag.translation,
+            toolbarFrame: toolbarFrame,
+            from: toolbarPlacement,
+            in: area
+        )
+    }
+
+    /// Brings a hidden toolbar back, from where it was docked.
+    private var showToolbarButton: some View {
+        Button {
+            setToolbarHidden(false)
+        } label: {
+            Image(systemName: "pencil.tip.crop.circle")
+                .font(.title2)
+                .padding(10)
+                .background(.regularMaterial, in: Circle())
+                .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+        }
+        .padding(10)
+        .accessibilityLabel("Show Toolbar")
+    }
+
+    private func setToolbarHidden(_ hidden: Bool) {
+        withAnimation(.snappy(duration: 0.25)) {
+            isToolbarHidden = hidden
+        }
+    }
+
+    private func moveToolbar(to edge: ToolbarEdge) {
+        withAnimation(.snappy(duration: 0.3)) {
+            toolbarEdge = edge
+            toolbarAlignment = .center
+            isToolbarHidden = false
         }
     }
 
@@ -162,6 +311,22 @@ struct NoteEditorView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
+            RecordButton(audio: session.audio) { session.startRecording() }
+                .disabled(session.metadata == nil)
+            if !session.recordings.isEmpty {
+                Menu {
+                    ForEach(session.recordings) { recording in
+                        Button {
+                            withAnimation(.snappy(duration: 0.25)) { session.openRecording(recording) }
+                        } label: {
+                            Label("\(recording.title) · \(AudioClock.string(recording.duration))", systemImage: "waveform")
+                        }
+                    }
+                } label: {
+                    Label("Recordings", systemImage: "waveform")
+                }
+            }
+
             UndoRedoButtons(canvas: canvas)
 
             Button {
@@ -182,6 +347,31 @@ struct NoteEditorView: View {
                         isShowingExportOptions = true
                     } label: {
                         Label("Export as…", systemImage: "square.and.arrow.up.on.square")
+                    }
+                }
+                Section {
+                    Button {
+                        slidesRequest = session.currentContent().map { SlidesRequest(content: $0) }
+                    } label: {
+                        Label("Create Slides from This Note…", systemImage: "rectangle.on.rectangle.angled")
+                    }
+                }
+                Section {
+                    Button {
+                        setToolbarHidden(!isToolbarHidden)
+                    } label: {
+                        Label(isToolbarHidden ? "Show Toolbar" : "Hide Toolbar", systemImage: isToolbarHidden ? "eye" : "eye.slash")
+                    }
+                    Menu {
+                        ForEach(ToolbarEdge.allCases) { edge in
+                            Button {
+                                moveToolbar(to: edge)
+                            } label: {
+                                Label(edge.title, systemImage: edge.systemImage)
+                            }
+                        }
+                    } label: {
+                        Label("Move Toolbar", systemImage: "arrow.up.and.down.and.arrow.left.and.right")
                     }
                 }
                 Section {
@@ -245,6 +435,20 @@ struct NoteEditorView: View {
         }
     }
 
+    private func renameRecording(_ recording: AudioRecording) {
+        prompt = NamePrompt(
+            title: "Rename Recording",
+            initialText: recording.title,
+            confirmTitle: "Rename"
+        ) { session.renameRecording(recording.id, to: $0) }
+    }
+
+    private func shareRecording(_ recording: AudioRecording) {
+        if let url = store.exportedAudioURL(recording, of: noteID) {
+            exportedFile = ExportedFile(url: url)
+        }
+    }
+
     private func insertImage(_ data: Data) {
         Task {
             guard let added = await store.addImage(data, to: noteID),
@@ -254,6 +458,13 @@ struct NoteEditorView: View {
             canvas.insertImage(file: added.file, image: image, pixelSize: added.size)
         }
     }
+}
+
+/// "Create Slides" opened from the editor, with the note as it is now
+/// (including ink not saved yet).
+private struct SlidesRequest: Identifiable {
+    let id = UUID()
+    let content: NoteContent
 }
 
 /// Observes the canvas directly so undo state updates without re-rendering the editor.

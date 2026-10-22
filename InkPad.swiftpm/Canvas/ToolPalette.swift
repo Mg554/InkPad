@@ -179,6 +179,7 @@ final class ToolPalette: ObservableObject {
         var styles: [DrawingTool: ToolStyle]
         var erasesWholeStrokes: Bool
         var snapsShapes: Bool?
+        var returnsAfterErasing: Bool?
     }
 
     private static let defaultsKey = "toolPalette"
@@ -189,10 +190,13 @@ final class ToolPalette: ObservableObject {
     /// Hold the pencil still at the end of a stroke to turn it into a straight
     /// line or shape.
     @Published var snapsShapes = true { didSet { save() } }
+    /// After an erase, switch straight back to the tool used before the eraser.
+    @Published var returnsAfterErasing = true { didSet { save() } }
 
     private var pendingSave: DispatchWorkItem?
 
-    /// The tool to return to after a temporary switch (Apple Pencil double-tap).
+    /// The tool to return to after a temporary switch (Apple Pencil
+    /// double-tap, or finishing an erase).
     private var previousTool: DrawingTool = .pen
 
     init() {
@@ -202,6 +206,7 @@ final class ToolPalette: ObservableObject {
             styles = saved.styles
             erasesWholeStrokes = saved.erasesWholeStrokes
             snapsShapes = saved.snapsShapes ?? true
+            returnsAfterErasing = saved.returnsAfterErasing ?? true
         }
     }
 
@@ -217,6 +222,12 @@ final class ToolPalette: ObservableObject {
     /// Switches to the eraser, or back to the previous tool when already erasing.
     func toggleEraser() {
         select(tool == .eraser ? (previousTool == .eraser ? .pen : previousTool) : .eraser)
+    }
+
+    /// Back to the tool used before the eraser.
+    func returnFromEraser() {
+        guard tool == .eraser else { return }
+        toggleEraser()
     }
 
     func selectColor(_ color: InkColor) {
@@ -302,7 +313,13 @@ final class ToolPalette: ObservableObject {
     }
 
     private func saveNow() {
-        let saved = Saved(tool: tool, styles: styles, erasesWholeStrokes: erasesWholeStrokes, snapsShapes: snapsShapes)
+        let saved = Saved(
+            tool: tool,
+            styles: styles,
+            erasesWholeStrokes: erasesWholeStrokes,
+            snapsShapes: snapsShapes,
+            returnsAfterErasing: returnsAfterErasing
+        )
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: Self.defaultsKey)
         }

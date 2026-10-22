@@ -51,3 +51,11 @@ enum TextBoxStyle {
 func isPlainFileName(_ name: String) -> Bool {
     !name.isEmpty && name != "." && name != ".." && (name as NSString).lastPathComponent == name
 }
+
+/// A title made safe to use as an exported file's name.
+func exportFileName(_ title: String, fallback: String) -> String {
+    let invalid = CharacterSet(charactersIn: "/\\:?%*|\"<>")
+    let cleaned = title.components(separatedBy: invalid).joined(separator: "-")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    return cleaned.isEmpty ? fallback : cleaned
+}

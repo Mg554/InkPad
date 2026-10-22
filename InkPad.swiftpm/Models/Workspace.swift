@@ -96,7 +96,7 @@ struct Expense: Codable, Identifiable, Equatable {
     }
 }
 
-/// The persisted planner and expenses (`workspace.json`).
+/// The persisted planner, expenses, mind maps and slide decks (`workspace.json`).
 struct WorkspaceFile: Codable {
     static let currentVersion = 1
 
@@ -110,6 +110,7 @@ struct WorkspaceFile: Codable {
     /// `false` (default) shows whole amounts without decimals.
     var showsCents: Bool?
     var mindMaps: [MindMap]?
+    var slideDecks: [SlideDeck]?
 }
 
 // MARK: Mind maps

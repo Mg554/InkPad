@@ -13,7 +13,14 @@ Done:
   (quill, fountain pen, pen, monoline, pencil, crayon, watercolor, marker,
   highlighter), eraser (pixel or whole stroke), text, lasso, insert menu,
   ruler, finger drawing; per-tool colors plus custom colors, three widths
-  per tool with a 13-step width picker and preview; collapses to a pill
+  per tool with a smooth 1-20 width bar and preview
+- Movable toolbar: drag its grip to any edge of the screen (top, bottom,
+  left or right, at the start, middle or end). On the left or right it
+  stands upright with the pens pointing at the page, and the page makes
+  room for it. Collapse it to a pill or hide it completely (More › Hide
+  Toolbar / Move Toolbar)
+- Eraser "Back to Last Tool" (on by default): after an erase, InkPad
+  switches straight back to the tool you used before
 - Notability-style highlighter: even, see-through, pressure-independent
 - Pressure sensitivity per pen: switch it off to keep the width even
 - Hold to snap: rest the pencil at the end of a stroke and it turns into a
@@ -24,6 +31,20 @@ Done:
   interactive category chart, currency and optional decimals; Mind Maps
   with curved glowing branches, drag, pinch-zoom and one-tap tidy layout
 - Apple Pencil double-tap switches to the eraser and back
+- Audio recording synced with your writing, like Notability: record while
+  you write; when you play a recording, writing that came later is faded
+  and appears as the audio reaches it; tap your writing to hear what was
+  said at that moment; skip, scrub, playback speed, rename, share and
+  delete recordings
+- Slides, like NotebookLM's slide decks: make a presentation from one or
+  several notes (handwriting and PDF text are read on the iPad with
+  Vision). Choose Detailed Deck or Presenter Slides, length, a focus and
+  one of six themes. Apple Intelligence writes the slides on the iPad when
+  it is available (iPadOS 26 and later); otherwise InkPad's own offline
+  outliner builds them from your headings, lists and key sentences. Edit
+  any slide, present full screen with a laser pointer, speaker notes and
+  narration read aloud, export a PDF, or save the deck as a note to write
+  on
 - Lasso (Notability-style): circle ink, drag it, and use Style (size 1-20,
   solid/dashed/dotted, colors), Duplicate, Cut, Copy, Paste and Delete
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
@@ -90,7 +111,11 @@ Stored under the app's `Documents/InkPad/`:
 - `notes/<id>/document.pdf` — imported PDF (copied, never modified)
 - `notes/<id>/images/` — images placed on pages
 - `notes/<id>/note.md` — a text note's Markdown
+- `notes/<id>/audio/` — audio recordings (`note.json` lists them with the
+  moment each started, to match them with the writing)
 - `notes/<id>/thumbnail.png` — preview (regenerated on save)
+- `workspace.json` — planner, expenses, mind maps and slide decks
+- `decks/<id>/` — page pictures used in slide decks
 
 If `library.json` cannot be read, InkPad opens read-only instead of
 overwriting it.

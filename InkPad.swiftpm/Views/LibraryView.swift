@@ -26,7 +26,7 @@ struct LibraryView: View {
     /// Opens a note from anywhere, leaving workspace pages for the notes area.
     private func open(_ id: UUID) {
         switch scope {
-        case .planner?, .expenses?, .mindMaps?:
+        case .planner?, .expenses?, .mindMaps?, .slides?:
             scope = .allNotes
             // Changing the scope clears the path; push after that.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { path = [id] }
@@ -46,6 +46,8 @@ struct LibraryView: View {
                 NavigationStack { ExpensesView() }
             case .mindMaps:
                 MindMapsView()
+            case .slides:
+                SlideDecksView()
             default:
                 NavigationStack(path: $path) {
                     Group {

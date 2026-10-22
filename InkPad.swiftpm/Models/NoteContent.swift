@@ -87,8 +87,9 @@ enum PageSource: Codable, Equatable {
 /// Per-note settings stored next to the drawing (`note.json`).
 struct NoteMetadata: Codable, Equatable {
     /// Version 2 added `pdfFile`; version 3 added `paperColor` and `elements`;
-    /// version 4 added `pages`. Older files still decode unchanged.
-    static let currentVersion = 4
+    /// version 4 added `pages`; version 5 added `recordings`. Older files
+    /// still decode unchanged.
+    static let currentVersion = 5
 
     var version: Int
     /// Paper for pages that are not PDF pages.
@@ -104,6 +105,8 @@ struct NoteMetadata: Codable, Equatable {
     var elements: [PageElement]?
     /// The pages in order. `nil` means the PDF's pages followed by `pageCount` paper pages.
     var pages: [PageSource]?
+    /// Audio recorded with the note, oldest first.
+    var recordings: [AudioRecording]?
 
     func resolvedPages(pdfPageCount: Int) -> [PageSource] {
         pages ?? (0..<pdfPageCount).map { PageSource.pdf($0) } + Array(repeating: .paper, count: max(pageCount, 0))
@@ -130,6 +133,7 @@ struct NoteContent: @unchecked Sendable {
     let directory: URL
 
     var imageDirectory: URL { directory.appendingPathComponent("images", isDirectory: true) }
+    var audioDirectory: URL { directory.appendingPathComponent("audio", isDirectory: true) }
 
     func makeBackground() -> NoteBackground {
         NoteBackground(

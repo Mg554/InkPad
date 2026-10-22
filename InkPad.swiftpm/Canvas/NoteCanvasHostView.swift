@@ -3,7 +3,8 @@ import UIKit
 
 /// Stacks three layers that zoom and scroll together:
 /// page background (bottom), text boxes and images, and a transparent
-/// PencilKit canvas (top), which owns scrolling and zooming.
+/// PencilKit canvas (top), which owns scrolling and zooming. During audio
+/// playback a replay canvas sits above the ink (see `InkReplay`).
 ///
 /// The background and elements are siblings behind the canvas rather than
 /// canvas subviews: PencilKit paints its own background over anything
@@ -14,16 +15,21 @@ final class NoteCanvasHostView: UIView {
     /// Above the ink: the lasso line and selection box.
     let selectionOverlay = SelectionOverlayView()
     private(set) var lasso: LassoSelection!
+    private var replay: InkReplay!
     private var savedPanTouchTypes: [NSNumber]?
     private var savedPanMinimumTouches = 1
     private let pageBackground = PageBackgroundView()
     private var background: NoteBackground?
     private var fitScale: CGFloat = 0
     private lazy var textTap = UITapGestureRecognizer(target: self, action: #selector(handleTextTap(_:)))
+    /// During playback, a finger tap on ink plays from when it was written.
+    private lazy var seekTap = UITapGestureRecognizer(target: self, action: #selector(handleSeekTap(_:)))
     private var suspendedRecognizers: [UIGestureRecognizer] = []
 
     /// Reports the page in the middle of the screen and the page count.
     var onVisiblePageChange: ((_ current: Int, _ count: Int) -> Void)?
+    /// Called when ink from the playing recording is tapped, with when it was written.
+    var onInkTapped: ((Date) -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -36,10 +42,15 @@ final class NoteCanvasHostView: UIView {
         canvas.alwaysBounceVertical = true
         textTap.isEnabled = false
         canvas.addGestureRecognizer(textTap)
+        seekTap.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        seekTap.isEnabled = false
+        canvas.addGestureRecognizer(seekTap)
 
+        replay = InkReplay(canvas: canvas)
         addSubview(pageBackground)
         addSubview(elementLayer)
         addSubview(canvas)
+        addSubview(replay.mirror)
         addSubview(selectionOverlay)
         lasso = LassoSelection(host: self, overlay: selectionOverlay)
     }
@@ -94,7 +105,7 @@ final class NoteCanvasHostView: UIView {
         // Suspend PencilKit's gestures when leaving drawing, restore them when returning.
         if mode == .draw {
             let kept: [UIGestureRecognizer] = [
-                canvas.panGestureRecognizer, canvas.drawingGestureRecognizer, textTap, lasso.pan, lasso.tap,
+                canvas.panGestureRecognizer, canvas.drawingGestureRecognizer, textTap, seekTap, lasso.pan, lasso.tap,
             ] + [canvas.pinchGestureRecognizer].compactMap { $0 }
             suspendedRecognizers = Self.gestureRecognizers(in: canvas).filter { recognizer in
                 recognizer.isEnabled && !kept.contains { $0 === recognizer }
@@ -119,11 +130,13 @@ final class NoteCanvasHostView: UIView {
             break
         }
         canvas.drawingGestureRecognizer.isEnabled = newMode == .draw
+        updateSeekTap()
     }
 
     /// Re-applies lasso touch settings after "Draw with Finger" changes.
     func refreshLassoMode() {
         if mode == .lasso { applyLassoTouches() }
+        updateSeekTap()
     }
 
     private func applyLassoTouches() {
@@ -205,6 +218,7 @@ final class NoteCanvasHostView: UIView {
         pageBackground.center = center
         elementLayer.center = center
         selectionOverlay.center = center
+        replay.syncGeometry()
         reportVisiblePage()
     }
 
@@ -212,6 +226,29 @@ final class NoteCanvasHostView: UIView {
     func zoomDidEnd() {
         let screenScale = window?.screen.scale ?? 2
         elementLayer.setRenderScale(min(screenScale * canvas.zoomScale, 6))
+    }
+
+    // MARK: Audio replay
+
+    /// Fades ink written during `interval` after `now`; `nil` ends the replay.
+    func setReplay(_ interval: DateInterval?, now: Date) {
+        replay.show(interval, now: now)
+        updateSeekTap()
+    }
+
+    /// Call after the ink changes.
+    func inkDidChange() {
+        if replay.isActive { replay.drawingDidChange() }
+    }
+
+    /// Tapping ink to hear it needs fingers free: not while they draw or edit text.
+    private func updateSeekTap() {
+        seekTap.isEnabled = replay.isActive && mode != .text && canvas.drawingPolicy == .pencilOnly
+    }
+
+    @objc private func handleSeekTap(_ gesture: UITapGestureRecognizer) {
+        guard let date = replay.inkDate(near: gesture.location(in: elementLayer)) else { return }
+        onInkTapped?(date)
     }
 
     // MARK: Pages

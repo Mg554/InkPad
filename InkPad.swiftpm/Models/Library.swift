@@ -152,6 +152,8 @@ enum LibraryScope: Hashable {
     case planner
     case expenses
     case mindMaps
+    /// Slide decks made from notes.
+    case slides
     /// Notes with this tag (without the #).
     case tag(String)
     /// The graph of notes and their links.

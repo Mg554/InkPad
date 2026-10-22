@@ -1,8 +1,9 @@
 import Foundation
 
-/// Owns the planner tasks and expenses (`Documents/InkPad/workspace.json`).
-/// Like the note library, it opens read-only rather than overwrite a file
-/// it cannot read.
+/// Owns the planner tasks, expenses, mind maps and slide decks
+/// (`Documents/InkPad/workspace.json`, with slide pictures in
+/// `Documents/InkPad/decks/<id>/`). Like the note library, it opens
+/// read-only rather than overwrite a file it cannot read.
 @MainActor
 final class WorkspaceStore: ObservableObject {
     @Published private(set) var tasks: [PlanTask] = []
@@ -11,16 +12,19 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var currencyCode: String = Locale.current.currency?.identifier ?? "USD"
     @Published private(set) var showsCents = false
     @Published private(set) var mindMaps: [MindMap] = []
+    @Published private(set) var decks: [SlideDeck] = []
     @Published var errorMessage: String?
     @Published private(set) var isReadOnly = false
 
     private let fileURL: URL
+    private let decksURL: URL
 
     init(rootURL: URL? = nil) {
         let root = rootURL ?? FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("InkPad", isDirectory: true)
         fileURL = root.appendingPathComponent("workspace.json")
+        decksURL = root.appendingPathComponent("decks", isDirectory: true)
         load()
     }
 
@@ -108,6 +112,47 @@ final class WorkspaceStore: ObservableObject {
         persist()
     }
 
+    // MARK: Slide decks
+
+    func save(_ deck: SlideDeck) {
+        guard canWrite() else { return }
+        var deck = deck
+        deck.modifiedAt = Date()
+        if let index = decks.firstIndex(where: { $0.id == deck.id }) {
+            decks[index] = deck
+        } else {
+            decks.append(deck)
+        }
+        persist()
+    }
+
+    func deleteDeck(_ id: UUID) {
+        guard canWrite() else { return }
+        decks.removeAll { $0.id == id }
+        try? FileManager.default.removeItem(at: deckDirectory(id))
+        persist()
+    }
+
+    /// Where a deck's pictures are stored.
+    func deckDirectory(_ id: UUID) -> URL {
+        decksURL.appendingPathComponent(id.uuidString, isDirectory: true)
+    }
+
+    /// Stores a picture for a deck's slide. Returns its file name.
+    func addDeckImage(_ jpeg: Data, to deckID: UUID) -> String? {
+        guard canWrite() else { return nil }
+        let directory = deckDirectory(deckID)
+        let file = UUID().uuidString + ".jpg"
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try jpeg.write(to: directory.appendingPathComponent(file), options: .atomic)
+            return file
+        } catch {
+            errorMessage = "Could not save a slide picture: \(error.localizedDescription)"
+            return nil
+        }
+    }
+
     // MARK: Persistence
 
     private func load() {
@@ -123,6 +168,7 @@ final class WorkspaceStore: ObservableObject {
             if let code = file.currencyCode { currencyCode = code }
             showsCents = file.showsCents ?? false
             mindMaps = file.mindMaps ?? []
+            decks = file.slideDecks ?? []
         } catch {
             isReadOnly = true
             errorMessage = "Your planner and expenses could not be read (\(error.localizedDescription)). "
@@ -138,7 +184,8 @@ final class WorkspaceStore: ObservableObject {
             monthlyBudget: monthlyBudget,
             currencyCode: currencyCode,
             showsCents: showsCents,
-            mindMaps: mindMaps
+            mindMaps: mindMaps,
+            slideDecks: decks
         )
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)

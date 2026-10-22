@@ -22,6 +22,9 @@ final class EditorSession: ObservableObject {
     private(set) var initialContent: NoteContent?
 
     let canvas = CanvasController()
+    /// Recording and playback. Views observe it directly, so its frequent
+    /// updates do not re-render the whole editor.
+    let audio = AudioController()
 
     static let autosaveDelay: Duration = .seconds(2)
 
@@ -41,6 +44,12 @@ final class EditorSession: ObservableObject {
         self.noteID = noteID
         self.store = store
         canvas.onEdit = { [weak self] in self?.markEdited() }
+        canvas.onInkTapped = { [weak self] date in self?.audio.play(from: date) }
+        audio.onRecordingFinished = { [weak self] recording in self?.addRecording(recording) }
+        audio.onPlaybackPosition = { [weak self] recording, time in
+            self?.canvas.showReplay(of: recording, at: time)
+        }
+        audio.onError = { [weak store] message in store?.errorMessage = message }
         do {
             let content = try store.loadContent(for: noteID)
             baseContent = content
@@ -114,6 +123,57 @@ final class EditorSession: ObservableObject {
             canvas.scrollToPage(index)
         }
     }
+
+    // MARK: Audio
+
+    var recordings: [AudioRecording] { metadata?.recordings ?? [] }
+
+    func startRecording() {
+        guard let noteID, let store else { return }
+        guard !store.isReadOnly else {
+            store.errorMessage = "The library is read-only because it could not be read safely."
+            return
+        }
+        let directory = store.audioDirectory(for: noteID)
+        Task { await self.audio.startRecording(into: directory) }
+    }
+
+    func openRecording(_ recording: AudioRecording) {
+        guard let noteID, let store else { return }
+        audio.open(recording, in: store.audioDirectory(for: noteID))
+    }
+
+    func renameRecording(_ id: UUID, to title: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        updateMetadata { metadata in
+            guard let index = metadata.recordings?.firstIndex(where: { $0.id == id }) else { return }
+            metadata.recordings?[index].title = trimmed
+        }
+    }
+
+    /// Deletes the audio; the ink written while recording stays.
+    func deleteRecording(_ id: UUID) {
+        guard let noteID, let store, !store.isReadOnly,
+              let recording = recordings.first(where: { $0.id == id })
+        else { return }
+        if audio.current?.id == id { audio.closePlayer() }
+        updateMetadata { metadata in
+            metadata.recordings?.removeAll { $0.id == id }
+            if metadata.recordings?.isEmpty == true { metadata.recordings = nil }
+        }
+        save(thumbnail: false)
+        store.deleteAudioFile(recording.file, for: noteID)
+    }
+
+    private func addRecording(_ recording: AudioRecording) {
+        var recording = recording
+        recording.title = "Recording \(recordings.count + 1)"
+        updateMetadata { $0.recordings = ($0.recordings ?? []) + [recording] }
+        save(thumbnail: false)
+    }
+
+    // MARK: Saving
 
     /// Everything as it is on screen now.
     func currentContent() -> NoteContent? {
