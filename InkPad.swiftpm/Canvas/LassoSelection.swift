@@ -6,7 +6,7 @@ import UIKit
 /// (Style, Duplicate, Cut, Copy, Paste, Delete) or drag the selection.
 /// Replaces PencilKit's lasso, which cannot restyle strokes.
 @MainActor
-final class LassoSelection: NSObject, UIEditMenuInteractionDelegate, UIGestureRecognizerDelegate {
+final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDelegate, UIGestureRecognizerDelegate {
     enum DashStyle: String, CaseIterable, Identifiable {
         case solid, dashed, dotted
         var id: Self { self }

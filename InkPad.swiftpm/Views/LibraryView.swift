@@ -35,39 +35,57 @@ struct LibraryView: View {
         }
     }
 
+    /// Which kind of page the detail column shows.
+    private var detailSection: String {
+        switch scope {
+        case .planner: "planner"
+        case .expenses: "expenses"
+        case .mindMaps: "mindMaps"
+        case .slides: "slides"
+        case .study: "study"
+        default: "notes"
+        }
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(scope: $scope)
         } detail: {
-            switch scope {
-            case .planner:
-                NavigationStack { PlannerView() }
-            case .expenses:
-                NavigationStack { ExpensesView() }
-            case .mindMaps:
-                MindMapsView()
-            case .slides:
-                SlideDecksView()
-            case .study:
-                StudyView()
-            default:
-                NavigationStack(path: $path) {
-                    Group {
-                        if scope == .graph {
-                            GraphView()
-                        } else {
-                            NotesGridView(scope: scope ?? .allNotes) { path.append($0) }
+            // Each section gets its own identity, so SwiftUI builds its
+            // navigation stack afresh instead of reusing another section's
+            // (their paths hold different types, which crashes).
+            Group {
+                switch scope {
+                case .planner:
+                    NavigationStack { PlannerView() }
+                case .expenses:
+                    NavigationStack { ExpensesView() }
+                case .mindMaps:
+                    MindMapsView()
+                case .slides:
+                    SlideDecksView()
+                case .study:
+                    StudyView()
+                default:
+                    NavigationStack(path: $path) {
+                        Group {
+                            if scope == .graph {
+                                GraphView()
+                            } else {
+                                NotesGridView(scope: scope ?? .allNotes) { path.append($0) }
+                            }
                         }
-                    }
-                    .navigationDestination(for: UUID.self) { noteID in
-                        if store.note(noteID)?.isText == true {
-                            MarkdownNoteView(noteID: noteID)
-                        } else {
-                            NoteEditorView(noteID: noteID)
+                        .navigationDestination(for: UUID.self) { noteID in
+                            if store.note(noteID)?.isText == true {
+                                MarkdownNoteView(noteID: noteID)
+                            } else {
+                                NoteEditorView(noteID: noteID)
+                            }
                         }
                     }
                 }
             }
+            .id(detailSection)
         }
         .environment(\.noteNavigation, navigation)
         .onChange(of: scope) {

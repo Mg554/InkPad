@@ -125,13 +125,22 @@ final class AISettings: ObservableObject {
         provider == .custom ? customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines) : provider.defaultBaseURL
     }
 
+    /// Keys already read from the keychain, so views don't read it on every update.
+    private var keyCache: [AIProviderKind: String] = [:]
+
     func key(for kind: AIProviderKind) -> String {
         _ = keyRevision
-        return KeyStore.value(for: kind.rawValue) ?? ""
+        if let cached = keyCache[kind] { return cached }
+        let stored = KeyStore.value(for: kind.rawValue) ?? ""
+        keyCache[kind] = stored
+        return stored
     }
 
     func setKey(_ key: String, for kind: AIProviderKind) {
-        KeyStore.set(key.trimmingCharacters(in: .whitespacesAndNewlines), for: kind.rawValue)
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard keyCache[kind] != trimmed else { return }
+        KeyStore.set(trimmed, for: kind.rawValue)
+        keyCache[kind] = trimmed
         keyRevision += 1
     }
 
