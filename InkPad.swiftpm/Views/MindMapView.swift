@@ -234,8 +234,8 @@ struct MindMapEditor: View {
             .foregroundStyle(isRoot ? Color.white : Color.primary)
             .overlay(Capsule(style: .continuous).stroke(color.opacity(isSelected ? 1 : 0.6), lineWidth: isSelected ? 3 : 1.5))
             .shadow(color: color.opacity(isSelected ? 0.9 : 0.4), radius: isSelected ? 16 : 8)
-            .scaleEffect(scale * (isSelected ? 1.06 : 1))
-            .animation(.snappy, value: isSelected)
+            .scaleEffect(scale * (isSelected && dragStart.isEmpty ? 1.06 : 1))
+            .animation(dragStart.isEmpty ? .snappy : nil, value: isSelected)
             .onTapGesture(count: 2) { rename(node) }
             .onTapGesture { withAnimation(.snappy) { selectedID = node.id } }
             .gesture(dragGesture(for: node, in: map))
@@ -290,7 +290,11 @@ struct MindMapEditor: View {
             .onChanged { value in
                 let start = panStart ?? offset
                 panStart = start
-                offset = CGSize(width: start.width + value.translation.width, height: start.height + value.translation.height)
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    offset = CGSize(width: start.width + value.translation.width, height: start.height + value.translation.height)
+                }
             }
             .onEnded { _ in panStart = nil }
     }
@@ -309,8 +313,12 @@ struct MindMapEditor: View {
     private func dragGesture(for node: MindNode, in map: MindMap) -> some Gesture {
         DragGesture(minimumDistance: 4)
             .onChanged { value in
+                // Follow the pencil exactly: no animation while dragging,
+                // which otherwise leaves a trailing ghost of the idea.
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
                 if dragStart.isEmpty {
-                    selectedID = node.id
+                    withTransaction(transaction) { selectedID = node.id }
                     let ids = map.subtree(of: node.id)
                     for item in map.nodes where ids.contains(item.id) {
                         dragStart[item.id] = CGPoint(x: CGFloat(item.x), y: CGFloat(item.y))
@@ -325,7 +333,7 @@ struct MindMapEditor: View {
                         updated.nodes[index].y = Double(start.y + dy)
                     }
                 }
-                self.map = updated
+                withTransaction(transaction) { self.map = updated }
             }
             .onEnded { _ in
                 dragStart = [:]

@@ -104,9 +104,13 @@ final class CanvasController: NSObject, ObservableObject {
         refreshUndoState()
     }
 
+    /// Publishes only real changes: every erase step and stroke calls this,
+    /// and each publish re-renders the toolbar.
     func refreshUndoState() {
-        canUndo = host?.canvas.undoManager?.canUndo ?? false
-        canRedo = host?.canvas.undoManager?.canRedo ?? false
+        let undo = host?.canvas.undoManager?.canUndo ?? false
+        let redo = host?.canvas.undoManager?.canRedo ?? false
+        if undo != canUndo { canUndo = undo }
+        if redo != canRedo { canRedo = redo }
     }
 
     /// Called while the pencil rests at the end of a stroke: ends the stroke

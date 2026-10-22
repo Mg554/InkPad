@@ -8,7 +8,10 @@ struct ExpensesView: View {
     @State private var month = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
     @State private var editing: Expense?
     @State private var isEditingSettings = false
+    /// Where the finger is on the ring while touching (`nil` after lifting).
     @State private var selectedAmount: Double?
+    /// The picked category; stays picked after the finger lifts.
+    @State private var pickedCategory: Expense.Category?
     @State private var glowPhase = false
 
     private var currency: String { workspace.currencyCode }
@@ -168,7 +171,7 @@ struct ExpensesView: View {
             let sum = total(monthItems.filter { $0.kind == .expense && $0.category == category })
             return sum > 0 ? (category, NSDecimalNumber(decimal: sum).doubleValue) : nil
         }
-        let selected = selectedCategory(in: totals)
+        let selected = pickedCategory.flatMap { category in totals.contains { $0.0 == category } ? category : nil }
         return HStack(spacing: 24) {
             Chart(totals, id: \.0) { item in
                 SectorMark(
@@ -183,6 +186,12 @@ struct ExpensesView: View {
             }
             .chartLegend(.hidden)
             .chartAngleSelection(value: $selectedAmount)
+            .onChange(of: selectedAmount) {
+                // Touching a slice picks it, and it stays picked after lifting.
+                if let category = category(at: selectedAmount, in: totals) {
+                    pickedCategory = category
+                }
+            }
             .chartBackground { _ in
                 VStack(spacing: 2) {
                     Text(selected?.title ?? "Spent")
@@ -199,15 +208,29 @@ struct ExpensesView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(totals, id: \.0) { item in
-                    HStack {
-                        Label(item.0.title, systemImage: item.0.systemImage)
-                            .symbolEffect(.bounce, value: selected == item.0)
-                        Spacer()
-                        Text(money.string(item.1))
-                            .foregroundStyle(.secondary)
+                    // Tapping a row picks its slice; tapping the picked row shows the total again.
+                    Button {
+                        pickedCategory = pickedCategory == item.0 ? nil : item.0
+                    } label: {
+                        HStack {
+                            Label(item.0.title, systemImage: item.0.systemImage)
+                                .symbolEffect(.bounce, value: selected == item.0)
+                            Spacer()
+                            Text(money.string(item.1))
+                                .foregroundStyle(selected == item.0 ? Color.primary : Color.secondary)
+                        }
+                        .font(.subheadline)
+                        .fontWeight(selected == item.0 ? .bold : .regular)
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .background(selected == item.0 ? Color.accentColor.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
                     }
-                    .font(.subheadline)
-                    .fontWeight(selected == item.0 ? .bold : .regular)
+                    .buttonStyle(PressableStyle())
+                }
+                if selected != nil {
+                    Button("Show Total") { pickedCategory = nil }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
                 }
             }
         }
@@ -254,7 +277,7 @@ struct ExpensesView: View {
     }
 
     /// The category under the chart selection (which reports an amount along the ring).
-    private func selectedCategory(in totals: [(Expense.Category, Double)]) -> Expense.Category? {
+    private func category(at selectedAmount: Double?, in totals: [(Expense.Category, Double)]) -> Expense.Category? {
         guard let selectedAmount else { return nil }
         var running = 0.0
         for (category, amount) in totals {

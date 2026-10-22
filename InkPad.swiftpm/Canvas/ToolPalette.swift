@@ -190,6 +190,8 @@ final class ToolPalette: ObservableObject {
     /// line or shape.
     @Published var snapsShapes = true { didSet { save() } }
 
+    private var pendingSave: DispatchWorkItem?
+
     /// The tool to return to after a temporary switch (Apple Pencil double-tap).
     private var previousTool: DrawingTool = .pen
 
@@ -291,7 +293,15 @@ final class ToolPalette: ObservableObject {
         }
     }
 
+    /// Coalesces saves, so dragging the width slider does not encode on every step.
     private func save() {
+        pendingSave?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.saveNow() }
+        pendingSave = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+    }
+
+    private func saveNow() {
         let saved = Saved(tool: tool, styles: styles, erasesWholeStrokes: erasesWholeStrokes, snapsShapes: snapsShapes)
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: Self.defaultsKey)
