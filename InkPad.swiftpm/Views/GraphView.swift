@@ -90,8 +90,11 @@ struct GraphView: View {
         }
         .task(id: graph.signature) {
             // Lay out off the main thread; animate dots to their places.
+            let nodes = graph.nodes.map(\.id)
+            let edges = graph.edges
+            let start = layout
             let next = await Task.detached(priority: .userInitiated) {
-                NoteGraph.forceLayout(nodes: graph.nodes.map(\.id), edges: graph.edges, start: layout)
+                NoteGraph.forceLayout(nodes: nodes, edges: edges, start: start)
             }.value
             withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) { layout = next }
         }

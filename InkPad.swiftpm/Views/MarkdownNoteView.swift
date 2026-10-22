@@ -335,7 +335,7 @@ struct MarkdownPreview: View {
             Divider().padding(.vertical, 6)
         } else if let level = headingLevel(trimmed) {
             Text(Self.inline(String(trimmed.drop(while: { $0 == "#" }).dropFirst())))
-                .font([.largeTitle, .title, .title2, .title3, .headline, .subheadline][min(level - 1, 5)].bold())
+                .font(headingFont(level))
                 .padding(.top, level <= 2 ? 8 : 2)
         } else if trimmed.hasPrefix("- [ ] ") || trimmed.hasPrefix("- [x] ") || trimmed.hasPrefix("- [X] ") {
             let done = !trimmed.hasPrefix("- [ ] ")
@@ -368,6 +368,17 @@ struct MarkdownPreview: View {
             .fixedSize(horizontal: false, vertical: true)
         } else {
             Text(Self.inline(trimmed))
+        }
+    }
+
+    private func headingFont(_ level: Int) -> Font {
+        switch level {
+        case 1: return .largeTitle.bold()
+        case 2: return .title.bold()
+        case 3: return .title2.bold()
+        case 4: return .title3.bold()
+        case 5: return .headline
+        default: return .subheadline.bold()
         }
     }
 

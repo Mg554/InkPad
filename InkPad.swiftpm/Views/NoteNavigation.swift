@@ -3,11 +3,21 @@ import SwiftUI
 /// Lets any view open a note, a [[link]] by title, or a #tag, without
 /// knowing how the library navigates. Provided by `LibraryView`.
 struct NoteNavigation {
-    var openNote: (UUID) -> Void = { _ in }
+    var openNote: (UUID) -> Void
     /// Opens the note with this title, creating a text note if none exists
     /// (like following an unresolved link in Obsidian).
-    var openTitle: (String) -> Void = { _ in }
-    var openTag: (String) -> Void = { _ in }
+    var openTitle: (String) -> Void
+    var openTag: (String) -> Void
+
+    init(
+        openNote: @escaping (UUID) -> Void = { _ in },
+        openTitle: @escaping (String) -> Void = { _ in },
+        openTag: @escaping (String) -> Void = { _ in }
+    ) {
+        self.openNote = openNote
+        self.openTitle = openTitle
+        self.openTag = openTag
+    }
 }
 
 private struct NoteNavigationKey: EnvironmentKey {
