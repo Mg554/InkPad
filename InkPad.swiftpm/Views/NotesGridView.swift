@@ -13,6 +13,7 @@ struct NotesGridView: View {
     @State private var isImportingPDF = false
     @State private var isShowingTemplates = false
     @State private var slidesNote: NoteSummary?
+    @State private var studyNote: NoteSummary?
 
     private var visibleNotes: [NoteSummary] {
         let notes = store.notes(in: scope)
@@ -28,6 +29,7 @@ struct NotesGridView: View {
         case .expenses: "Expenses"
         case .mindMaps: "Mind Maps"
         case .slides: "Slides"
+        case .study: "Study"
         case .graph: "Graph"
         case let .tag(tag): "#\(tag)"
         case let .folder(id): store.folder(id)?.name ?? "Folder"
@@ -37,7 +39,7 @@ struct NotesGridView: View {
     private var targetFolderID: UUID? {
         switch scope {
         case let .folder(id): return id
-        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .graph, .tag: return nil
+        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .study, .graph, .tag: return nil
         }
     }
 
@@ -72,7 +74,7 @@ struct NotesGridView: View {
             }
         }
         .navigationTitle(title)
-        .searchable(text: $searchText, prompt: "Search titles, text and #tags")
+        .searchable(text: $searchText, prompt: "Search titles, text, handwriting and #tags")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -120,6 +122,11 @@ struct NotesGridView: View {
             .ignoresSafeArea()
         }
         .namePrompt($prompt)
+        .sheet(item: $studyNote) { note in
+            StudyView(sources: [note.id], isSheet: true)
+                .environmentObject(store)
+                .environmentObject(workspace)
+        }
         .fullScreenCover(item: $slidesNote) { note in
             DeckGeneratorView(sources: [note.id])
                 .environmentObject(store)
@@ -181,6 +188,12 @@ struct NotesGridView: View {
             slidesNote = note
         } label: {
             Label("Create Slides…", systemImage: "rectangle.on.rectangle.angled")
+        }
+
+        Button {
+            studyNote = note
+        } label: {
+            Label("Study with AI…", systemImage: "graduationcap")
         }
 
         Button(role: .destructive) {

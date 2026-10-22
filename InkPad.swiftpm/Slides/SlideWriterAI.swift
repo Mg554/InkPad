@@ -36,6 +36,29 @@ enum SlideWriterAI {
     }
 }
 
+/// Apple Intelligence's on-device model for any prompt (iPadOS 26 and later).
+@MainActor
+enum OnDeviceModel {
+    static func respond(to prompt: String) async throws -> String {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *), SlideWriterAI.unavailableReason == nil {
+            return try await OnDeviceSlideWriter.respond(to: prompt)
+        }
+        #endif
+        throw OnDeviceModelError.unavailable(SlideWriterAI.unavailableReason ?? "Apple Intelligence isn't available.")
+    }
+}
+
+enum OnDeviceModelError: LocalizedError {
+    case unavailable(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .unavailable(reason): reason
+        }
+    }
+}
+
 #if canImport(FoundationModels)
 @available(iOS 26.0, *)
 @MainActor
@@ -86,7 +109,7 @@ private enum OnDeviceSlideWriter {
         return DeckReplyParser.outline(from: reply, format: format, length: length)
     }
 
-    private static func respond(to prompt: String) async throws -> String {
+    static func respond(to prompt: String) async throws -> String {
         let session = LanguageModelSession()
         let response = try await session.respond(to: prompt)
         return response.content

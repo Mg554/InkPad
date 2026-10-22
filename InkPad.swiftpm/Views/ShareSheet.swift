@@ -1,10 +1,18 @@
 import SwiftUI
 import UIKit
 
-/// A file prepared for the system share sheet.
+/// Files prepared for the system share sheet.
 struct ExportedFile: Identifiable {
     let id = UUID()
-    let url: URL
+    let urls: [URL]
+
+    init(url: URL) {
+        urls = [url]
+    }
+
+    init(urls: [URL]) {
+        self.urls = urls
+    }
 }
 
 /// The system share sheet (Save to Files, AirDrop, Mail, ...).

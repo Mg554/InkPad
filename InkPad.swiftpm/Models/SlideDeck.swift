@@ -10,7 +10,7 @@ struct SlideDeck: Codable, Identifiable, Equatable {
     var format: DeckFormat
     /// The notes it was made from.
     var sourceNoteIDs: [UUID]
-    /// `true` when Apple Intelligence wrote the slides.
+    /// `true` when an AI service (or Apple Intelligence) wrote the slides.
     var isAIWritten: Bool
     let createdAt: Date
     var modifiedAt: Date
@@ -153,4 +153,75 @@ enum SlideTheme: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var id: Self { self }
     var title: String { rawValue.capitalized }
+    var isDark: Bool { self != .paper }
+
+    /// The theme's colors, shared by the slides on screen and exported files.
+    var palette: SlidePalette {
+        let darkText = SlideColor(0.10, 0.10, 0.14)
+        let light = SlidePalette(
+            background: [], title: SlideColor(1, 1, 1), text: SlideColor(0.90, 0.90, 0.93),
+            accent: SlideColor(1, 1, 1), glow: SlideColor(1, 1, 1), onAccent: SlideColor(0.06, 0.07, 0.12)
+        )
+        switch self {
+        case .aurora:
+            return light.with(background: [SlideColor(0.07, 0.08, 0.20), SlideColor(0.24, 0.10, 0.40)],
+                              accent: SlideColor(0.42, 0.86, 1.00), glow: SlideColor(0.85, 0.35, 0.95))
+        case .midnight:
+            return light.with(background: [SlideColor(0.05, 0.06, 0.08), SlideColor(0.13, 0.15, 0.20)],
+                              accent: SlideColor(0.99, 0.78, 0.30), glow: SlideColor(0.30, 0.40, 0.80))
+        case .paper:
+            return SlidePalette(
+                background: [SlideColor(0.99, 0.98, 0.95), SlideColor(0.93, 0.91, 0.86)],
+                title: darkText, text: SlideColor(0.22, 0.22, 0.27),
+                accent: SlideColor(0.30, 0.32, 0.86), glow: SlideColor(0.98, 0.80, 0.55), onAccent: SlideColor(1, 1, 1)
+            )
+        case .sunset:
+            return light.with(background: [SlideColor(0.98, 0.47, 0.33), SlideColor(0.62, 0.16, 0.44)],
+                              accent: SlideColor(1.00, 0.92, 0.62), glow: SlideColor(1.00, 0.80, 0.40))
+        case .forest:
+            return light.with(background: [SlideColor(0.05, 0.19, 0.15), SlideColor(0.10, 0.35, 0.27)],
+                              accent: SlideColor(0.62, 0.95, 0.58), glow: SlideColor(0.30, 0.80, 0.60))
+        case .ocean:
+            return light.with(background: [SlideColor(0.02, 0.22, 0.42), SlideColor(0.04, 0.52, 0.66)],
+                              accent: SlideColor(0.80, 0.97, 1.00), glow: SlideColor(0.30, 0.90, 0.85))
+        }
+    }
+}
+
+/// A color with red, green and blue from 0 to 1.
+struct SlideColor: Sendable {
+    let red: Double
+    let green: Double
+    let blue: Double
+
+    init(_ red: Double, _ green: Double, _ blue: Double) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+    }
+
+    /// "RRGGBB", as Office files write colors.
+    var hex: String {
+        [red, green, blue].map { component -> String in
+            let value = String(Int((min(max(component, 0), 1) * 255).rounded()), radix: 16, uppercase: true)
+            return value.count == 1 ? "0" + value : value
+        }.joined()
+    }
+}
+
+struct SlidePalette: Sendable {
+    var background: [SlideColor]
+    var title: SlideColor
+    var text: SlideColor
+    var accent: SlideColor
+    var glow: SlideColor
+    var onAccent: SlideColor
+
+    func with(background: [SlideColor], accent: SlideColor, glow: SlideColor) -> SlidePalette {
+        var copy = self
+        copy.background = background
+        copy.accent = accent
+        copy.glow = glow
+        return copy
+    }
 }

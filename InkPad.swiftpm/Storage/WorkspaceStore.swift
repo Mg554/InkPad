@@ -13,6 +13,8 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var showsCents = false
     @Published private(set) var mindMaps: [MindMap] = []
     @Published private(set) var decks: [SlideDeck] = []
+    @Published private(set) var flashcardDecks: [FlashcardDeck] = []
+    @Published private(set) var quizzes: [Quiz] = []
     @Published var errorMessage: String?
     @Published private(set) var isReadOnly = false
 
@@ -153,6 +155,56 @@ final class WorkspaceStore: ObservableObject {
         }
     }
 
+    // MARK: Study
+
+    func save(_ deck: FlashcardDeck) {
+        guard canWrite() else { return }
+        var deck = deck
+        deck.modifiedAt = Date()
+        if let index = flashcardDecks.firstIndex(where: { $0.id == deck.id }) {
+            flashcardDecks[index] = deck
+        } else {
+            flashcardDecks.append(deck)
+        }
+        persist()
+    }
+
+    func deleteFlashcardDeck(_ id: UUID) {
+        guard canWrite() else { return }
+        flashcardDecks.removeAll { $0.id == id }
+        persist()
+    }
+
+    /// Records a review of one card.
+    func review(card cardID: UUID, in deckID: UUID, rating: Flashcard.Rating) {
+        guard canWrite(),
+              let deckIndex = flashcardDecks.firstIndex(where: { $0.id == deckID }),
+              let cardIndex = flashcardDecks[deckIndex].cards.firstIndex(where: { $0.id == cardID })
+        else { return }
+        flashcardDecks[deckIndex].cards[cardIndex].review(rating)
+        persist()
+    }
+
+    var dueCardCount: Int {
+        flashcardDecks.reduce(0) { $0 + $1.dueCount }
+    }
+
+    func save(_ quiz: Quiz) {
+        guard canWrite() else { return }
+        if let index = quizzes.firstIndex(where: { $0.id == quiz.id }) {
+            quizzes[index] = quiz
+        } else {
+            quizzes.append(quiz)
+        }
+        persist()
+    }
+
+    func deleteQuiz(_ id: UUID) {
+        guard canWrite() else { return }
+        quizzes.removeAll { $0.id == id }
+        persist()
+    }
+
     // MARK: Persistence
 
     private func load() {
@@ -169,6 +221,8 @@ final class WorkspaceStore: ObservableObject {
             showsCents = file.showsCents ?? false
             mindMaps = file.mindMaps ?? []
             decks = file.slideDecks ?? []
+            flashcardDecks = file.flashcardDecks ?? []
+            quizzes = file.quizzes ?? []
         } catch {
             isReadOnly = true
             errorMessage = "Your planner and expenses could not be read (\(error.localizedDescription)). "
@@ -185,7 +239,9 @@ final class WorkspaceStore: ObservableObject {
             currencyCode: currencyCode,
             showsCents: showsCents,
             mindMaps: mindMaps,
-            slideDecks: decks
+            slideDecks: decks,
+            flashcardDecks: flashcardDecks,
+            quizzes: quizzes
         )
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)

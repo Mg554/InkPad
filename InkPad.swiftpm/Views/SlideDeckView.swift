@@ -36,7 +36,7 @@ struct SlideDeckView: View {
             }
         }
         .sheet(item: $exportedFile) { file in
-            ShareSheet(items: [file.url])
+            ShareSheet(items: file.urls)
         }
         .namePrompt($prompt)
         .alert(
@@ -164,15 +164,27 @@ struct SlideDeckView: View {
                 Label("Theme", systemImage: "paintpalette")
             }
             Menu {
-                Button {
-                    exportPDF()
-                } label: {
-                    Label("Export PDF", systemImage: "square.and.arrow.up")
+                Section("Export") {
+                    ForEach(ExportKind.allCases) { kind in
+                        Button {
+                            export(kind)
+                        } label: {
+                            Label(kind.title, systemImage: kind.symbol)
+                        }
+                    }
                 }
-                Button {
-                    saveAsNote()
-                } label: {
-                    Label("Save as Note to Write On", systemImage: "pencil.and.outline")
+                .disabled(deck?.slides.isEmpty ?? true)
+                Section {
+                    Button {
+                        saveAsNote()
+                    } label: {
+                        Label("Save as Note to Write On", systemImage: "pencil.and.outline")
+                    }
+                    Button {
+                        saveOutlineAsNote()
+                    } label: {
+                        Label("Save Outline as Text Note", systemImage: "doc.text")
+                    }
                 }
                 Button {
                     prompt = NamePrompt(title: "Rename Slide Deck", initialText: deck?.title ?? "", confirmTitle: "Rename") { name in
@@ -278,14 +290,56 @@ struct SlideDeckView: View {
 
     // MARK: Sharing
 
-    private func exportPDF() {
+    private enum ExportKind: CaseIterable, Identifiable {
+        case powerPoint, pdf, pictures, outline
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .powerPoint: "PowerPoint (.pptx)"
+            case .pdf: "PDF"
+            case .pictures: "Pictures (PNG)"
+            case .outline: "Outline (Markdown)"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .powerPoint: "rectangle.on.rectangle.angled"
+            case .pdf: "doc.richtext"
+            case .pictures: "photo.on.rectangle"
+            case .outline: "list.bullet.rectangle"
+            }
+        }
+    }
+
+    private func export(_ kind: ExportKind) {
         guard let deck else { return }
         saveNow()
         do {
-            exportedFile = ExportedFile(url: try SlideExporter.pdf(for: deck, images: images))
+            switch kind {
+            case .powerPoint:
+                exportedFile = ExportedFile(url: try PPTXExporter.export(deck, images: images))
+            case .pdf:
+                exportedFile = ExportedFile(url: try SlideExporter.pdf(for: deck, images: images))
+            case .pictures:
+                exportedFile = ExportedFile(urls: try SlideExporter.pictures(for: deck, images: images))
+            case .outline:
+                exportedFile = ExportedFile(url: try SlideExporter.outline(for: deck))
+            }
         } catch {
             message = "Could not export the slides: \(error.localizedDescription)"
         }
+    }
+
+    /// Adds the deck's words to the library as a text note.
+    private func saveOutlineAsNote() {
+        guard let deck else { return }
+        saveNow()
+        guard let note = store.createTextNote(titled: deck.title, in: nil) else { return }
+        store.saveMarkdown(SlideExporter.outlineText(for: deck), for: note.id)
+        message = "\"\(note.title)\" is now in All Notes as a text note."
     }
 
     /// Adds the slides to the library as a PDF note, to write on with Apple Pencil.

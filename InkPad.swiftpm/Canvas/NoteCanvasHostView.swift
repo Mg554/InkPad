@@ -176,21 +176,61 @@ final class NoteCanvasHostView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        canvas.frame = bounds
+        // On rotation UIKit lays out inside its rotation animation. Animating the
+        // page layers while PencilKit redraws at the new zoom makes the page
+        // wobble, so everything is placed at its final position at once.
+        UIView.performWithoutAnimation {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            relayout()
+            CATransaction.commit()
+        }
+    }
 
+    private func relayout() {
         let newFitScale = bounds.width / PageLayout.pageWidth
-        if newFitScale > 0, abs(newFitScale - fitScale) > 0.0001 {
-            // Keep "fit to width" across rotation unless the user zoomed in.
-            let wasFitted = fitScale == 0 || abs(canvas.zoomScale - fitScale) < 0.0001
-            fitScale = newFitScale
-            canvas.minimumZoomScale = newFitScale
-            canvas.maximumZoomScale = newFitScale * 5
-            if wasFitted || canvas.zoomScale < newFitScale {
-                canvas.zoomScale = newFitScale
-            }
-            zoomDidEnd()
+        guard newFitScale > 0, abs(newFitScale - fitScale) > 0.0001 else {
+            if canvas.frame != bounds { canvas.frame = bounds }
+            updateZoomGeometry()
+            return
+        }
+        // The point of the page in the middle of the screen, in canvas coordinates.
+        let oldZoom = canvas.zoomScale
+        let anchor = CGPoint(
+            x: (canvas.contentOffset.x + canvas.bounds.width / 2) / max(oldZoom, 0.0001),
+            y: (canvas.contentOffset.y + canvas.bounds.height / 2) / max(oldZoom, 0.0001)
+        )
+        let hadContent = fitScale != 0
+
+        canvas.frame = bounds
+        // Keep "fit to width" across rotation unless the user zoomed in.
+        let wasFitted = !hadContent || abs(oldZoom - fitScale) < 0.0001
+        fitScale = newFitScale
+        canvas.minimumZoomScale = newFitScale
+        canvas.maximumZoomScale = newFitScale * 5
+        if wasFitted || canvas.zoomScale < newFitScale {
+            canvas.zoomScale = newFitScale
         }
         updateZoomGeometry()
+        if hadContent {
+            keepVisible(anchor)
+        }
+        zoomDidEnd()
+    }
+
+    /// Scrolls so `point` (canvas coordinates) is in the middle of the screen,
+    /// within the content.
+    private func keepVisible(_ point: CGPoint) {
+        let zoom = canvas.zoomScale
+        let inset = canvas.adjustedContentInset
+        let size = canvas.contentSize
+        let visible = canvas.bounds.size
+        let maxX = max(size.width + inset.right - visible.width, -inset.left)
+        let maxY = max(size.height + inset.bottom - visible.height, -inset.top)
+        let x = min(max(point.x * zoom - visible.width / 2, -inset.left), maxX)
+        let y = min(max(point.y * zoom - visible.height / 2, -inset.top), maxY)
+        canvas.setContentOffset(CGPoint(x: x, y: y), animated: false)
+        updateScrollPosition()
     }
 
     /// Call when the zoom scale or the pages change.

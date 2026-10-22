@@ -111,6 +111,8 @@ struct WorkspaceFile: Codable {
     var showsCents: Bool?
     var mindMaps: [MindMap]?
     var slideDecks: [SlideDeck]?
+    var flashcardDecks: [FlashcardDeck]?
+    var quizzes: [Quiz]?
 }
 
 // MARK: Mind maps

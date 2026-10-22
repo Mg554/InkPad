@@ -27,6 +27,7 @@ struct MarkdownNoteView: View {
     @State private var saveTask: Task<Void, Never>?
     @State private var prompt: NamePrompt?
     @State private var isCreatingSlides = false
+    @State private var isStudying = false
 
     var body: some View {
         Group {
@@ -79,12 +80,23 @@ struct MarkdownNoteView: View {
                     } label: {
                         Label("Create Slides…", systemImage: "rectangle.on.rectangle.angled")
                     }
+                    Button {
+                        save()
+                        isStudying = true
+                    } label: {
+                        Label("Study with AI…", systemImage: "graduationcap")
+                    }
                 } label: {
                     Label("More", systemImage: "ellipsis.circle")
                 }
             }
         }
         .namePrompt($prompt)
+        .sheet(isPresented: $isStudying) {
+            StudyView(sources: [noteID], isSheet: true)
+                .environmentObject(store)
+                .environmentObject(workspace)
+        }
         .fullScreenCover(isPresented: $isCreatingSlides) {
             DeckGeneratorView(sources: [noteID])
                 .environmentObject(store)

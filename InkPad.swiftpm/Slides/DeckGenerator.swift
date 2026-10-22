@@ -1,17 +1,27 @@
 import SwiftUI
 
 /// Turns notes into a slide deck, like NotebookLM: reads them (recognizing
-/// handwriting on the iPad), writes the slides with Apple Intelligence when
-/// it is available or with the offline outliner, adds pictures of the pages,
-/// and saves the deck.
+/// handwriting on the iPad), writes the slides with the connected AI
+/// service, Apple Intelligence or the offline outliner, adds pictures of the
+/// pages, and saves the deck.
 @MainActor
 final class DeckGenerator: ObservableObject {
+    /// Who writes the slides.
+    enum Writer: String, CaseIterable, Identifiable {
+        /// The AI service chosen in AI Settings.
+        case connected
+        /// InkPad's own outliner, on the iPad without AI.
+        case offline
+
+        var id: Self { self }
+    }
+
     struct Options {
         var format: DeckFormat = .presenter
         var length: DeckLength = .standard
         var theme: SlideTheme = .aurora
         var focus = ""
-        var usesAI = true
+        var writer: Writer = .connected
         var includesPages = true
     }
 
@@ -66,7 +76,11 @@ final class DeckGenerator: ObservableObject {
                     pictures.append(Picture(noteTitle: summary.title, page: index + 1, jpeg: jpeg))
                 }
             }
-            texts.append(SlideSource(title: summary.title, text: pageTexts.joined(separator: "\n\n"), isMarkdown: false))
+            let recognized = pageTexts.joined(separator: "\n\n")
+            if count == background.layout.pageRects.count {
+                store.saveRecognizedText(recognized, for: id)
+            }
+            texts.append(SlideSource(title: summary.title, text: recognized, isMarkdown: false))
         }
 
         let hasText = texts.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -78,19 +92,34 @@ final class DeckGenerator: ObservableObject {
         // Write the slides.
         var outline: DeckOutline?
         var isAIWritten = false
-        if hasText, options.usesAI, SlideWriterAI.unavailableReason == nil {
+        if hasText, options.writer == .connected, let client = AISettings.shared.client() {
             do {
-                outline = try await SlideWriterAI.outline(
-                    texts,
-                    format: options.format,
-                    length: options.length,
-                    focus: options.focus
-                ) { [weak self] message in
-                    self?.stage = message
+                if client.kind == .apple {
+                    outline = try await SlideWriterAI.outline(
+                        texts,
+                        format: options.format,
+                        length: options.length,
+                        focus: options.focus
+                    ) { [weak self] message in
+                        self?.stage = message
+                    }
+                } else {
+                    stage = "\(client.kind.title) is writing your slides…"
+                    let notes = NoteTexts.context(
+                        texts.map { StudySource(id: UUID(), title: $0.title, text: $0.text) },
+                        budget: client.kind.contextBudget
+                    )
+                    let reply = try await client.complete(
+                        system: "You turn study notes into excellent, well structured presentation slides.",
+                        messages: [AIMessage(.user, StudyAI.slidesPrompt(
+                            notes: notes, format: options.format, length: options.length, focus: options.focus
+                        ))]
+                    )
+                    outline = try StudyAI.outline(fromSlidesReply: reply, format: options.format)
                 }
                 isAIWritten = outline != nil
             } catch {
-                notice = "Apple Intelligence couldn't write these slides (\(error.localizedDescription)), so InkPad outlined them itself."
+                notice = "The AI couldn't write these slides (\(error.localizedDescription)), so InkPad outlined them itself."
             }
         }
         if outline == nil {

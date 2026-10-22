@@ -154,6 +154,8 @@ enum LibraryScope: Hashable {
     case mindMaps
     /// Slide decks made from notes.
     case slides
+    /// Study with AI: chat, flashcards, quizzes.
+    case study
     /// Notes with this tag (without the #).
     case tag(String)
     /// The graph of notes and their links.

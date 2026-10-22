@@ -30,6 +30,7 @@ private enum NoteFiles {
     static let pdfFile = "document.pdf"
     static let markdownFile = "note.md"
     static let audioFolder = "audio"
+    static let textFile = "text.json"
 }
 
 /// What the library knows about a text note's contents, read from its
@@ -66,6 +67,8 @@ struct TextNoteInfo: Equatable {
 /// - `notes/<id>/thumbnail.png`: first-page preview (derived, safe to lose)
 /// - `notes/<id>/note.md`: a text note's Markdown
 /// - `notes/<id>/audio/<name>.m4a`: audio recordings (written by the recorder)
+/// - `notes/<id>/text.json`: handwriting and PDF text read with Vision
+///   (derived, safe to lose; used by search and AI study)
 @MainActor
 final class LibraryStore: ObservableObject {
     @Published private(set) var folders: [Folder] = []
@@ -77,6 +80,8 @@ final class LibraryStore: ObservableObject {
     /// Contents of text notes, for links, backlinks, tags, search and previews.
     @Published private(set) var textIndex: [UUID: TextNoteInfo] = [:]
     @Published private(set) var customTemplates: [TextTemplate] = []
+    /// Recognized handwriting of handwritten notes, for search.
+    @Published private(set) var recognizedText: [UUID: String] = [:]
 
     private let rootURL: URL
     private let fileManager = FileManager.default
@@ -91,6 +96,7 @@ final class LibraryStore: ObservableObject {
             .appendingPathComponent("InkPad", isDirectory: true)
         loadIndex()
         loadTextIndex()
+        loadRecognizedText()
     }
 
     // MARK: Queries
@@ -108,7 +114,7 @@ final class LibraryStore: ObservableObject {
         switch scope {
         case .allNotes: matching = notes
         case .unfiled: matching = notes.filter { $0.folderID == nil }
-        case .planner, .expenses, .mindMaps, .slides, .graph: matching = []
+        case .planner, .expenses, .mindMaps, .slides, .study, .graph: matching = []
         case let .tag(tag):
             let key = NoteLinks.key(tag)
             matching = notes.filter { tags(of: $0).contains { NoteLinks.key($0) == key } }
@@ -135,6 +141,7 @@ final class LibraryStore: ObservableObject {
         note.title.localizedCaseInsensitiveContains(search)
             || tags(of: note).contains { $0.localizedCaseInsensitiveContains(search.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) }
             || (textIndex[note.id]?.text.localizedCaseInsensitiveContains(search) ?? false)
+            || (recognizedText[note.id]?.localizedCaseInsensitiveContains(search) ?? false)
     }
 
     func note(titled title: String) -> NoteSummary? {
@@ -408,6 +415,7 @@ final class LibraryStore: ObservableObject {
         }
         notes.removeAll { $0.id == id }
         textIndex[id] = nil
+        recognizedText[id] = nil
         saveIndex()
     }
 
@@ -504,9 +512,46 @@ final class LibraryStore: ObservableObject {
         }
     }
 
+    // MARK: Recognized text
+
+    private struct RecognizedText: Codable {
+        /// When it was read, as seconds since 2001.
+        var readAt: TimeInterval
+        var text: String
+    }
+
+    /// The note's recognized text, if it was read since the note last changed.
+    func cachedRecognizedText(for id: UUID) -> String? {
+        guard let note = note(id),
+              let data = try? Data(contentsOf: noteDirectory(id).appendingPathComponent(NoteFiles.textFile)),
+              let saved = try? JSONDecoder().decode(RecognizedText.self, from: data),
+              saved.readAt + 1 >= note.modifiedAt.timeIntervalSinceReferenceDate
+        else { return nil }
+        return saved.text
+    }
+
+    func saveRecognizedText(_ text: String, for id: UUID) {
+        guard !isReadOnly, note(id) != nil else { return }
+        let saved = RecognizedText(readAt: Date().timeIntervalSinceReferenceDate, text: text)
+        guard let data = try? JSONEncoder().encode(saved) else { return }
+        try? data.write(to: noteDirectory(id).appendingPathComponent(NoteFiles.textFile), options: .atomic)
+        recognizedText[id] = text
+    }
+
+    private func loadRecognizedText() {
+        var index: [UUID: String] = [:]
+        for note in notes where !note.isText {
+            if let data = try? Data(contentsOf: noteDirectory(note.id).appendingPathComponent(NoteFiles.textFile)),
+               let saved = try? JSONDecoder().decode(RecognizedText.self, from: data) {
+                index[note.id] = saved.text
+            }
+        }
+        recognizedText = index
+    }
+
     // MARK: Persistence
 
-    private func noteDirectory(_ id: UUID) -> URL {
+    func noteDirectory(_ id: UUID) -> URL {
         rootURL
             .appendingPathComponent("notes", isDirectory: true)
             .appendingPathComponent(id.uuidString, isDirectory: true)

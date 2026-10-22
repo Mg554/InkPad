@@ -2,8 +2,9 @@ import SwiftUI
 
 /// Floating toolbar combining Notability's two-row layout (tools above,
 /// colors and widths below) with Apple Notes-style pens that rise when picked
-/// and show their color. Drag its grip to dock it on any edge: on the left or
-/// right it stands upright in two columns, pens pointing at the page.
+/// and show their color. Drag it by its handle or any empty part of the bar
+/// to dock it on any edge: on the left or right it stands upright in two
+/// columns, pens pointing at the page.
 /// Collapses to a small pill, or hides completely.
 struct DrawingToolbar<InsertMenu: View>: View {
     @EnvironmentObject private var palette: ToolPalette
@@ -38,8 +39,14 @@ struct DrawingToolbar<InsertMenu: View>: View {
         }
         .padding(.horizontal, isVertical ? 6 : 10)
         .padding(.vertical, isVertical ? 10 : 6)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.primary.opacity(0.08)))
+        .background {
+            // Dragging the bar itself (between its buttons) moves it, like Notability.
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.regularMaterial)
+                .contentShape(Rectangle())
+                .gesture(moveGesture)
+        }
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.primary.opacity(0.08)).allowsHitTesting(false))
         .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
         .animation(.snappy(duration: 0.2), value: isCollapsed)
         .animation(.snappy(duration: 0.15), value: palette.tool)
@@ -75,16 +82,19 @@ struct DrawingToolbar<InsertMenu: View>: View {
         }
     }
 
-    /// Scrolls when the screen is too small for every tool.
+    /// Scrolls when the screen is too small for every tool; the handle stays
+    /// outside the scrolling part so dragging it always moves the bar.
     private var toolsStack: some View {
-        scrollingIfNeeded(isVertical ? .vertical : .horizontal) {
-            AxisStack(vertical: isVertical, spacing: isVertical ? 0 : 2) {
-                grip
-                ForEach(DrawingTool.allCases) { tool in
-                    toolButton(tool)
+        AxisStack(vertical: isVertical, spacing: isVertical ? 0 : 2) {
+            grip
+            scrollingIfNeeded(isVertical ? .vertical : .horizontal) {
+                AxisStack(vertical: isVertical, spacing: isVertical ? 0 : 2) {
+                    ForEach(DrawingTool.allCases) { tool in
+                        toolButton(tool)
+                    }
+                    barDivider
+                    actionButtons
                 }
-                barDivider
-                actionButtons
             }
         }
     }
@@ -456,19 +466,20 @@ struct DrawingToolbar<InsertMenu: View>: View {
 
     /// The handle for dragging the toolbar to another edge.
     private var grip: some View {
-        Image(systemName: "line.3.horizontal")
-            .font(.body.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .rotationEffect(.degrees(isVertical ? 0 : 90))
-            .frame(width: isVertical ? 44 : 22, height: isVertical ? 22 : 38)
+        Capsule()
+            .fill(Color.secondary.opacity(0.55))
+            .frame(width: isVertical ? 26 : 5, height: isVertical ? 5 : 26)
+            .frame(width: isVertical ? 44 : 24, height: isVertical ? 24 : 44)
             .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 2, coordinateSpace: .named(ToolbarPlacement.coordinateSpace))
-                    .onChanged { onMove($0) }
-                    .onEnded { onMoveEnded($0) }
-            )
+            .gesture(moveGesture)
             .accessibilityLabel("Move Toolbar")
             .accessibilityHint("Drag to any edge of the screen.")
+    }
+
+    private var moveGesture: some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .named(ToolbarPlacement.coordinateSpace))
+            .onChanged { onMove($0) }
+            .onEnded { onMoveEnded($0) }
     }
 
     /// Chevrons point toward the edge to collapse and away from it to expand.

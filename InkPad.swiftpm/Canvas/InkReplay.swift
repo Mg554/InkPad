@@ -78,17 +78,17 @@ final class InkReplay {
     private func refresh(force: Bool) {
         guard let interval else { return }
         let strokes = canvas.drawing.strokes
-        let now = now
+        let moment = now
         let revealed = strokes.reduce(0) { count, stroke in
             let created = stroke.path.creationDate
-            return interval.contains(created) && created <= now ? count + 1 : count
+            return interval.contains(created) && created <= moment ? count + 1 : count
         }
         guard force || revealed != revealedCount || strokes.count != strokeCount else { return }
         revealedCount = revealed
         strokeCount = strokes.count
         mirror.drawing = PKDrawing(strokes: strokes.filter { stroke in
             let created = stroke.path.creationDate
-            return !interval.contains(created) || created <= now
+            return !interval.contains(created) || created <= moment
         })
     }
 

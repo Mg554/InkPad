@@ -1,58 +1,21 @@
 import SwiftUI
 
+extension SlideColor {
+    var color: Color { Color(red: red, green: green, blue: blue) }
+}
+
 extension SlideTheme {
     var background: LinearGradient {
-        LinearGradient(colors: backgroundColors, startPoint: .topLeading, endPoint: .bottomTrailing)
+        LinearGradient(colors: palette.background.map(\.color), startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
-    private var backgroundColors: [Color] {
-        switch self {
-        case .aurora: return [Color(red: 0.07, green: 0.08, blue: 0.20), Color(red: 0.24, green: 0.10, blue: 0.40)]
-        case .midnight: return [Color(red: 0.05, green: 0.06, blue: 0.08), Color(red: 0.13, green: 0.15, blue: 0.20)]
-        case .paper: return [Color(red: 0.99, green: 0.98, blue: 0.95), Color(red: 0.93, green: 0.91, blue: 0.86)]
-        case .sunset: return [Color(red: 0.98, green: 0.47, blue: 0.33), Color(red: 0.62, green: 0.16, blue: 0.44)]
-        case .forest: return [Color(red: 0.05, green: 0.19, blue: 0.15), Color(red: 0.10, green: 0.35, blue: 0.27)]
-        case .ocean: return [Color(red: 0.02, green: 0.22, blue: 0.42), Color(red: 0.04, green: 0.52, blue: 0.66)]
-        }
-    }
-
-    var isDark: Bool { self != .paper }
-
-    var titleColor: Color {
-        isDark ? .white : Color(red: 0.10, green: 0.10, blue: 0.14)
-    }
-
-    var textColor: Color {
-        isDark ? Color.white.opacity(0.88) : Color(red: 0.22, green: 0.22, blue: 0.27)
-    }
-
-    var accent: Color {
-        switch self {
-        case .aurora: return Color(red: 0.42, green: 0.86, blue: 1.00)
-        case .midnight: return Color(red: 0.99, green: 0.78, blue: 0.30)
-        case .paper: return Color(red: 0.30, green: 0.32, blue: 0.86)
-        case .sunset: return Color(red: 1.00, green: 0.92, blue: 0.62)
-        case .forest: return Color(red: 0.62, green: 0.95, blue: 0.58)
-        case .ocean: return Color(red: 0.80, green: 0.97, blue: 1.00)
-        }
-    }
-
+    var titleColor: Color { palette.title.color }
+    var textColor: Color { palette.text.color }
+    var accent: Color { palette.accent.color }
     /// The soft light in the corner.
-    var glow: Color {
-        switch self {
-        case .aurora: return Color(red: 0.85, green: 0.35, blue: 0.95)
-        case .midnight: return Color(red: 0.30, green: 0.40, blue: 0.80)
-        case .paper: return Color(red: 0.98, green: 0.80, blue: 0.55)
-        case .sunset: return Color(red: 1.00, green: 0.80, blue: 0.40)
-        case .forest: return Color(red: 0.30, green: 0.80, blue: 0.60)
-        case .ocean: return Color(red: 0.30, green: 0.90, blue: 0.85)
-        }
-    }
-
+    var glow: Color { palette.glow.color }
     /// Text and icons drawn on the accent color.
-    var onAccent: Color {
-        isDark ? Color(red: 0.06, green: 0.07, blue: 0.12) : .white
-    }
+    var onAccent: Color { palette.onAccent.color }
 }
 
 /// A slide scaled to fit its space, keeping 16:9. Every slide is laid out at

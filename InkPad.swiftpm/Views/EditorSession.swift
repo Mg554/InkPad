@@ -33,6 +33,8 @@ final class EditorSession: ObservableObject {
     /// Metadata, PDF and folder; ink and elements are taken from the canvas.
     private var baseContent: NoteContent?
     private var editGeneration = 0
+    /// Something changed since the note was opened.
+    var wasEdited: Bool { editGeneration > 0 }
     private var savedGeneration = 0
     private var thumbnailGeneration = 0
     private var isSaving = false

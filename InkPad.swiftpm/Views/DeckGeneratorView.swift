@@ -15,10 +15,15 @@ struct DeckGeneratorView: View {
     @State private var options = DeckGenerator.Options()
     @State private var isPickingNotes = false
     @State private var createdDeckID: UUID?
+    @State private var isShowingAISettings = false
+    @ObservedObject private var ai = AISettings.shared
 
     init(sources: [UUID], liveContent: [UUID: NoteContent] = [:]) {
         _sources = State(initialValue: sources)
         self.liveContent = liveContent
+        var options = DeckGenerator.Options()
+        options.writer = AISettings.shared.isReady ? .connected : .offline
+        _options = State(initialValue: options)
     }
 
     var body: some View {
@@ -43,6 +48,9 @@ struct DeckGeneratorView: View {
             if let stage = generator.stage {
                 progressCard(stage)
             }
+        }
+        .sheet(isPresented: $isShowingAISettings) {
+            AISettingsView()
         }
         .sheet(isPresented: $isPickingNotes) {
             NotePicker(selection: $sources)
@@ -120,26 +128,26 @@ struct DeckGeneratorView: View {
             }
 
             Section {
-                if let reason = SlideWriterAI.unavailableReason {
-                    Label {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Written on this iPad without AI")
-                            Text(reason)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "text.badge.checkmark")
-                    }
-                } else {
-                    Toggle(isOn: $options.usesAI) {
-                        Label("Write with Apple Intelligence", systemImage: "sparkles")
-                    }
+                Picker("Written by", selection: $options.writer) {
+                    Text(ai.isReady ? ai.provider.title : "AI (not set up)").tag(DeckGenerator.Writer.connected)
+                    Text("InkPad, without AI").tag(DeckGenerator.Writer.offline)
+                }
+                if options.writer == .connected, let problem = ai.problem {
+                    Label(problem, systemImage: "exclamationmark.circle")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                }
+                Button {
+                    isShowingAISettings = true
+                } label: {
+                    Label("AI Settings…", systemImage: "gearshape")
                 }
             } header: {
                 Text("Writing")
             } footer: {
-                Text("Everything happens on this iPad: handwriting is read with on-device text recognition and your notes are never uploaded.")
+                Text(ai.provider == .apple || options.writer == .offline
+                    ? "Everything happens on this iPad: handwriting is read with on-device text recognition."
+                    : "Handwriting is read on this iPad. The text of the chosen notes is sent to \(ai.provider.title) to write the slides.")
             }
 
             Section {
@@ -219,8 +227,8 @@ struct DeckGeneratorView: View {
     }
 }
 
-/// Picks the notes a deck is made from.
-private struct NotePicker: View {
+/// Picks notes to make slides from or to study.
+struct NotePicker: View {
     @EnvironmentObject private var store: LibraryStore
     @Environment(\.dismiss) private var dismiss
     @Binding var selection: [UUID]

@@ -33,6 +33,8 @@ struct SidebarView: View {
                 }
                 Label("Graph", systemImage: "circle.hexagongrid")
                     .tag(LibraryScope.graph)
+                Label("Study with AI", systemImage: "graduationcap")
+                    .tag(LibraryScope.study)
             }
 
             Section("Workspace") {

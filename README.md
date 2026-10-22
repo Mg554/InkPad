@@ -1,7 +1,9 @@
 # InkPad
 
 A free, private, Notability-style note-taking app for iPad, built as a
-**Swift Playgrounds** app (SwiftUI + PencilKit). All notes stay on your iPad.
+**Swift Playgrounds** app (SwiftUI + PencilKit). All notes stay on your iPad;
+the optional AI study features send only the notes you study to the AI
+service you choose, with your own API key.
 
 ## Status
 
@@ -14,8 +16,9 @@ Done:
   highlighter), eraser (pixel or whole stroke), text, lasso, insert menu,
   ruler, finger drawing; per-tool colors plus custom colors, three widths
   per tool with a smooth 1-20 width bar and preview
-- Movable toolbar: drag its grip to any edge of the screen (top, bottom,
-  left or right, at the start, middle or end). On the left or right it
+- Movable toolbar: drag its handle, or any empty part of the bar, to any
+  edge of the screen (top, bottom, left or right, at the start, middle or
+  end). On the left or right it
   stands upright with the pens pointing at the page, and the page makes
   room for it. Collapse it to a pill or hide it completely (More › Hide
   Toolbar / Move Toolbar)
@@ -39,12 +42,26 @@ Done:
 - Slides, like NotebookLM's slide decks: make a presentation from one or
   several notes (handwriting and PDF text are read on the iPad with
   Vision). Choose Detailed Deck or Presenter Slides, length, a focus and
-  one of six themes. Apple Intelligence writes the slides on the iPad when
-  it is available (iPadOS 26 and later); otherwise InkPad's own offline
-  outliner builds them from your headings, lists and key sentences. Edit
-  any slide, present full screen with a laser pointer, speaker notes and
-  narration read aloud, export a PDF, or save the deck as a note to write
-  on
+  one of six themes. The AI service you connect (or Apple Intelligence on
+  iPadOS 26) writes the slides; without AI, InkPad's own offline outliner
+  builds them from your headings, lists and key sentences. Edit any slide,
+  present full screen with a laser pointer, speaker notes and narration
+  read aloud, and export as an editable PowerPoint file (.pptx, which also
+  opens in Keynote and Google Slides) with speaker notes, a PDF, PNG
+  pictures or a Markdown outline, or save the deck as a note to write on
+- Study with AI, like Notability's: chat with your notes (answers stream in
+  and name the notes they come from), flashcards with spaced review ("N
+  flashcards ready for review"), multiple-choice quizzes, Smart Notes
+  (organized study notes saved as a text note) and slides, for all notes
+  or the ones you select. Works with Claude (Anthropic), ChatGPT (OpenAI),
+  Gemini, OpenRouter, Groq, DeepSeek, Mistral, any OpenAI-compatible
+  service, or Apple Intelligence on the iPad. Set it up in Study with AI ›
+  AI Settings: pick the service, paste your API key (kept in the iPad's
+  keychain) and tap Test Connection
+- Handwriting search: handwritten and PDF notes are read with Vision after
+  you edit them, and the library search finds their words
+- Rotating the iPad keeps the page steady, with the same part of the page
+  in the middle
 - Lasso (Notability-style): circle ink, drag it, and use Style (size 1-20,
   solid/dashed/dotted, colors), Duplicate, Cut, Copy, Paste and Delete
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
@@ -96,9 +113,13 @@ InkPad.swiftpm/
   App/              App entry point
   Models/           Folders, notes, page templates, page geometry
   Storage/          LibraryStore: the only code that reads/writes files
-  Rendering/        Paper templates, tiled page background, thumbnails
+  Rendering/        Paper templates, page background, thumbnails, PDF and
+                    PowerPoint export
   Canvas/           PencilKit canvas and its SwiftUI bridge
-  Views/            Library, sidebar, notes grid, editor
+  Audio/            Recording and playback
+  Slides/           Reading notes and writing slide decks
+  AI/               AI services, note text, study prompts
+  Views/            Library, sidebar, notes grid, editor, study
 ```
 
 ## Data format
@@ -114,7 +135,10 @@ Stored under the app's `Documents/InkPad/`:
 - `notes/<id>/audio/` — audio recordings (`note.json` lists them with the
   moment each started, to match them with the writing)
 - `notes/<id>/thumbnail.png` — preview (regenerated on save)
-- `workspace.json` — planner, expenses, mind maps and slide decks
+- `notes/<id>/text.json` — handwriting and PDF text read with Vision
+  (regenerated when needed; used by search and AI study)
+- `workspace.json` — planner, expenses, mind maps, slide decks, flashcards
+  and quizzes
 - `decks/<id>/` — page pictures used in slide decks
 
 If `library.json` cannot be read, InkPad opens read-only instead of

@@ -31,6 +31,7 @@ struct NoteEditorView: View {
     @State private var toolbarFrame: CGRect = .zero
     @State private var recordingToDelete: AudioRecording?
     @State private var slidesRequest: SlidesRequest?
+    @State private var studyRequest: SlidesRequest?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -79,7 +80,7 @@ struct NoteEditorView: View {
         .toolbar { toolbar }
         .namePrompt($prompt)
         .sheet(item: $exportedFile) { file in
-            ShareSheet(items: [file.url])
+            ShareSheet(items: file.urls)
         }
         .sheet(isPresented: $isShowingExportOptions) {
             ExportOptionsView(pageCount: canvas.pageCount, currentPage: canvas.currentPage) { options in
@@ -136,11 +137,17 @@ struct NoteEditorView: View {
                 .environmentObject(store)
                 .environmentObject(workspace)
         }
+        .sheet(item: $studyRequest) { request in
+            StudyView(sources: [noteID], liveContent: [noteID: request.content], isSheet: true)
+                .environmentObject(store)
+                .environmentObject(workspace)
+        }
         .task { session.load(noteID: noteID, store: store) }
         .onDisappear {
             // Stopping a recording stores it in the note before the save.
             session.audio.stopAll()
             session.save(thumbnail: true)
+            indexHandwriting()
         }
         .onChange(of: scenePhase) {
             if scenePhase == .background {
@@ -327,6 +334,14 @@ struct NoteEditorView: View {
                 }
             }
 
+            Button {
+                session.save(thumbnail: false)
+                studyRequest = session.currentContent().map { SlidesRequest(content: $0) }
+            } label: {
+                Label("Study with AI", systemImage: "graduationcap")
+            }
+            .disabled(session.metadata == nil)
+
             UndoRedoButtons(canvas: canvas)
 
             Button {
@@ -435,6 +450,14 @@ struct NoteEditorView: View {
         }
     }
 
+    /// Reads the handwriting again after changes, so search and AI study find it.
+    private func indexHandwriting() {
+        guard session.wasEdited, let content = session.currentContent() else { return }
+        Task {
+            _ = await NoteTexts.text(of: noteID, store: store, live: content, refresh: true)
+        }
+    }
+
     private func renameRecording(_ recording: AudioRecording) {
         prompt = NamePrompt(
             title: "Rename Recording",
@@ -460,8 +483,8 @@ struct NoteEditorView: View {
     }
 }
 
-/// "Create Slides" opened from the editor, with the note as it is now
-/// (including ink not saved yet).
+/// "Create Slides" or "Study with AI" opened from the editor, with the note
+/// as it is now (including ink not saved yet).
 private struct SlidesRequest: Identifiable {
     let id = UUID()
     let content: NoteContent
