@@ -45,7 +45,7 @@ enum InkPadLink {
 
     static func handle(_ url: URL, with navigation: NoteNavigation) -> OpenURLAction.Result {
         guard url.scheme == scheme else { return .systemAction }
-        let value = url.path.dropFirst().removingPercentEncoding.map(String.init) ?? ""
+        let value = String(url.path.dropFirst()).removingPercentEncoding ?? ""
         switch url.host {
         case "note": navigation.openTitle(value)
         case "tag": navigation.openTag(value)
