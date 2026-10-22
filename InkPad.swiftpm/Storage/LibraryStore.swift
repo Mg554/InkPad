@@ -28,6 +28,30 @@ private enum NoteFiles {
     static let drawingFile = "drawing.data"
     static let thumbnailFile = "thumbnail.png"
     static let pdfFile = "document.pdf"
+    static let markdownFile = "note.md"
+}
+
+/// What the library knows about a text note's contents, read from its
+/// Markdown when the library opens and after every save.
+struct TextNoteInfo: Equatable {
+    var text: String
+    var links: [NoteLinks.Link]
+    var tags: [String]
+
+    init(text: String) {
+        self.text = text
+        links = NoteLinks.links(in: text)
+        tags = NoteLinks.tags(in: text)
+    }
+
+    /// The first lines without Markdown heading marks, for cards.
+    var preview: String {
+        String(text.prefix(400))
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .prefix(8)
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "# ")) }
+            .joined(separator: "\n")
+    }
 }
 
 /// Owns everything InkPad stores on disk.
@@ -39,6 +63,7 @@ private enum NoteFiles {
 /// - `notes/<id>/document.pdf`: imported PDF (PDF notes only, never modified)
 /// - `notes/<id>/images/<name>.jpg`: images placed on the pages
 /// - `notes/<id>/thumbnail.png`: first-page preview (derived, safe to lose)
+/// - `notes/<id>/note.md`: a text note's Markdown
 @MainActor
 final class LibraryStore: ObservableObject {
     @Published private(set) var folders: [Folder] = []
@@ -47,7 +72,9 @@ final class LibraryStore: ObservableObject {
     /// Set when the existing library could not be read safely. Writes are
     /// refused so the unreadable data is never overwritten.
     @Published private(set) var isReadOnly = false
-
+    /// Contents of text notes, for links, backlinks, tags, search and previews.
+    @Published private(set) var textIndex: [UUID: TextNoteInfo] = [:]
+    @Published private(set) var customTemplates: [TextTemplate] = []
 
     private let rootURL: URL
     private let fileManager = FileManager.default
@@ -61,6 +88,7 @@ final class LibraryStore: ObservableObject {
             .urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("InkPad", isDirectory: true)
         loadIndex()
+        loadTextIndex()
     }
 
     // MARK: Queries
@@ -78,10 +106,60 @@ final class LibraryStore: ObservableObject {
         switch scope {
         case .allNotes: matching = notes
         case .unfiled: matching = notes.filter { $0.folderID == nil }
-        case .planner, .expenses, .mindMaps: matching = []
+        case .planner, .expenses, .mindMaps, .graph: matching = []
+        case let .tag(tag):
+            let key = NoteLinks.key(tag)
+            matching = notes.filter { tags(of: $0).contains { NoteLinks.key($0) == key } }
         case let .folder(id): matching = notes.filter { $0.folderID == id }
         }
         return matching.sorted { $0.modifiedAt > $1.modifiedAt }
+    }
+
+    /// Library tags plus, for text notes, the #tags in the text.
+    func tags(of note: NoteSummary) -> [String] {
+        var seen: Set<String> = []
+        return ((note.tags ?? []) + (textIndex[note.id]?.tags ?? [])).filter { seen.insert(NoteLinks.key($0)).inserted }
+    }
+
+    var allTags: [String] {
+        var seen: Set<String> = []
+        return notes.flatMap { tags(of: $0) }
+            .filter { seen.insert(NoteLinks.key($0)).inserted }
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    /// Title, tags, and for text notes the whole text.
+    func matches(_ note: NoteSummary, search: String) -> Bool {
+        note.title.localizedCaseInsensitiveContains(search)
+            || tags(of: note).contains { $0.localizedCaseInsensitiveContains(search.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) }
+            || (textIndex[note.id]?.text.localizedCaseInsensitiveContains(search) ?? false)
+    }
+
+    func note(titled title: String) -> NoteSummary? {
+        let key = NoteLinks.key(title)
+        return notes.first { NoteLinks.key($0.title) == key }
+    }
+
+    /// Notes whose text links to this note, with the line of each mention.
+    func backlinks(to id: UUID) -> [(note: NoteSummary, line: String)] {
+        guard let target = note(id) else { return [] }
+        let key = NoteLinks.key(target.title)
+        return notes.compactMap { other -> (note: NoteSummary, line: String)? in
+            guard other.id != id, let info = textIndex[other.id],
+                  info.links.contains(where: { NoteLinks.key($0.title) == key })
+            else { return nil }
+            let line = info.text
+                .split(separator: "\n")
+                .first { line in NoteLinks.links(in: String(line)).contains { NoteLinks.key($0.title) == key } }
+            return (other, line.map(String.init) ?? "")
+        }
+        .sorted { $0.note.modifiedAt > $1.note.modifiedAt }
+    }
+
+    func setTags(_ tags: [String], for id: UUID) {
+        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes[index].tags = tags.isEmpty ? nil : tags
+        saveIndex()
     }
 
     func thumbnail(for id: UUID) -> UIImage? {
@@ -204,10 +282,108 @@ final class LibraryStore: ObservableObject {
         return addNote(id: id, title: cleaned(title, fallback: "Imported PDF"), folderID: folderID)
     }
 
+    // MARK: Text notes
+
+    var templates: [TextTemplate] { TextTemplate.builtIns + customTemplates }
+
+    func createTextNote(titled title: String, template: TextTemplate? = nil, in folderID: UUID?, extraText: String = "") -> NoteSummary? {
+        guard canWrite() else { return nil }
+        let id = UUID()
+        let name = cleaned(title, fallback: "Untitled")
+        let body = (template?.filled(title: name) ?? "# \(name)\n\n") + extraText
+        do {
+            try writeMarkdown(body, for: id)
+        } catch {
+            try? fileManager.removeItem(at: noteDirectory(id))
+            errorMessage = "Could not create the note: \(error.localizedDescription)"
+            return nil
+        }
+        textIndex[id] = TextNoteInfo(text: body)
+        return addNote(id: id, title: name, folderID: folderID, kind: .text)
+    }
+
+    func loadMarkdown(for id: UUID) throws -> String {
+        guard note(id)?.isText == true else { throw StoreError.noteNotFound }
+        return try String(contentsOf: noteDirectory(id).appendingPathComponent(NoteFiles.markdownFile), encoding: .utf8)
+    }
+
+    @discardableResult
+    func saveMarkdown(_ text: String, for id: UUID) -> Bool {
+        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return false }
+        do {
+            try writeMarkdown(text, for: id)
+        } catch {
+            errorMessage = "Could not save the note: \(error.localizedDescription)"
+            return false
+        }
+        textIndex[id] = TextNoteInfo(text: text)
+        notes[index].modifiedAt = Date()
+        saveIndex()
+        return true
+    }
+
+    /// Opens today's note in "Daily Notes", creating both if needed.
+    /// `tasks` (from the planner) are listed in a new note.
+    func dailyNote(for date: Date = Date(), tasks: [String] = []) -> NoteSummary? {
+        let title = date.formatted(.iso8601.year().month().day())
+        let folder = folders.first { $0.parentID == nil && $0.name == "Daily Notes" }
+            ?? createFolder(named: "Daily Notes")
+        if let existing = notes.first(where: { $0.title == title && $0.folderID == folder?.id }) {
+            return existing
+        }
+        let template = templates.first { $0.id == TextTemplate.dailyNoteID }
+        let taskList = tasks.isEmpty ? "" : "\n## Today's Tasks\n" + tasks.map { "- [ ] \($0)" }.joined(separator: "\n") + "\n"
+        return createTextNote(titled: title, template: template, in: folder?.id, extraText: taskList)
+    }
+
+    func saveTemplate(named name: String, body: String) {
+        guard canWrite() else { return }
+        customTemplates.append(TextTemplate(name: cleaned(name, fallback: "My Template"), body: body))
+        saveIndex()
+    }
+
+    func deleteTemplate(_ id: UUID) {
+        guard canWrite() else { return }
+        customTemplates.removeAll { $0.id == id }
+        saveIndex()
+    }
+
+    private func writeMarkdown(_ text: String, for id: UUID) throws {
+        let directory = noteDirectory(id)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data(text.utf8).write(to: directory.appendingPathComponent(NoteFiles.markdownFile), options: .atomic)
+    }
+
+    private func loadTextIndex() {
+        var index: [UUID: TextNoteInfo] = [:]
+        for note in notes where note.isText {
+            if let text = try? String(contentsOf: noteDirectory(note.id).appendingPathComponent(NoteFiles.markdownFile), encoding: .utf8) {
+                index[note.id] = TextNoteInfo(text: text)
+            }
+        }
+        textIndex = index
+    }
+
+    /// Renames the note and, like Obsidian, updates [[links]] to it in text notes.
     func renameNote(_ id: UUID, to title: String) {
         guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
-        notes[index].title = cleaned(title, fallback: notes[index].title)
+        let oldTitle = notes[index].title
+        let newTitle = cleaned(title, fallback: oldTitle)
+        notes[index].title = newTitle
         saveIndex()
+        guard NoteLinks.key(oldTitle) != NoteLinks.key(newTitle) else { return }
+        let oldKey = NoteLinks.key(oldTitle)
+        for (otherID, info) in textIndex where otherID != id {
+            let written = Set(info.links.map(\.title).filter { NoteLinks.key($0) == oldKey })
+            guard !written.isEmpty else { continue }
+            var text = info.text
+            for spelling in written {
+                text = text
+                    .replacingOccurrences(of: "[[\(spelling)]]", with: "[[\(newTitle)]]")
+                    .replacingOccurrences(of: "[[\(spelling)|", with: "[[\(newTitle)|")
+            }
+            saveMarkdown(text, for: otherID)
+        }
     }
 
     func moveNote(_ id: UUID, to folderID: UUID?) {
@@ -229,6 +405,7 @@ final class LibraryStore: ObservableObject {
             }
         }
         notes.removeAll { $0.id == id }
+        textIndex[id] = nil
         saveIndex()
     }
 
@@ -303,9 +480,9 @@ final class LibraryStore: ObservableObject {
             .appendingPathComponent(id.uuidString, isDirectory: true)
     }
 
-    private func addNote(id: UUID, title: String, folderID: UUID?) -> NoteSummary {
+    private func addNote(id: UUID, title: String, folderID: UUID?, kind: NoteKind? = nil) -> NoteSummary {
         let now = Date()
-        let summary = NoteSummary(id: id, title: title, folderID: folderID, createdAt: now, modifiedAt: now)
+        let summary = NoteSummary(id: id, title: title, folderID: folderID, createdAt: now, modifiedAt: now, kind: kind)
         notes.append(summary)
         saveIndex()
         return summary
@@ -352,6 +529,7 @@ final class LibraryStore: ObservableObject {
             }
             folders = index.folders
             notes = index.notes
+            customTemplates = index.textTemplates ?? []
         } catch {
             isReadOnly = true
             errorMessage = "Your library could not be read (\(error.localizedDescription)). "
@@ -360,7 +538,12 @@ final class LibraryStore: ObservableObject {
     }
 
     private func saveIndex() {
-        let index = LibraryIndex(version: LibraryIndex.currentVersion, folders: folders, notes: notes)
+        let index = LibraryIndex(
+            version: LibraryIndex.currentVersion,
+            folders: folders,
+            notes: notes,
+            textTemplates: customTemplates.isEmpty ? nil : customTemplates
+        )
         do {
             try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
             try JSONEncoder.inkpad.encode(index).write(to: indexURL, options: .atomic)

@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct NotesGridView: View {
     @EnvironmentObject private var store: LibraryStore
+    @EnvironmentObject private var workspace: WorkspaceStore
     let scope: LibraryScope
     let openNote: (UUID) -> Void
 
@@ -15,7 +16,7 @@ struct NotesGridView: View {
     private var visibleNotes: [NoteSummary] {
         let notes = store.notes(in: scope)
         guard !searchText.isEmpty else { return notes }
-        return notes.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        return notes.filter { store.matches($0, search: searchText) }
     }
 
     private var title: String {
@@ -25,6 +26,8 @@ struct NotesGridView: View {
         case .planner: "Planner"
         case .expenses: "Expenses"
         case .mindMaps: "Mind Maps"
+        case .graph: "Graph"
+        case let .tag(tag): "#\(tag)"
         case let .folder(id): store.folder(id)?.name ?? "Folder"
         }
     }
@@ -32,7 +35,7 @@ struct NotesGridView: View {
     private var targetFolderID: UUID? {
         switch scope {
         case let .folder(id): return id
-        case .allNotes, .unfiled, .planner, .expenses, .mindMaps: return nil
+        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .graph, .tag: return nil
         }
     }
 
@@ -67,7 +70,7 @@ struct NotesGridView: View {
             }
         }
         .navigationTitle(title)
-        .searchable(text: $searchText, prompt: "Search titles")
+        .searchable(text: $searchText, prompt: "Search titles, text and #tags")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -76,6 +79,19 @@ struct NotesGridView: View {
                         isShowingTemplates = true
                     } label: {
                         Label("More Templates…", systemImage: "doc.on.doc")
+                    }
+                    Divider()
+                    Button {
+                        createTextNote(template: nil)
+                    } label: {
+                        Label("Text Note", systemImage: "doc.text")
+                    }
+                    Menu {
+                        ForEach(store.templates) { template in
+                            Button(template.name) { createTextNote(template: template) }
+                        }
+                    } label: {
+                        Label("Text Note from Template", systemImage: "doc.on.clipboard")
                     }
                     Divider()
                     Button {
@@ -131,6 +147,16 @@ struct NotesGridView: View {
             Label("Rename", systemImage: "pencil")
         }
 
+        Button {
+            prompt = NamePrompt(
+                title: "Tags",
+                initialText: (note.tags ?? []).joined(separator: ", "),
+                confirmTitle: "Save"
+            ) { store.setTags(NoteLinks.parseTagList($0), for: note.id) }
+        } label: {
+            Label("Tags…", systemImage: "number")
+        }
+
         Menu {
             Button("Unfiled") { store.moveNote(note.id, to: nil) }
                 .disabled(note.folderID == nil)
@@ -163,6 +189,9 @@ struct NotesGridView: View {
             QuickActionCard(title: "Find a Template", systemImage: "doc.on.doc", tint: .orange) {
                 isShowingTemplates = true
             }
+            QuickActionCard(title: "Daily Note", systemImage: "calendar.badge.clock", tint: .purple) {
+                openDailyNote()
+            }
         }
     }
 
@@ -188,6 +217,22 @@ struct NotesGridView: View {
         }
         if urls.count == 1, let lastImported {
             openNote(lastImported.id)
+        }
+    }
+
+    private func createTextNote(template: TextTemplate?) {
+        let title = template.map { "\($0.name) \(Date().formatted(date: .abbreviated, time: .omitted))" } ?? "Untitled"
+        if let note = store.createTextNote(titled: title, template: template, in: targetFolderID) {
+            openNote(note.id)
+        }
+    }
+
+    private func openDailyNote() {
+        let today = workspace.tasks
+            .filter { task in task.status != .done && (task.dueDate.map(Calendar.current.isDateInToday) ?? false) }
+            .map(\.title)
+        if let note = store.dailyNote(tasks: today) {
+            openNote(note.id)
         }
     }
 

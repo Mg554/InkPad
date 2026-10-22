@@ -9,6 +9,32 @@ struct LibraryView: View {
     @State private var path: [UUID] = []
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
+    private var navigation: NoteNavigation {
+        NoteNavigation(
+            openNote: { open($0) },
+            openTitle: { title in
+                if let note = store.note(titled: title) {
+                    open(note.id)
+                } else if let created = store.createTextNote(titled: title, in: nil) {
+                    open(created.id)
+                }
+            },
+            openTag: { tag in scope = .tag(tag) }
+        )
+    }
+
+    /// Opens a note from anywhere, leaving workspace pages for the notes area.
+    private func open(_ id: UUID) {
+        switch scope {
+        case .planner?, .expenses?, .mindMaps?:
+            scope = .allNotes
+            // Changing the scope clears the path; push after that.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { path = [id] }
+        default:
+            path.append(id)
+        }
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(scope: $scope)
@@ -22,13 +48,24 @@ struct LibraryView: View {
                 MindMapsView()
             default:
                 NavigationStack(path: $path) {
-                    NotesGridView(scope: scope ?? .allNotes) { path.append($0) }
-                        .navigationDestination(for: UUID.self) { noteID in
+                    Group {
+                        if scope == .graph {
+                            GraphView()
+                        } else {
+                            NotesGridView(scope: scope ?? .allNotes) { path.append($0) }
+                        }
+                    }
+                    .navigationDestination(for: UUID.self) { noteID in
+                        if store.note(noteID)?.isText == true {
+                            MarkdownNoteView(noteID: noteID)
+                        } else {
                             NoteEditorView(noteID: noteID)
                         }
+                    }
                 }
             }
         }
+        .environment(\.noteNavigation, navigation)
         .onChange(of: scope) {
             path = []
         }

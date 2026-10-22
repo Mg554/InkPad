@@ -7,9 +7,20 @@ struct NoteCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ZStack {
+            ZStack(alignment: .topLeading) {
                 Color.white
-                if let thumbnail {
+                if note.isText {
+                    // Text notes show their opening lines.
+                    Text(store.textIndex[note.id]?.preview ?? "")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Color(white: 0.25))
+                        .padding(12)
+                    Image(systemName: "doc.text")
+                        .font(.caption)
+                        .foregroundStyle(.purple)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                } else if let thumbnail {
                     Image(uiImage: thumbnail)
                         .resizable()
                         .scaledToFit()
@@ -23,13 +34,20 @@ struct NoteCard: View {
             Text(note.title)
                 .font(.headline)
                 .lineLimit(1)
+            let tags = store.tags(of: note)
+            if !tags.isEmpty {
+                Text(tags.prefix(3).map { "#\($0)" }.joined(separator: " "))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.teal)
+                    .lineLimit(1)
+            }
             Text(note.modifiedAt, format: .dateTime.day().month().year().hour().minute())
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .contentShape(Rectangle())
         .task(id: note.modifiedAt) {
-            thumbnail = store.thumbnail(for: note.id)
+            if !note.isText { thumbnail = store.thumbnail(for: note.id) }
         }
     }
 }

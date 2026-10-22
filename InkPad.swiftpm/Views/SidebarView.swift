@@ -2,6 +2,8 @@ import SwiftUI
 
 struct SidebarView: View {
     @EnvironmentObject private var store: LibraryStore
+    @EnvironmentObject private var workspace: WorkspaceStore
+    @Environment(\.noteNavigation) private var navigation
     @Binding var scope: LibraryScope?
     @State private var prompt: NamePrompt?
     @State private var folderToDelete: Folder?
@@ -18,6 +20,19 @@ struct SidebarView: View {
                     .tag(LibraryScope.allNotes)
                 Label("Unfiled", systemImage: "tray")
                     .tag(LibraryScope.unfiled)
+                Button {
+                    let today = workspace.tasks
+                        .filter { task in task.status != .done && (task.dueDate.map(Calendar.current.isDateInToday) ?? false) }
+                        .map(\.title)
+                    if let note = store.dailyNote(tasks: today) {
+                        scope = .allNotes
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { navigation.openNote(note.id) }
+                    }
+                } label: {
+                    Label("Today's Note", systemImage: "calendar.badge.clock")
+                }
+                Label("Graph", systemImage: "circle.hexagongrid")
+                    .tag(LibraryScope.graph)
             }
 
             Section("Workspace") {
@@ -27,6 +42,15 @@ struct SidebarView: View {
                     .tag(LibraryScope.expenses)
                 Label("Mind Maps", systemImage: "point.3.connected.trianglepath.dotted")
                     .tag(LibraryScope.mindMaps)
+            }
+
+            if !store.allTags.isEmpty {
+                Section("Tags") {
+                    ForEach(store.allTags, id: \.self) { tag in
+                        Label("#\(tag)", systemImage: "number")
+                            .tag(LibraryScope.tag(tag))
+                    }
+                }
             }
 
             Section {

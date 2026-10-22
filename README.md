@@ -35,6 +35,14 @@ Done:
 - Page sidebar with thumbnails (insert a blank page after any page, delete
   pages), page counter with previous/next
 - Undo / redo for ink; autosave in the background
+- Obsidian-style text notes: Markdown with live highlighting, edit/split/
+  preview, `[[links]]` (unresolved links create the note), backlinks
+  ("Linked Mentions"), `#tags`, checklists you can tick in the preview,
+  renaming updates links in other notes
+- Tags in the sidebar (from text and from "Tags…" on any note), full-text
+  search, Today's Note (with today's planner tasks), text templates
+  (built-in and "Save as Template"), and a Graph view of notes, links and
+  tags
 
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 
@@ -79,6 +87,7 @@ Stored under the app's `Documents/InkPad/`:
 - `notes/<id>/drawing.data` — PencilKit drawing
 - `notes/<id>/document.pdf` — imported PDF (copied, never modified)
 - `notes/<id>/images/` — images placed on pages
+- `notes/<id>/note.md` — a text note's Markdown
 - `notes/<id>/thumbnail.png` — preview (regenerated on save)
 
 If `library.json` cannot be read, InkPad opens read-only instead of

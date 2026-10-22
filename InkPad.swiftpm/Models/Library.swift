@@ -25,6 +25,13 @@ struct Folder: Codable, Identifiable, Hashable {
     }
 }
 
+enum NoteKind: String, Codable {
+    /// Ink on pages (the default; also every note from before kinds existed).
+    case handwritten
+    /// A Markdown text note with [[links]] and #tags, like Obsidian.
+    case text
+}
+
 struct NoteSummary: Codable, Identifiable, Hashable {
     let id: UUID
     var title: String
@@ -32,16 +39,108 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     var folderID: UUID?
     let createdAt: Date
     var modifiedAt: Date
+    /// `nil` means handwritten.
+    var kind: NoteKind?
+    /// Tags set from the library. Text notes also get the #tags in their text.
+    var tags: [String]?
+
+    var isText: Bool { kind == .text }
+}
+
+/// A reusable starting text for new text notes. `{{title}}`, `{{date}}`
+/// and `{{time}}` are filled in when a note is created from it.
+struct TextTemplate: Codable, Identifiable, Hashable {
+    let id: UUID
+    var name: String
+    var body: String
+    /// Built-in templates cannot be deleted.
+    var isBuiltIn: Bool
+
+    init(id: UUID = UUID(), name: String, body: String, isBuiltIn: Bool = false) {
+        self.id = id
+        self.name = name
+        self.body = body
+        self.isBuiltIn = isBuiltIn
+    }
+
+    func filled(title: String, date: Date = Date()) -> String {
+        body
+            .replacingOccurrences(of: "{{title}}", with: title)
+            .replacingOccurrences(of: "{{date}}", with: date.formatted(date: .complete, time: .omitted))
+            .replacingOccurrences(of: "{{time}}", with: date.formatted(date: .omitted, time: .shortened))
+    }
+
+    static let dailyNoteID = UUID(uuidString: "D0D0D0D0-0000-4000-8000-000000000001")!
+
+    static let builtIns: [TextTemplate] = [
+        TextTemplate(id: dailyNoteID, name: "Daily Note", body: """
+        # {{date}}
+
+        ## Focus
+        - 
+
+        ## Notes
+        
+
+        ## Gratitude
+        - 
+        """, isBuiltIn: true),
+        TextTemplate(id: UUID(uuidString: "D0D0D0D0-0000-4000-8000-000000000002")!, name: "Meeting Notes", body: """
+        # {{title}}
+        {{date}} · {{time}}
+
+        ## Attendees
+        - 
+
+        ## Agenda
+        - 
+
+        ## Decisions
+        - 
+
+        ## Action Items
+        - [ ] 
+        """, isBuiltIn: true),
+        TextTemplate(id: UUID(uuidString: "D0D0D0D0-0000-4000-8000-000000000003")!, name: "Study Notes", body: """
+        # {{title}}
+        #study
+
+        ## Key Questions
+        - 
+
+        ## Notes
+        
+
+        ## Summary
+        
+        """, isBuiltIn: true),
+        TextTemplate(id: UUID(uuidString: "D0D0D0D0-0000-4000-8000-000000000004")!, name: "Book Notes", body: """
+        # {{title}}
+        #book
+
+        **Author:** 
+        **Started:** {{date}}
+
+        ## Highlights
+        > 
+
+        ## Thoughts
+        
+        """, isBuiltIn: true),
+    ]
 }
 
 /// The persisted index of folders and notes (`library.json`).
 struct LibraryIndex: Codable {
-    /// Version 2 added folder `parentID` and `color`. Version 1 files still decode unchanged.
-    static let currentVersion = 2
+    /// Version 2 added folder `parentID` and `color`; version 3 added note
+    /// `kind` and `tags`, and `textTemplates`. Older files still decode unchanged.
+    static let currentVersion = 3
 
     var version: Int
     var folders: [Folder]
     var notes: [NoteSummary]
+    /// The user's own templates (built-ins are not stored).
+    var textTemplates: [TextTemplate]?
 }
 
 /// What the library sidebar can select.
@@ -53,6 +152,10 @@ enum LibraryScope: Hashable {
     case planner
     case expenses
     case mindMaps
+    /// Notes with this tag (without the #).
+    case tag(String)
+    /// The graph of notes and their links.
+    case graph
 }
 
 /// A folder positioned in the folder tree, for sidebars and menus.
