@@ -11,6 +11,12 @@ import UIKit
 final class NoteCanvasHostView: UIView {
     let canvas = PKCanvasView()
     let elementLayer = ElementLayerView()
+    /// Above the ink: the lasso line and selection box.
+    let selectionOverlay = SelectionOverlayView()
+    private(set) var lasso: LassoSelection!
+    private var isLassoMode = false
+    private var savedPanTouchTypes: [NSNumber]?
+    private var savedPanMinimumTouches = 1
     private let pageBackground = PageBackgroundView()
     private var background: NoteBackground?
     private var fitScale: CGFloat = 0
@@ -35,6 +41,37 @@ final class NoteCanvasHostView: UIView {
         addSubview(pageBackground)
         addSubview(elementLayer)
         addSubview(canvas)
+        addSubview(selectionOverlay)
+        lasso = LassoSelection(host: self, overlay: selectionOverlay)
+    }
+
+    /// In lasso mode the pencil (or a finger, with finger drawing on) draws a
+    /// selection instead of ink; scrolling moves to fingers (or two fingers).
+    func setLassoMode(_ isOn: Bool) {
+        let pencilOnly = canvas.drawingPolicy == .pencilOnly
+        if isOn {
+            if !isLassoMode {
+                savedPanTouchTypes = canvas.panGestureRecognizer.allowedTouchTypes
+                savedPanMinimumTouches = canvas.panGestureRecognizer.minimumNumberOfTouches
+            }
+            canvas.panGestureRecognizer.allowedTouchTypes = pencilOnly
+                ? [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+                : (savedPanTouchTypes ?? canvas.panGestureRecognizer.allowedTouchTypes)
+            canvas.panGestureRecognizer.minimumNumberOfTouches = pencilOnly ? 1 : 2
+        } else if isLassoMode {
+            if let savedPanTouchTypes { canvas.panGestureRecognizer.allowedTouchTypes = savedPanTouchTypes }
+            canvas.panGestureRecognizer.minimumNumberOfTouches = savedPanMinimumTouches
+        }
+        isLassoMode = isOn
+        lasso.setEnabled(isOn, pencilOnly: pencilOnly)
+        if !elementLayer.isInteractive {
+            canvas.drawingGestureRecognizer.isEnabled = !isOn
+        }
+    }
+
+    /// Re-applies lasso touch settings after "Draw with Finger" changes.
+    func refreshLassoMode() {
+        if isLassoMode { setLassoMode(true) }
     }
 
     required init?(coder: NSCoder) {
@@ -123,7 +160,7 @@ final class NoteCanvasHostView: UIView {
         if canvas.contentSize != scaledSize {
             canvas.contentSize = scaledSize
         }
-        for view in [pageBackground, elementLayer] as [UIView] {
+        for view in [pageBackground, elementLayer, selectionOverlay] as [UIView] {
             view.transform = .identity
             view.bounds = CGRect(origin: .zero, size: size)
             view.transform = CGAffineTransform(scaleX: zoom, y: zoom)
@@ -139,6 +176,7 @@ final class NoteCanvasHostView: UIView {
         let center = CGPoint(x: size.width * zoom / 2 - offset.x, y: size.height * zoom / 2 - offset.y)
         pageBackground.center = center
         elementLayer.center = center
+        selectionOverlay.center = center
         reportVisiblePage()
     }
 

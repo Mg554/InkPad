@@ -131,6 +131,8 @@ struct MindMapEditor: View {
     @EnvironmentObject private var workspace: WorkspaceStore
     let mapID: UUID
 
+    private static let canvasSpace = "mindMapCanvas"
+
     @State private var map: MindMap?
     @State private var selectedID: UUID?
     @State private var offset: CGSize = .zero
@@ -159,6 +161,7 @@ struct MindMapEditor: View {
                 }
             }
             .clipped()
+            .coordinateSpace(name: Self.canvasSpace)
         }
         .navigationTitle(map?.title ?? "Mind Map")
         .navigationBarTitleDisplayMode(.inline)
@@ -311,7 +314,9 @@ struct MindMapEditor: View {
 
     /// Dragging an idea moves its whole branch.
     private func dragGesture(for node: MindNode, in map: MindMap) -> some Gesture {
-        DragGesture(minimumDistance: 4)
+        // Measured in a fixed space: in the idea's own (moving) space the
+        // translation feeds back on itself and the idea jitters.
+        DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.canvasSpace))
             .onChanged { value in
                 // Follow the pencil exactly: no animation while dragging,
                 // which otherwise leaves a trailing ghost of the idea.

@@ -133,7 +133,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             }
 
         case .lasso:
-            hint("Circle ink to select it, then drag to move. Tap the selection for copy, delete and more.")
+            hint("Circle ink to select it, then drag to move. Tap the selection for Style, Duplicate, Cut, Copy and Paste.")
 
         case .text:
             switch canvas.selection {
@@ -258,7 +258,6 @@ struct DrawingToolbar<InsertMenu: View>: View {
         let tool = palette.tool
         let style = palette.style(for: tool)
         let range = tool.widthRange
-        let steps = 13
         let current = style.selectedWidth(for: tool)
         let previewColor = tool.isInking ? style.selectedColor.color : Color.secondary
 
@@ -293,44 +292,14 @@ struct DrawingToolbar<InsertMenu: View>: View {
             }
             .frame(height: 44)
 
-            // Drag (or tap) anywhere along the bar; the width follows the
-            // pencil continuously and applies immediately.
-            GeometryReader { geometry in
-                let fraction = (current - range.lowerBound) / max(range.upperBound - range.lowerBound, 0.001)
-                let barWidth = geometry.size.width
-                ZStack(alignment: .leading) {
-                    HStack(spacing: 4) {
-                        ForEach(0..<steps, id: \.self) { step in
-                            Capsule()
-                                .fill(CGFloat(step) / CGFloat(steps - 1) <= fraction + 0.001
-                                      ? Color.accentColor : Color.secondary.opacity(0.3))
-                                .frame(height: 6 + CGFloat(step))
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .frame(height: 30)
-                    Text(current, format: .number.precision(.fractionLength(current < 10 ? 1 : 0)))
-                        .font(.caption.bold().monospacedDigit())
-                        .frame(width: 34, height: 34)
-                        .background(.background, in: Circle())
-                        .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
-                        .shadow(color: .accentColor.opacity(0.5), radius: 6)
-                        .offset(x: fraction * (barWidth - 34))
+            // Levels 1...20, mapped onto the tool's real width range.
+            WidthLevelBar(level: Binding(
+                get: { WidthLevelBar.level(forWidth: current, in: range) },
+                set: {
+                    palette.setSelectedWidth(WidthLevelBar.width(forLevel: $0, in: range))
+                    canvas.applyTool()
                 }
-                .frame(maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let position = min(max((value.location.x - 17) / max(barWidth - 34, 1), 0), 1)
-                            let width = range.lowerBound + (range.upperBound - range.lowerBound) * position
-                            palette.setSelectedWidth((width * 2).rounded() / 2)
-                            canvas.applyTool()
-                        }
-                )
-            }
-            .frame(height: 40)
-            .sensoryFeedback(.selection, trigger: Int(current))
+            ))
             if tool.isInking {
                 Divider()
                 Toggle(isOn: Binding(

@@ -43,6 +43,7 @@ final class CanvasController: NSObject, ObservableObject {
         self.palette = palette
         host.canvas.isRulerActive = isRulerActive
         host.elementLayer.onChange = { [weak self] in self?.contentDidChange() }
+        host.lasso.onChange = { [weak self] in self?.contentDidChange() }
         host.elementLayer.onTextStateChange = { [weak self] in
             self?.formattingRevision += 1
         }
@@ -91,6 +92,7 @@ final class CanvasController: NSObject, ObservableObject {
     func applyTool() {
         guard let host, let palette else { return }
         host.setTextMode(palette.tool == .text)
+        host.setLassoMode(palette.tool == .lasso)
         host.canvas.tool = palette.pkTool
     }
 

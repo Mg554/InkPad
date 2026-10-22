@@ -36,6 +36,7 @@ struct NoteCanvas: UIViewRepresentable {
         let policy: PKCanvasViewDrawingPolicy = pencilOnly ? .pencilOnly : .anyInput
         if host.canvas.drawingPolicy != policy {
             host.canvas.drawingPolicy = policy
+            host.refreshLassoMode()
         }
         host.configure(background)
     }

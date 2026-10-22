@@ -24,6 +24,8 @@ Done:
   interactive category chart, currency and optional decimals; Mind Maps
   with curved glowing branches, drag, pinch-zoom and one-tap tidy layout
 - Apple Pencil double-tap switches to the eraser and back
+- Lasso (Notability-style): circle ink, drag it, and use Style (size 1-20,
+  solid/dashed/dotted, colors), Duplicate, Cut, Copy, Paste and Delete
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
   strikethrough, size, color, bulleted lists; move and resize
 - Photos and images from Files placed on pages; move and resize
