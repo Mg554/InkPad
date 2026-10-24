@@ -156,6 +156,8 @@ enum LibraryScope: Hashable {
     case slides
     /// Study with AI: chat, flashcards, quizzes.
     case study
+    /// The Flowmodoro focus timer and its tasks.
+    case flowmodoro
     /// Notes with this tag (without the #).
     case tag(String)
     /// The graph of notes and their links.

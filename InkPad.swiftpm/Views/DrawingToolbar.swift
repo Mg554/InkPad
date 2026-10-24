@@ -200,6 +200,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 hint("Drag to move. Use the corner handle to resize.")
                 deleteButton
             case nil:
+                textInputModeButton
                 hint("Tap the page to add a text box. Tap a box or image to edit it.")
             }
         }
@@ -225,6 +226,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 canvas.formatText { $0.toggleLineStyle(.strikethroughStyle) }
             }
             formatButton("list.bullet", label: "Bulleted List") { canvas.formatText { $0.toggleBulletList() } }
+            barDivider
+            textInputModeButton
             barDivider
             ForEach(Self.textColors, id: \.self) { color in
                 colorSwatch(color, isSelected: false, size: 22) {
@@ -511,6 +514,27 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 .overlay(Circle().stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2.5))
         }
         .accessibilityLabel("Color")
+    }
+
+    /// Typing on the keyboard, or handwriting turned into text.
+    private var textInputModeButton: some View {
+        _ = canvas.formattingRevision
+        let mode = TextInputMode.current
+        return Button {
+            canvas.toggleTextInputMode()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: mode.switchSymbol)
+                if !isVertical {
+                    Text(mode == .keyboard ? "Write with Pencil" : "Use Keyboard")
+                        .font(.footnote.weight(.medium))
+                }
+            }
+            .padding(.horizontal, isVertical ? 0 : 10)
+            .frame(minWidth: 38, minHeight: 32)
+            .background(Color.accentColor.opacity(0.12), in: Capsule())
+        }
+        .accessibilityLabel(mode.switchLabel)
     }
 
     private func formatButton(_ systemImage: String, label: String, isOn: Bool = false, action: @escaping () -> Void) -> some View {

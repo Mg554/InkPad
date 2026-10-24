@@ -46,6 +46,16 @@ struct SidebarView: View {
                     .tag(LibraryScope.mindMaps)
                 Label("Slides", systemImage: "rectangle.on.rectangle.angled")
                     .tag(LibraryScope.slides)
+                HStack {
+                    Label("Flowmodoro", systemImage: "timer")
+                    Spacer()
+                    if workspace.flowTimer?.phase == .working {
+                        Image(systemName: "record.circle")
+                            .foregroundStyle(.green)
+                            .accessibilityLabel("Work session running")
+                    }
+                }
+                .tag(LibraryScope.flowmodoro)
             }
 
             if !store.allTags.isEmpty {
@@ -75,6 +85,11 @@ struct SidebarView: View {
             }
         }
         .navigationTitle("InkPad")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                AppearanceMenu()
+            }
+        }
         .namePrompt($prompt)
         .confirmationDialog(
             "Delete \"\(folderToDelete?.name ?? "")\"?",

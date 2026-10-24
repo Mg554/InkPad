@@ -114,7 +114,7 @@ final class LibraryStore: ObservableObject {
         switch scope {
         case .allNotes: matching = notes
         case .unfiled: matching = notes.filter { $0.folderID == nil }
-        case .planner, .expenses, .mindMaps, .slides, .study, .graph: matching = []
+        case .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .graph: matching = []
         case let .tag(tag):
             let key = NoteLinks.key(tag)
             matching = notes.filter { tags(of: $0).contains { NoteLinks.key($0) == key } }

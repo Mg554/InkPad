@@ -65,7 +65,18 @@ Done:
 - Lasso (Notability-style): circle ink, drag it, and use Style (size 1-20,
   solid/dashed/dotted, colors), Duplicate, Cut, Copy, Paste and Delete
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
-  strikethrough, size, color, bulleted lists; move and resize
+  strikethrough, size, color, bulleted lists; move and resize. Type with
+  the keyboard (it opens even when you tap with Apple Pencil), or switch to
+  "Write with Pencil" (in the toolbar or the keyboard's shortcut bar) to
+  handwrite and have it turned into text
+- Appearance: Match iPad, Light or Dark (the circle button at the top of
+  the sidebar); pages keep their paper color
+- Flowmodoro (from the Pythonation/flowmodoro-wep-app web app): a task
+  list; tap a task to start the work stopwatch, stop when your focus fades
+  and you earn a break of 5% of the work time (at least a minute; 10, 15
+  or 20% can be chosen), with a sound and a notification when it ends.
+  Edit, complete, reorder and delete tasks, and see every session in the
+  history with today's total focus time
 - Photos and images from Files placed on pages; move and resize
 - Templates: Plain, Lined, Grid, Dot, Hexagonal Grid, Cornell Note,
   College Rule, Manuscript, Two and Three Column; six paper colors
@@ -137,8 +148,8 @@ Stored under the app's `Documents/InkPad/`:
 - `notes/<id>/thumbnail.png` — preview (regenerated on save)
 - `notes/<id>/text.json` — handwriting and PDF text read with Vision
   (regenerated when needed; used by search and AI study)
-- `workspace.json` — planner, expenses, mind maps, slide decks, flashcards
-  and quizzes
+- `workspace.json` — planner, expenses, mind maps, slide decks, flashcards,
+  quizzes, and Flowmodoro tasks, sessions and the running timer
 - `decks/<id>/` — page pictures used in slide decks
 
 If `library.json` cannot be read, InkPad opens read-only instead of

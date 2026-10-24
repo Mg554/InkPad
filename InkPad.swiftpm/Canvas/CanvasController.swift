@@ -258,6 +258,12 @@ final class CanvasController: NSObject, ObservableObject {
         formattingRevision += 1
     }
 
+    /// Switches text boxes between typing and writing with Apple Pencil.
+    func toggleTextInputMode() {
+        TextInputMode.toggle()
+        formattingRevision += 1
+    }
+
     func deleteSelectedElement() {
         host?.elementLayer.removeSelected()
     }

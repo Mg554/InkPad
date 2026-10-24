@@ -113,6 +113,10 @@ struct WorkspaceFile: Codable {
     var slideDecks: [SlideDeck]?
     var flashcardDecks: [FlashcardDeck]?
     var quizzes: [Quiz]?
+    var flowTasks: [FlowTask]?
+    var flowSessions: [FlowSession]?
+    var flowTimer: FlowTimer?
+    var flowBreakShare: Int?
 }
 
 // MARK: Mind maps

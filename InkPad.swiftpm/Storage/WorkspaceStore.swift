@@ -15,6 +15,11 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var decks: [SlideDeck] = []
     @Published private(set) var flashcardDecks: [FlashcardDeck] = []
     @Published private(set) var quizzes: [Quiz] = []
+    @Published private(set) var flowTasks: [FlowTask] = []
+    @Published private(set) var flowSessions: [FlowSession] = []
+    @Published private(set) var flowTimer: FlowTimer?
+    /// Break length in percent of the work time.
+    @Published private(set) var flowBreakShare = Flowmodoro.defaultBreakShare
     @Published var errorMessage: String?
     @Published private(set) var isReadOnly = false
 
@@ -205,6 +210,112 @@ final class WorkspaceStore: ObservableObject {
         persist()
     }
 
+    // MARK: Flowmodoro
+
+    func addFlowTask(_ title: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard canWrite(), !trimmed.isEmpty else { return }
+        flowTasks.append(FlowTask(title: trimmed))
+        persist()
+    }
+
+    func renameFlowTask(_ id: UUID, to title: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard canWrite(), !trimmed.isEmpty, let index = flowTasks.firstIndex(where: { $0.id == id }) else { return }
+        flowTasks[index].title = trimmed
+        if flowTimer?.taskID == id { flowTimer?.taskTitle = trimmed }
+        persist()
+    }
+
+    func toggleFlowTask(_ id: UUID) {
+        guard canWrite(), let index = flowTasks.firstIndex(where: { $0.id == id }) else { return }
+        flowTasks[index].isDone.toggle()
+        persist()
+    }
+
+    func deleteFlowTask(_ id: UUID) {
+        guard canWrite() else { return }
+        flowTasks.removeAll { $0.id == id }
+        // The history keeps the sessions; it stores the task's title.
+        if flowTimer?.taskID == id, flowTimer?.phase == .working { flowTimer = nil }
+        persist()
+    }
+
+    func moveFlowTasks(from source: IndexSet, to destination: Int) {
+        guard canWrite() else { return }
+        flowTasks.move(fromOffsets: source, toOffset: destination)
+        persist()
+    }
+
+    func setFlowBreakShare(_ share: Int) {
+        guard canWrite() else { return }
+        flowBreakShare = share
+        persist()
+    }
+
+    /// Starts the work stopwatch for a task. Not while work is already running.
+    func startFlowWork(on id: UUID) {
+        guard canWrite(), flowTimer?.phase != .working,
+              let task = flowTasks.first(where: { $0.id == id }), !task.isDone
+        else { return }
+        flowTimer = FlowTimer(
+            taskID: id,
+            taskTitle: task.title,
+            phase: .working,
+            workStartedAt: Date(),
+            workSeconds: 0,
+            breakSeconds: 0,
+            breakStartedAt: nil
+        )
+        persist()
+    }
+
+    /// Stops work: the session goes into the history and the break is earned.
+    func stopFlowWork() {
+        guard canWrite(), var timer = flowTimer, timer.phase == .working else { return }
+        let worked = timer.workElapsed(at: Date())
+        timer.workSeconds = worked
+        timer.breakSeconds = Flowmodoro.breakSeconds(forWork: worked, share: flowBreakShare)
+        timer.phase = .breakReady
+        flowTimer = timer
+        flowSessions.append(FlowSession(
+            id: UUID(),
+            taskTitle: timer.taskTitle,
+            workSeconds: worked,
+            breakSeconds: timer.breakSeconds,
+            endedAt: Date()
+        ))
+        persist()
+    }
+
+    func startFlowBreak() {
+        guard canWrite(), var timer = flowTimer, timer.phase == .breakReady else { return }
+        timer.phase = .onBreak
+        timer.breakStartedAt = Date()
+        flowTimer = timer
+        persist()
+    }
+
+    /// Ends the break (when it runs out, or skipped) and clears the timer.
+    func endFlowBreak() {
+        guard canWrite(), flowTimer != nil, flowTimer?.phase != .working else { return }
+        flowTimer = nil
+        persist()
+    }
+
+    /// Throws away the work in progress without recording it.
+    func discardFlowWork() {
+        guard canWrite(), flowTimer?.phase == .working else { return }
+        flowTimer = nil
+        persist()
+    }
+
+    func clearFlowHistory() {
+        guard canWrite() else { return }
+        flowSessions = []
+        persist()
+    }
+
     // MARK: Persistence
 
     private func load() {
@@ -223,6 +334,10 @@ final class WorkspaceStore: ObservableObject {
             decks = file.slideDecks ?? []
             flashcardDecks = file.flashcardDecks ?? []
             quizzes = file.quizzes ?? []
+            flowTasks = file.flowTasks ?? []
+            flowSessions = file.flowSessions ?? []
+            flowTimer = file.flowTimer
+            flowBreakShare = file.flowBreakShare ?? Flowmodoro.defaultBreakShare
         } catch {
             isReadOnly = true
             errorMessage = "Your planner and expenses could not be read (\(error.localizedDescription)). "
@@ -241,7 +356,11 @@ final class WorkspaceStore: ObservableObject {
             mindMaps: mindMaps,
             slideDecks: decks,
             flashcardDecks: flashcardDecks,
-            quizzes: quizzes
+            quizzes: quizzes,
+            flowTasks: flowTasks,
+            flowSessions: flowSessions,
+            flowTimer: flowTimer,
+            flowBreakShare: flowBreakShare
         )
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)

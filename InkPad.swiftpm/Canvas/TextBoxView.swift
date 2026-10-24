@@ -1,7 +1,37 @@
 import UIKit
 
+/// How text boxes take their words: typed on the keyboard, or handwritten
+/// with Apple Pencil and turned into text (Scribble). Applies to every box.
+enum TextInputMode: String {
+    case keyboard, pencil
+
+    static let didChange = Notification.Name("InkPad.TextInputModeDidChange")
+    private static let defaultsKey = "textBoxInput"
+
+    static var current: TextInputMode {
+        TextInputMode(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .keyboard
+    }
+
+    static func set(_ mode: TextInputMode) {
+        UserDefaults.standard.set(mode.rawValue, forKey: defaultsKey)
+        NotificationCenter.default.post(name: didChange, object: nil)
+    }
+
+    static func toggle() {
+        set(current == .keyboard ? .pencil : .keyboard)
+    }
+
+    /// The button that switches to the other mode.
+    var switchSymbol: String { self == .keyboard ? "pencil.and.scribble" : "keyboard" }
+    var switchLabel: String { self == .keyboard ? "Write with Apple Pencil" : "Type with Keyboard" }
+}
+
 /// An editable rich-text box. Height follows the text; width is resizable.
-final class TextBoxView: PageElementView, UITextViewDelegate {
+///
+/// With the keyboard mode, tapping a box with Apple Pencil shows the
+/// keyboard like a finger does (Scribble is turned off for the box). With the
+/// pencil mode the keyboard stays hidden and handwriting becomes text.
+final class TextBoxView: PageElementView, UITextViewDelegate, @preconcurrency UIScribbleInteractionDelegate {
     let textView = UITextView()
     private var moveHandle: UIView!
     private var resizeHandle: UIView!
@@ -21,7 +51,10 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
             ? text.attributes(at: text.length - 1, effectiveRange: nil)
             : TextBoxStyle.defaultAttributes
         textView.delegate = self
+        textView.addInteraction(UIScribbleInteraction(delegate: self))
         addSubview(textView)
+        applyInputMode()
+        NotificationCenter.default.addObserver(self, selector: #selector(inputModeDidChange), name: TextInputMode.didChange, object: nil)
 
         moveHandle = makeHandle(systemImage: "arrow.up.and.down.and.arrow.left.and.right", action: #selector(handleMove(_:)))
         resizeHandle = makeHandle(systemImage: "arrow.left.and.right", action: #selector(handleResize(_:)))
@@ -67,6 +100,41 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
         if abs(height - frame.height) > 0.5 {
             frame.size.height = height
         }
+    }
+
+    // MARK: Keyboard or Apple Pencil
+
+    @objc private func inputModeDidChange() {
+        applyInputMode()
+    }
+
+    private func applyInputMode() {
+        let mode = TextInputMode.current
+        // An empty input view keeps the keyboard away while the box is
+        // still being edited, so handwriting goes into it.
+        textView.inputView = mode == .pencil ? UIView(frame: .zero) : nil
+        let switchItem = UIBarButtonItem(
+            image: UIImage(systemName: mode.switchSymbol),
+            style: .plain,
+            target: self,
+            action: #selector(switchInputMode)
+        )
+        switchItem.accessibilityLabel = mode.switchLabel
+        textView.inputAssistantItem.trailingBarButtonGroups = [
+            UIBarButtonItemGroup(barButtonItems: [switchItem], representativeItem: nil),
+        ]
+        if textView.isFirstResponder {
+            textView.reloadInputViews()
+        }
+    }
+
+    @objc private func switchInputMode() {
+        TextInputMode.toggle()
+        layerView?.onTextStateChange?()
+    }
+
+    func scribbleInteraction(_ interaction: UIScribbleInteraction, shouldBeginAt location: CGPoint) -> Bool {
+        TextInputMode.current == .pencil
     }
 
     // MARK: Gestures
