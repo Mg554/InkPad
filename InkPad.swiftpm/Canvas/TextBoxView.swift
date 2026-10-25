@@ -1,12 +1,13 @@
 import UIKit
 
-/// How text boxes take their words: typed on the keyboard, or handwritten
-/// with Apple Pencil and turned into text (Scribble). Applies to every box.
+/// How InkPad's text fields take words: typed on the keyboard (Apple Pencil
+/// taps open it too), or handwritten with Apple Pencil and turned into text
+/// (Scribble). Applies everywhere; see `ScribbleGate`.
 enum TextInputMode: String {
     case keyboard, pencil
 
     static let didChange = Notification.Name("InkPad.TextInputModeDidChange")
-    private static let defaultsKey = "textBoxInput"
+    static let defaultsKey = "textBoxInput"
 
     static var current: TextInputMode {
         TextInputMode(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .keyboard
@@ -29,9 +30,9 @@ enum TextInputMode: String {
 /// An editable rich-text box. Height follows the text; width is resizable.
 ///
 /// With the keyboard mode, tapping a box with Apple Pencil shows the
-/// keyboard like a finger does (Scribble is turned off for the box). With the
-/// pencil mode the keyboard stays hidden and handwriting becomes text.
-final class TextBoxView: PageElementView, UITextViewDelegate, UIScribbleInteractionDelegate {
+/// keyboard like a finger does. With the pencil mode the keyboard stays
+/// hidden and handwriting becomes text.
+final class TextBoxView: PageElementView, UITextViewDelegate {
     let textView = UITextView()
     private var moveHandle: UIView!
     private var resizeHandle: UIView!
@@ -54,7 +55,6 @@ final class TextBoxView: PageElementView, UITextViewDelegate, UIScribbleInteract
             ? text.attributes(at: text.length - 1, effectiveRange: nil)
             : TextBoxStyle.defaultAttributes
         textView.delegate = self
-        textView.addInteraction(UIScribbleInteraction(delegate: self))
         addSubview(textView)
         applyInputMode()
         NotificationCenter.default.addObserver(self, selector: #selector(inputModeDidChange), name: TextInputMode.didChange, object: nil)
@@ -153,10 +153,6 @@ final class TextBoxView: PageElementView, UITextViewDelegate, UIScribbleInteract
     @objc private func switchInputMode() {
         TextInputMode.toggle()
         layerView?.onTextStateChange?()
-    }
-
-    func scribbleInteraction(_ interaction: UIScribbleInteraction, shouldBeginAt location: CGPoint) -> Bool {
-        TextInputMode.current == .pencil
     }
 
     // MARK: Gestures

@@ -7,6 +7,10 @@ struct InkPadApp: App {
     @StateObject private var workspace = WorkspaceStore()
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
 
+    init() {
+        ScribbleGate.install()
+    }
+
     var body: some Scene {
         WindowGroup {
             LibraryView()

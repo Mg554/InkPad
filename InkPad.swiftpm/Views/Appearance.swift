@@ -34,15 +34,26 @@ enum AppAppearance: String, CaseIterable, Identifiable {
     }
 }
 
-/// Picks the appearance; shown in the sidebar and in Flowmodoro.
+/// Picks the appearance, and what Apple Pencil does in text fields; shown
+/// in the sidebar and in Flowmodoro.
 struct AppearanceMenu: View {
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
+    @AppStorage(TextInputMode.defaultsKey) private var textInput: TextInputMode = .keyboard
 
     var body: some View {
         Menu {
             Picker("Appearance", selection: $appearance) {
                 ForEach(AppAppearance.allCases) { option in
                     Label(option.title, systemImage: option.symbol).tag(option)
+                }
+            }
+            Section("Tapping a Text Field with Apple Pencil") {
+                Picker("Apple Pencil in Text Fields", selection: Binding(
+                    get: { textInput },
+                    set: { TextInputMode.set($0) }
+                )) {
+                    Label("Opens the Keyboard", systemImage: "keyboard").tag(TextInputMode.keyboard)
+                    Label("Handwriting to Text", systemImage: "pencil.and.scribble").tag(TextInputMode.pencil)
                 }
             }
         } label: {

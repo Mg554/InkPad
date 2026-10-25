@@ -366,6 +366,7 @@ private struct SlideFields: View {
     @Binding var slide: Slide
     @FocusState private var focus: Field?
     @State private var lastFocus: Field = .title
+    @State private var keyboardHelp: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -416,14 +417,26 @@ private struct SlideFields: View {
         .onChange(of: focus) {
             if let focus { lastFocus = focus }
         }
+        .alert(
+            "Keyboard",
+            isPresented: Binding(get: { keyboardHelp != nil }, set: { if !$0 { keyboardHelp = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(keyboardHelp ?? "")
+        }
     }
 
     /// Edits the field again, which shows the keyboard when this button was
     /// tapped with a finger.
     private func showKeyboard() {
+        if TextInputMode.current == .pencil {
+            TextInputMode.set(.keyboard)
+        }
         let field = focus ?? lastFocus
         focus = nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focus = field }
+        KeyboardHelp.checkAfterShowing { keyboardHelp = $0 }
     }
 
     /// Blank lines stay while typing; slides skip them.

@@ -68,9 +68,12 @@ Done:
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
   strikethrough, size, color, bulleted lists; move and resize. Type with
   the keyboard, or switch to "Write with Pencil" (in the toolbar or the
-  keyboard's shortcut bar) to handwrite and have it turned into text. After
-  a tap with Apple Pencil iPadOS hides the keyboard; tap "Show Keyboard"
-  (text boxes and the slide editor) with a finger to bring it up
+  keyboard's shortcut bar) to handwrite and have it turned into text. In the
+  sidebar's circle menu, "Tapping a Text Field with Apple Pencil" sets
+  every text field in InkPad to open the keyboard (default) or to take
+  handwriting. "Show Keyboard" (text boxes, slide editor) brings it up and
+  explains why if iPadOS keeps it hidden, for example when a hardware
+  keyboard is connected
 - Appearance: Match iPad, Light or Dark (the circle button at the top of
   the sidebar); pages keep their paper color
 - Flowmodoro (from the Pythonation/flowmodoro-wep-app web app): a task

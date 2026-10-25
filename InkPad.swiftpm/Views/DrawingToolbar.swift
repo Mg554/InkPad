@@ -21,6 +21,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
     @AppStorage("toolbarCollapsed") private var isCollapsed = false
     @State private var customColor = Color.black
     @State private var isAdjustingWidth = false
+    /// Why the keyboard didn't come up after "Show Keyboard", if it didn't.
+    @State private var keyboardHelp: String?
 
     private var isVertical: Bool { edge.isVertical }
 
@@ -521,6 +523,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     private var showKeyboardButton: some View {
         Button {
             canvas.showKeyboard()
+            KeyboardHelp.checkAfterShowing { keyboardHelp = $0 }
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "keyboard")
@@ -535,6 +538,14 @@ struct DrawingToolbar<InsertMenu: View>: View {
             .background(Color.accentColor, in: Capsule())
         }
         .accessibilityLabel("Show Keyboard")
+        .alert(
+            "Keyboard",
+            isPresented: Binding(get: { keyboardHelp != nil }, set: { if !$0 { keyboardHelp = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(keyboardHelp ?? "")
+        }
     }
 
     /// Typing on the keyboard, or handwriting turned into text.
