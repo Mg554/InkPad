@@ -32,7 +32,7 @@ enum NoteReader {
     }
 
     /// Lines of text, top to bottom.
-    private static func recognizeText(in image: CGImage) -> String {
+    static func recognizeText(in image: CGImage) -> String {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true

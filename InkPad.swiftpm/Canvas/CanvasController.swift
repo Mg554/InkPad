@@ -118,6 +118,9 @@ final class CanvasController: NSObject, ObservableObject {
         switch palette.tool {
         case .text: host.setMode(.text)
         case .lasso: host.setMode(.lasso)
+        case .laser:
+            host.laser.color = palette.style(for: .laser).selectedColor.uiColor
+            host.setMode(.laser)
         default: host.setMode(.draw)
         }
         host.canvas.tool = palette.pkTool

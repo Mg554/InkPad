@@ -104,9 +104,13 @@ enum KeyboardHelp {
     static func checkAfterShowing(_ report: @escaping (String) -> Void) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             guard !KeyboardWatcher.shared.isKeyboardVisible else { return }
-            report(hasHardwareKeyboard
-                ? "A keyboard is connected to this iPad (Bluetooth, Smart Keyboard, Magic Keyboard or a keyboard case), so iPadOS doesn't show the on-screen keyboard. Type on that keyboard, or turn it off or disconnect it in Settings › Bluetooth to get the on-screen keyboard."
-                : "iPadOS didn't show the keyboard. Tap the text field with your finger, or turn off Settings › Apple Pencil › Scribble so that taps with Apple Pencil open the keyboard too.")
+            if hasHardwareKeyboard {
+                report("A keyboard is connected to this iPad (Bluetooth, Smart Keyboard, Magic Keyboard or a keyboard case), so iPadOS doesn't show the on-screen keyboard. Type on that keyboard, or turn it off or disconnect it in Settings › Bluetooth to get the on-screen keyboard.")
+            } else if UIScribbleInteraction.isPencilInputExpected {
+                report("This was tapped with Apple Pencil. With Scribble on, iPadOS keeps the keyboard hidden after Apple Pencil taps and waits for handwriting. Tap the text field (or this button) with your finger to type, or turn off Settings › Apple Pencil › Scribble.")
+            } else {
+                report("iPadOS didn't show the keyboard. Tap the text field with your finger, or turn off Settings › Apple Pencil › Scribble so that taps with Apple Pencil open the keyboard too.")
+            }
         }
     }
 }

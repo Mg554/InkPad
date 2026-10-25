@@ -64,7 +64,12 @@ Done:
 - Rotating the iPad keeps the page steady, with the same part of the page
   in the middle
 - Lasso (Notability-style): circle ink, drag it, and use Style (size 1-20,
-  solid/dashed/dotted, colors), Duplicate, Cut, Copy, Paste and Delete
+  solid/dashed/dotted, colors), Copy as Text (handwriting read with
+  Vision), Duplicate, Cut, Copy, Paste and Delete. On PDF pages, circle
+  printed text to Copy Text or Highlight it
+- Laser pointer for explaining: a glowing line that follows Apple Pencil
+  and fades away, in four colors; it is never saved (AirPlay mirroring
+  shows it on a projector or TV)
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
   strikethrough, size, color, bulleted lists; move and resize. Type with
   the keyboard, or switch to "Write with Pencil" (in the toolbar or the

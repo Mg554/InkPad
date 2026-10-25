@@ -46,6 +46,21 @@ struct NoteBackground: Equatable {
         }
     }
 
+    /// PDF text inside `rect` (canvas coordinates), across pages.
+    func pdfText(in rect: CGRect) -> PDFTextHit? {
+        guard let pdf else { return nil }
+        var texts: [String] = []
+        var lines: [CGRect] = []
+        for (index, pageRect) in layout.pageRects.enumerated() where pageRect.intersects(rect) {
+            guard let pdfIndex = pdfPage(at: index),
+                  let hit = pdf.text(onPage: pdfIndex, in: rect.intersection(pageRect), pageRect: pageRect)
+            else { continue }
+            texts.append(hit.text)
+            lines += hit.lines
+        }
+        return texts.isEmpty ? nil : PDFTextHit(text: texts.joined(separator: "\n"), lines: lines)
+    }
+
     /// Page size for export: the PDF page's own size, or A4 for paper pages.
     func exportSize(ofPage index: Int) -> CGSize {
         if let pdf, let pdfIndex = pdfPage(at: index) {

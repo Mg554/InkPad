@@ -2,7 +2,7 @@ import PencilKit
 import SwiftUI
 
 enum DrawingTool: String, Codable, CaseIterable, Identifiable {
-    case quill, fountainPen, pen, monoline, pencil, crayon, watercolor, marker, highlighter, eraser, text, lasso
+    case quill, fountainPen, pen, monoline, pencil, crayon, watercolor, marker, highlighter, eraser, text, lasso, laser
 
     var id: Self { self }
 
@@ -20,6 +20,7 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .eraser: "Eraser"
         case .text: "Text"
         case .lasso: "Lasso"
+        case .laser: "Laser Pointer"
         }
     }
 
@@ -37,13 +38,14 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .eraser: "eraser"
         case .text: "textformat"
         case .lasso: "lasso"
+        case .laser: "cursorarrow.rays"
         }
     }
 
     /// Pens and the highlighter: they have colors and draw ink.
     var isInking: Bool {
         switch self {
-        case .eraser, .text, .lasso: false
+        case .eraser, .text, .lasso, .laser: false
         default: true
         }
     }
@@ -64,7 +66,7 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .crayon: .crayon
         case .watercolor: .watercolor
         case .marker: .marker
-        case .eraser, .text, .lasso: nil
+        case .eraser, .text, .lasso, .laser: nil
         }
     }
 
@@ -81,7 +83,7 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .marker: 2...40
         case .highlighter: 4...60
         case .eraser: 4...100
-        case .text, .lasso: 1...1
+        case .text, .lasso, .laser: 1...1
         }
     }
 
@@ -95,12 +97,14 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
         case .marker: [4, 8, 16]
         case .highlighter: [10, 18, 30]
         case .eraser: [8, 20, 50]
-        case .text, .lasso: []
+        case .text, .lasso, .laser: []
         }
     }
 
     var defaultColors: [InkColor] {
         switch self {
+        case .laser:
+            [.init(1.00, 0.18, 0.22), .init(0.20, 0.95, 0.40), .init(0.25, 0.65, 1.00), .init(1.00, 0.75, 0.10)]
         case .highlighter:
             [.init(0.98, 0.92, 0.25), .init(0.55, 0.92, 0.35), .init(0.45, 0.85, 0.98),
              .init(0.98, 0.55, 0.75), .init(0.99, 0.70, 0.30), .init(0.75, 0.60, 0.98)]
@@ -294,8 +298,8 @@ final class ToolPalette: ObservableObject {
         switch tool {
         case .eraser:
             return PKEraserTool(erasesWholeStrokes ? .vector : .bitmap, width: width)
-        case .lasso, .text:
-            // Drawing is switched off while the Text tool is active.
+        case .lasso, .text, .laser:
+            // Drawing is switched off while these tools are active.
             return PKLassoTool()
         case .highlighter:
             return PKInkingTool(.monoline, color: color.withAlphaComponent(DrawingTool.highlighterOpacity), width: width)

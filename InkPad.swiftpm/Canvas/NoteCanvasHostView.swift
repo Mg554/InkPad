@@ -15,6 +15,9 @@ final class NoteCanvasHostView: UIView {
     /// Above the ink: the lasso line and selection box.
     let selectionOverlay = SelectionOverlayView()
     private(set) var lasso: LassoSelection!
+    /// Above everything, in screen coordinates: the laser pointer's trail.
+    private let laserOverlay = LaserOverlayView()
+    private(set) var laser: LaserPointer!
     private var replay: InkReplay!
     private var savedPanTouchTypes: [NSNumber]?
     private var savedPanMinimumTouches = 1
@@ -53,10 +56,19 @@ final class NoteCanvasHostView: UIView {
         addSubview(replay.mirror)
         addSubview(selectionOverlay)
         lasso = LassoSelection(host: self, overlay: selectionOverlay)
+        laserOverlay.frame = bounds
+        laserOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        addSubview(laserOverlay)
+        laser = LaserPointer(gestureView: canvas, overlay: laserOverlay)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not supported")
+    }
+
+    /// PDF text under `rect`, in canvas coordinates.
+    func pdfText(in rect: CGRect) -> PDFTextHit? {
+        background?.pdfText(in: rect)
     }
 
     func configure(_ background: NoteBackground) {
@@ -74,6 +86,9 @@ final class NoteCanvasHostView: UIView {
         /// The pencil (or a finger, with finger drawing on) draws a lasso
         /// selection; scrolling moves to fingers (or two fingers).
         case lasso
+        /// The pencil (or a finger, with finger drawing on) points with a
+        /// fading laser; scrolling moves to fingers (or two fingers).
+        case laser
     }
 
     private(set) var mode: Mode = .draw
@@ -85,7 +100,7 @@ final class NoteCanvasHostView: UIView {
     /// our own gestures. Scrolling, zooming and our gestures stay active.
     func setMode(_ newMode: Mode) {
         guard newMode != mode else {
-            if mode == .lasso { applyLassoTouches() }
+            if mode == .lasso || mode == .laser { applyLassoTouches() }
             return
         }
 
@@ -94,10 +109,11 @@ final class NoteCanvasHostView: UIView {
         case .text:
             elementLayer.isInteractive = false
             textTap.isEnabled = false
-        case .lasso:
+        case .lasso, .laser:
             if let savedPanTouchTypes { canvas.panGestureRecognizer.allowedTouchTypes = savedPanTouchTypes }
             canvas.panGestureRecognizer.minimumNumberOfTouches = savedPanMinimumTouches
             lasso.setEnabled(false, pencilOnly: canvas.drawingPolicy == .pencilOnly)
+            laser.setEnabled(false, pencilOnly: canvas.drawingPolicy == .pencilOnly)
         case .draw:
             break
         }
@@ -106,6 +122,7 @@ final class NoteCanvasHostView: UIView {
         if mode == .draw {
             let kept: [UIGestureRecognizer] = [
                 canvas.panGestureRecognizer, canvas.drawingGestureRecognizer, textTap, seekTap, lasso.pan, lasso.tap,
+                laser.press,
             ] + [canvas.pinchGestureRecognizer].compactMap { $0 }
             suspendedRecognizers = Self.gestureRecognizers(in: canvas).filter { recognizer in
                 recognizer.isEnabled && !kept.contains { $0 === recognizer }
@@ -122,7 +139,7 @@ final class NoteCanvasHostView: UIView {
         case .text:
             elementLayer.isInteractive = true
             textTap.isEnabled = true
-        case .lasso:
+        case .lasso, .laser:
             savedPanTouchTypes = canvas.panGestureRecognizer.allowedTouchTypes
             savedPanMinimumTouches = canvas.panGestureRecognizer.minimumNumberOfTouches
             applyLassoTouches()
@@ -135,7 +152,7 @@ final class NoteCanvasHostView: UIView {
 
     /// Re-applies lasso touch settings after "Draw with Finger" changes.
     func refreshLassoMode() {
-        if mode == .lasso { applyLassoTouches() }
+        if mode == .lasso || mode == .laser { applyLassoTouches() }
         updateSeekTap()
     }
 
@@ -145,7 +162,8 @@ final class NoteCanvasHostView: UIView {
             ? [NSNumber(value: UITouch.TouchType.direct.rawValue)]
             : (savedPanTouchTypes ?? canvas.panGestureRecognizer.allowedTouchTypes)
         canvas.panGestureRecognizer.minimumNumberOfTouches = pencilOnly ? 1 : 2
-        lasso.setEnabled(true, pencilOnly: pencilOnly)
+        lasso.setEnabled(mode == .lasso, pencilOnly: pencilOnly)
+        laser.setEnabled(mode == .laser, pencilOnly: pencilOnly)
     }
 
     private static func gestureRecognizers(in view: UIView) -> [UIGestureRecognizer] {

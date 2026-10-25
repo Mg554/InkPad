@@ -3,8 +3,9 @@ import SwiftUI
 import UIKit
 
 /// Notability-style lasso: circle ink to select it, then use the menu
-/// (Style, Duplicate, Cut, Copy, Paste, Delete) or drag the selection.
-/// Replaces PencilKit's lasso, which cannot restyle strokes.
+/// (Style, Copy as Text, Duplicate, Cut, Copy, Paste, Delete) or drag the
+/// selection. Circling a PDF's printed text selects that text, to copy or
+/// highlight. Replaces PencilKit's lasso, which cannot restyle strokes.
 @MainActor
 final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDelegate, UIGestureRecognizerDelegate {
     enum DashStyle: String, CaseIterable, Identifiable {
@@ -25,6 +26,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     private var selected: [PKStroke] = []
     /// Everything else in the drawing.
     private var others: [PKStroke] = []
+    /// PDF text inside the lasso.
+    private var textHit: PDFTextHit?
     private var dash: DashStyle = .solid
     private var lassoPoints: [CGPoint] = []
     private var moveStart: CGPoint?
@@ -47,6 +50,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     }
 
     var hasSelection: Bool { !selected.isEmpty }
+    private var hasTextSelection: Bool { textHit != nil }
 
     func setEnabled(_ enabled: Bool, pencilOnly: Bool) {
         pan.isEnabled = enabled
@@ -92,7 +96,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
 
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
         let point = gesture.location(in: overlay)
-        if hasSelection, selectionBounds.contains(point) {
+        if hasSelection || hasTextSelection, selectionBounds.contains(point) {
             presentMenu()
         } else {
             clearSelection()
@@ -128,10 +132,12 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
                 outside.append(stroke)
             }
         }
+        let hit = host.pdfText(in: polygon.bounds)
         lassoPoints = []
-        guard !inside.isEmpty else { return }
+        guard !inside.isEmpty || hit != nil else { return }
         selected = inside
         others = outside
+        textHit = hit
         dash = .solid
         overlay.showSelection(selectionBounds)
         presentMenu()
@@ -140,18 +146,22 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     func clearSelection() {
         selected = []
         others = []
+        textHit = nil
         overlay.showSelection(nil)
         menu.dismissMenu()
     }
 
     private var selectionBounds: CGRect {
-        selected.reduce(CGRect.null) { $0.union($1.renderBounds) }
+        let ink = selected.reduce(CGRect.null) { $0.union($1.renderBounds) }
+        return (textHit?.lines ?? []).reduce(ink) { $0.union($1) }
     }
 
     // MARK: Moving
 
     private func beginMove(at point: CGPoint) {
         guard let host else { return }
+        // Printed text stays where it is; only ink moves.
+        textHit = nil
         moveStart = point
         drawingBeforeMove = host.canvas.drawing
         // Show the selection as an image while dragging; the canvas keeps the rest.
@@ -266,9 +276,16 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
 
     func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration, suggestedActions: [UIMenuElement]) -> UIMenu? {
         var actions: [UIMenuElement] = []
+        if hasTextSelection {
+            actions += [
+                UIAction(title: "Copy Text", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in self?.copyPDFText() },
+                UIAction(title: "Highlight", image: UIImage(systemName: "highlighter")) { [weak self] _ in self?.highlightPDFText() },
+            ]
+        }
         if hasSelection {
             actions += [
                 UIAction(title: "Style", image: UIImage(systemName: "paintpalette")) { [weak self] _ in self?.showStylePanel() },
+                UIAction(title: "Copy as Text", image: UIImage(systemName: "text.viewfinder")) { [weak self] _ in self?.copyInkAsText() },
                 UIAction(title: "Duplicate", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in self?.duplicateSelection() },
                 UIAction(title: "Cut", image: UIImage(systemName: "scissors")) { [weak self] _ in self?.cutSelection() },
                 UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in self?.copySelection() },
@@ -284,7 +301,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     }
 
     func editMenuInteraction(_ interaction: UIEditMenuInteraction, targetRectFor configuration: UIEditMenuConfiguration) -> CGRect {
-        guard let host, hasSelection else { return .null }
+        guard let host, hasSelection || hasTextSelection else { return .null }
         return overlay.convert(selectionBounds, to: host)
     }
 
@@ -331,6 +348,74 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         dash = .solid
         edit { selected = strokes }
         presentMenu()
+    }
+
+    // MARK: Text
+
+    private func copyPDFText() {
+        guard let text = textHit?.text else { return }
+        UIPasteboard.general.string = text
+        clearSelection()
+    }
+
+    /// Highlighter ink over each selected line of the PDF, as one undo step.
+    private func highlightPDFText() {
+        guard let host, let lines = textHit?.lines, !lines.isEmpty else { return }
+        let before = host.canvas.drawing
+        let color = UIColor(red: 0.98, green: 0.92, blue: 0.25, alpha: DrawingTool.highlighterOpacity)
+        var drawing = host.canvas.drawing
+        drawing.strokes += lines.map { Self.highlight($0, color: color) }
+        host.canvas.drawing = drawing
+        host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { [weak self] canvas in
+            self?.clearSelection()
+            canvas.drawing = before
+        }
+        clearSelection()
+        onChange?()
+    }
+
+    private static func highlight(_ line: CGRect, color: UIColor) -> PKStroke {
+        let height = max(line.height, 4)
+        let start = line.minX + height / 2
+        let end = max(line.maxX - height / 2, start + 1)
+        func point(_ x: CGFloat) -> PKStrokePoint {
+            PKStrokePoint(
+                location: CGPoint(x: x, y: line.midY), timeOffset: 0,
+                size: CGSize(width: height, height: height),
+                opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2
+            )
+        }
+        var points: [PKStrokePoint] = []
+        var x = start
+        while x < end {
+            points.append(point(x))
+            x += 4
+        }
+        points.append(point(end))
+        return PKStroke(ink: PKInk(.monoline, color: color), path: PKStrokePath(controlPoints: points, creationDate: Date()))
+    }
+
+    /// Reads the selected handwriting with Vision and copies it as text.
+    private func copyInkAsText() {
+        guard let host, hasSelection else { return }
+        let bounds = selected.reduce(CGRect.null) { $0.union($1.renderBounds) }.insetBy(dx: -12, dy: -12)
+        var ink = UIImage()
+        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+            ink = PKDrawing(strokes: selected).image(from: bounds, scale: max(2, host.window?.screen.scale ?? 2))
+        }
+        // Dark ink on white reads best.
+        let picture = UIGraphicsImageRenderer(size: ink.size).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: ink.size))
+            ink.draw(at: .zero)
+        }
+        guard let image = picture.cgImage else { return }
+        Task.detached(priority: .userInitiated) {
+            let text = NoteReader.recognizeText(in: image)
+            await MainActor.run {
+                if !text.isEmpty { UIPasteboard.general.string = text }
+            }
+        }
     }
 
     // MARK: Style panel

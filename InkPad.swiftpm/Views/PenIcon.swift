@@ -100,7 +100,7 @@ struct PenIcon: View {
                 brush.closeSubpath()
                 context.fill(brush, with: .color(color))
 
-            case .eraser, .text, .lasso:
+            case .eraser, .text, .lasso, .laser:
                 break
             }
         }

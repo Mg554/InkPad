@@ -192,7 +192,17 @@ struct DrawingToolbar<InsertMenu: View>: View {
             widthButtons(style)
 
         case .lasso:
-            hint("Circle ink to select it, then drag to move. Tap the selection for Style, Duplicate, Cut, Copy and Paste.")
+            hint("Circle ink or PDF text to select it. Drag ink to move it; tap the selection for Style, Copy as Text, Highlight and more.")
+
+        case .laser:
+            ForEach(style.colors, id: \.self) { color in
+                colorSwatch(color, isSelected: color == style.selectedColor) {
+                    palette.selectColor(color)
+                    canvas.applyTool()
+                }
+            }
+            barDivider
+            hint("Point at the page while you explain; the line fades away and isn't saved.")
 
         case .text:
             switch canvas.selection {
