@@ -258,9 +258,18 @@ final class CanvasController: NSObject, ObservableObject {
         formattingRevision += 1
     }
 
+    /// Shows the keyboard for the selected text box.
+    func showKeyboard() {
+        (host?.elementLayer.selected as? TextBoxView)?.showKeyboard()
+        formattingRevision += 1
+    }
+
     /// Switches text boxes between typing and writing with Apple Pencil.
     func toggleTextInputMode() {
         TextInputMode.toggle()
+        if TextInputMode.current == .keyboard {
+            (host?.elementLayer.selected as? TextBoxView)?.showKeyboard()
+        }
         formattingRevision += 1
     }
 

@@ -82,3 +82,19 @@ struct Quiz: Codable, Identifiable, Equatable {
     var bestScore: Int?
     let createdAt: Date
 }
+
+/// A "Chat with your notes" conversation, kept so it can be read and
+/// continued later. Belongs to the notes it was about (none: all notes).
+struct StudyChat: Codable, Identifiable, Equatable {
+    let id: UUID
+    var title: String
+    var sourceNoteIDs: [UUID]
+    var messages: [AIMessage]
+    let createdAt: Date
+    var modifiedAt: Date
+
+    /// Whether this chat was about exactly these notes.
+    func isAbout(_ ids: [UUID]) -> Bool {
+        Set(sourceNoteIDs) == Set(ids)
+    }
+}

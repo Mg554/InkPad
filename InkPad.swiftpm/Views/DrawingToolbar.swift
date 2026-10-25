@@ -227,6 +227,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             }
             formatButton("list.bullet", label: "Bulleted List") { canvas.formatText { $0.toggleBulletList() } }
             barDivider
+            showKeyboardButton
             textInputModeButton
             barDivider
             ForEach(Self.textColors, id: \.self) { color in
@@ -514,6 +515,26 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 .overlay(Circle().stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2.5))
         }
         .accessibilityLabel("Color")
+    }
+
+    /// Brings up the keyboard, which iPadOS hides after a tap with Apple Pencil.
+    private var showKeyboardButton: some View {
+        Button {
+            canvas.showKeyboard()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "keyboard")
+                if !isVertical {
+                    Text("Show Keyboard")
+                        .font(.footnote.weight(.medium))
+                }
+            }
+            .padding(.horizontal, isVertical ? 0 : 10)
+            .frame(minWidth: 38, minHeight: 32)
+            .foregroundStyle(.white)
+            .background(Color.accentColor, in: Capsule())
+        }
+        .accessibilityLabel("Show Keyboard")
     }
 
     /// Typing on the keyboard, or handwriting turned into text.

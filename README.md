@@ -50,7 +50,8 @@ Done:
   opens in Keynote and Google Slides) with speaker notes, a PDF, PNG
   pictures or a Markdown outline, or save the deck as a note to write on
 - Study with AI, like Notability's: chat with your notes (answers stream in
-  and name the notes they come from), flashcards with spaced review ("N
+  and name the notes they come from; every conversation is saved with its
+  note, to read and continue later), flashcards with spaced review ("N
   flashcards ready for review"), multiple-choice quizzes, Smart Notes
   (organized study notes saved as a text note) and slides, for all notes
   or the ones you select. Works with Claude (Anthropic), ChatGPT (OpenAI),
@@ -66,15 +67,16 @@ Done:
   solid/dashed/dotted, colors), Duplicate, Cut, Copy, Paste and Delete
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
   strikethrough, size, color, bulleted lists; move and resize. Type with
-  the keyboard (it opens even when you tap with Apple Pencil), or switch to
-  "Write with Pencil" (in the toolbar or the keyboard's shortcut bar) to
-  handwrite and have it turned into text
+  the keyboard, or switch to "Write with Pencil" (in the toolbar or the
+  keyboard's shortcut bar) to handwrite and have it turned into text. After
+  a tap with Apple Pencil iPadOS hides the keyboard; tap "Show Keyboard"
+  (text boxes and the slide editor) with a finger to bring it up
 - Appearance: Match iPad, Light or Dark (the circle button at the top of
   the sidebar); pages keep their paper color
 - Flowmodoro (from the Pythonation/flowmodoro-wep-app web app): a task
   list; tap a task to start the work stopwatch, stop when your focus fades
   and you earn a break of 5% of the work time (at least a minute; 10, 15
-  or 20% can be chosen), with a sound and a notification when it ends.
+  or 20% can be chosen), with a sound when it ends.
   Edit, complete, reorder and delete tasks, and see every session in the
   history with today's total focus time
 - Photos and images from Files placed on pages; move and resize

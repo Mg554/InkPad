@@ -6,6 +6,8 @@ import SwiftUI
 struct StudyView: View {
     enum Route: Hashable {
         case chat(String)
+        /// A saved conversation, to read and continue.
+        case savedChat(UUID)
         /// `nil` reviews the cards due in every deck.
         case review(UUID?)
         case quiz(UUID)
@@ -32,6 +34,7 @@ struct StudyView: View {
     @State private var isShowingSettings = false
     @State private var isCreatingSlides = false
     @State private var deckToDelete: FlashcardDeck?
+    @State private var showsAllChats = false
 
     init(sources: [UUID] = [], liveContent: [UUID: NoteContent] = [:], isSheet: Bool = false) {
         _sources = State(initialValue: sources)
@@ -83,6 +86,12 @@ struct StudyView: View {
                 switch route {
                 case let .chat(first):
                     StudyChatView(sources: sources, liveContent: liveContent, firstQuestion: first)
+                case let .savedChat(chatID):
+                    StudyChatView(
+                        sources: workspace.studyChats.first(where: { $0.id == chatID })?.sourceNoteIDs ?? sources,
+                        liveContent: liveContent,
+                        chatID: chatID
+                    )
                 case let .review(deckID):
                     FlashcardReviewView(deckID: deckID)
                 case let .quiz(quizID):
@@ -176,9 +185,64 @@ struct StudyView: View {
             .padding(.vertical, 12)
             .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.teal.opacity(0.35)))
+            chatHistory
         }
         .padding(20)
         .glowCard(.teal, isActive: false)
+    }
+
+    /// Earlier conversations about the notes being studied.
+    @ViewBuilder
+    private var chatHistory: some View {
+        let chats = workspace.chats(about: sources)
+        if !chats.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(sources.count == 1 ? "Chats about this note" : "Earlier chats")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
+                ForEach(showsAllChats ? chats : Array(chats.prefix(4))) { chat in
+                    Button {
+                        path.append(.savedChat(chat.id))
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "bubble.left.and.text.bubble.right")
+                                .foregroundStyle(.teal)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(chat.title)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                Text("\(chat.messages.count / 2) \(chat.messages.count / 2 == 1 ? "question" : "questions") · \(chat.modifiedAt.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(Color(uiColor: .systemBackground).opacity(0.7), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(PressableStyle())
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            workspace.deleteStudyChat(chat.id)
+                        } label: {
+                            Label("Delete Chat", systemImage: "trash")
+                        }
+                    }
+                }
+                if chats.count > 4 {
+                    Button(showsAllChats ? "Show Fewer" : "Show All \(chats.count) Chats") {
+                        withAnimation { showsAllChats.toggle() }
+                    }
+                    .font(.footnote.weight(.semibold))
+                }
+            }
+        }
     }
 
     private var reviewCard: some View {

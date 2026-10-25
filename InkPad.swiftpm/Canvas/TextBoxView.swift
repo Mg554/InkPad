@@ -31,10 +31,13 @@ enum TextInputMode: String {
 /// With the keyboard mode, tapping a box with Apple Pencil shows the
 /// keyboard like a finger does (Scribble is turned off for the box). With the
 /// pencil mode the keyboard stays hidden and handwriting becomes text.
-final class TextBoxView: PageElementView, UITextViewDelegate, @preconcurrency UIScribbleInteractionDelegate {
+final class TextBoxView: PageElementView, UITextViewDelegate, UIScribbleInteractionDelegate {
     let textView = UITextView()
     private var moveHandle: UIView!
     private var resizeHandle: UIView!
+    /// Editing ends and begins again to bring the keyboard up; the box must
+    /// not be removed as empty in between.
+    private var isRefocusing = false
 
     init(id: UUID, frame: CGRect, text: NSAttributedString) {
         super.init(id: id, frame: frame)
@@ -128,6 +131,25 @@ final class TextBoxView: PageElementView, UITextViewDelegate, @preconcurrency UI
         }
     }
 
+    /// Brings up the keyboard. After a tap with Apple Pencil iPadOS keeps the
+    /// keyboard hidden (it expects handwriting); editing again from a finger
+    /// tap on a button shows it.
+    func showKeyboard() {
+        if TextInputMode.current == .pencil {
+            TextInputMode.set(.keyboard)
+        }
+        guard textView.isFirstResponder else {
+            textView.becomeFirstResponder()
+            return
+        }
+        isRefocusing = true
+        textView.resignFirstResponder()
+        DispatchQueue.main.async { [weak self] in
+            self?.textView.becomeFirstResponder()
+            self?.isRefocusing = false
+        }
+    }
+
     @objc private func switchInputMode() {
         TextInputMode.toggle()
         layerView?.onTextStateChange?()
@@ -168,6 +190,7 @@ final class TextBoxView: PageElementView, UITextViewDelegate, @preconcurrency UI
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
+        guard !isRefocusing else { return }
         if isEmpty {
             layerView?.remove(self)
         } else {

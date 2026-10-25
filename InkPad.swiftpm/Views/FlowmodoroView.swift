@@ -1,6 +1,5 @@
 import AudioToolbox
 import SwiftUI
-import UserNotifications
 
 /// Flowmodoro, from the Pythonation/flowmodoro-wep-app web app: pick a task
 /// and the work stopwatch starts; stop when your focus fades and you earn a
@@ -217,8 +216,6 @@ struct FlowmodoroView: View {
             .accessibilityLabel(task.isDone ? "Reopen Task" : "Complete Task")
 
             Button {
-                // Starting work ends a break that is still running.
-                FlowAlert.cancel()
                 workspace.startFlowWork(on: task.id)
             } label: {
                 HStack {
@@ -325,12 +322,9 @@ struct FlowmodoroView: View {
 
     private func startBreak() {
         workspace.startFlowBreak()
-        guard let seconds = workspace.flowTimer?.breakSeconds else { return }
-        Task { await FlowAlert.schedule(after: seconds) }
     }
 
     private func endBreak(playSound: Bool) {
-        FlowAlert.cancel()
         workspace.endFlowBreak()
         if playSound {
             FlowAlert.playSound()
@@ -350,27 +344,10 @@ struct FlowmodoroView: View {
     }
 }
 
-/// The sound and notification when a break is over.
+/// The sound when a break is over. (No system notification: the
+/// notification center crashes apps run inside Swift Playgrounds.)
 enum FlowAlert {
-    private static let identifier = "InkPad.flowmodoro.break"
-
     static func playSound() {
         AudioServicesPlaySystemSound(1005)
-    }
-
-    /// Notifies when the break ends, also when InkPad is in the background.
-    static func schedule(after seconds: Int) async {
-        let center = UNUserNotificationCenter.current()
-        guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else { return }
-        let content = UNMutableNotificationContent()
-        content.title = "Break's over"
-        content.body = "Pick a task and get back into the flow."
-        content.sound = .default
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(max(seconds, 1)), repeats: false)
-        try? await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger))
-    }
-
-    static func cancel() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
     }
 }

@@ -1,8 +1,8 @@
 import Foundation
 
 /// One turn of a conversation with the AI.
-struct AIMessage: Identifiable, Equatable, Sendable {
-    enum Role: String, Sendable {
+struct AIMessage: Codable, Identifiable, Equatable, Sendable {
+    enum Role: String, Codable, Sendable {
         case user, assistant
     }
 

@@ -113,6 +113,7 @@ struct WorkspaceFile: Codable {
     var slideDecks: [SlideDeck]?
     var flashcardDecks: [FlashcardDeck]?
     var quizzes: [Quiz]?
+    var studyChats: [StudyChat]?
     var flowTasks: [FlowTask]?
     var flowSessions: [FlowSession]?
     var flowTimer: FlowTimer?

@@ -359,39 +359,71 @@ struct SlideDeckView: View {
 
 /// The words of one slide, to edit.
 private struct SlideFields: View {
+    enum Field: Hashable {
+        case title, subtitle, bullets, notes
+    }
+
     @Binding var slide: Slide
+    @FocusState private var focus: Field?
+    @State private var lastFocus: Field = .title
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Picker("Layout", selection: $slide.layout) {
-                ForEach(Slide.Layout.allCases) { layout in
-                    Text(layout.title).tag(layout)
+            HStack {
+                Picker("Layout", selection: $slide.layout) {
+                    ForEach(Slide.Layout.allCases) { layout in
+                        Text(layout.title).tag(layout)
+                    }
                 }
+                .pickerStyle(.segmented)
+                Button {
+                    showKeyboard()
+                } label: {
+                    Label("Show Keyboard", systemImage: "keyboard")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 34, height: 28)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityHint("After tapping a field with Apple Pencil, iPadOS hides the keyboard. This brings it up.")
             }
-            .pickerStyle(.segmented)
 
             field(slide.layout == .quote ? "Quote" : "Title") {
                 TextField("Title", text: $slide.title, axis: .vertical)
                     .font(.title3.weight(.semibold))
+                    .focused($focus, equals: .title)
             }
             if slide.layout == .title || slide.layout == .quote {
                 field(slide.layout == .quote ? "Who Said It" : "Subtitle") {
                     TextField("Subtitle", text: $slide.subtitle, axis: .vertical)
+                        .focused($focus, equals: .subtitle)
                 }
             }
             if slide.layout != .title && slide.layout != .quote {
                 field("Points, One per Line") {
                     TextEditor(text: bulletsText)
+                        .focused($focus, equals: .bullets)
                         .frame(minHeight: 150)
                         .scrollContentBackground(.hidden)
                 }
             }
             field("Speaker Notes (Read Aloud When Narrating)") {
                 TextEditor(text: $slide.speakerNotes)
+                    .focused($focus, equals: .notes)
                     .frame(minHeight: 110)
                     .scrollContentBackground(.hidden)
             }
         }
+        .onChange(of: focus) {
+            if let focus { lastFocus = focus }
+        }
+    }
+
+    /// Edits the field again, which shows the keyboard when this button was
+    /// tapped with a finger.
+    private func showKeyboard() {
+        let field = focus ?? lastFocus
+        focus = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focus = field }
     }
 
     /// Blank lines stay while typing; slides skip them.

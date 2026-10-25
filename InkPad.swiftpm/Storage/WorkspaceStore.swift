@@ -15,6 +15,7 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var decks: [SlideDeck] = []
     @Published private(set) var flashcardDecks: [FlashcardDeck] = []
     @Published private(set) var quizzes: [Quiz] = []
+    @Published private(set) var studyChats: [StudyChat] = []
     @Published private(set) var flowTasks: [FlowTask] = []
     @Published private(set) var flowSessions: [FlowSession] = []
     @Published private(set) var flowTimer: FlowTimer?
@@ -204,6 +205,27 @@ final class WorkspaceStore: ObservableObject {
         persist()
     }
 
+    func save(_ chat: StudyChat) {
+        guard canWrite() else { return }
+        if let index = studyChats.firstIndex(where: { $0.id == chat.id }) {
+            studyChats[index] = chat
+        } else {
+            studyChats.append(chat)
+        }
+        persist()
+    }
+
+    func deleteStudyChat(_ id: UUID) {
+        guard canWrite() else { return }
+        studyChats.removeAll { $0.id == id }
+        persist()
+    }
+
+    /// Chats about exactly these notes (none: all notes), newest first.
+    func chats(about ids: [UUID]) -> [StudyChat] {
+        studyChats.filter { $0.isAbout(ids) }.sorted { $0.modifiedAt > $1.modifiedAt }
+    }
+
     func deleteQuiz(_ id: UUID) {
         guard canWrite() else { return }
         quizzes.removeAll { $0.id == id }
@@ -334,6 +356,7 @@ final class WorkspaceStore: ObservableObject {
             decks = file.slideDecks ?? []
             flashcardDecks = file.flashcardDecks ?? []
             quizzes = file.quizzes ?? []
+            studyChats = file.studyChats ?? []
             flowTasks = file.flowTasks ?? []
             flowSessions = file.flowSessions ?? []
             flowTimer = file.flowTimer
@@ -357,6 +380,7 @@ final class WorkspaceStore: ObservableObject {
             slideDecks: decks,
             flashcardDecks: flashcardDecks,
             quizzes: quizzes,
+            studyChats: studyChats,
             flowTasks: flowTasks,
             flowSessions: flowSessions,
             flowTimer: flowTimer,

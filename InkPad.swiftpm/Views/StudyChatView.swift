@@ -1,9 +1,11 @@
 import SwiftUI
 
 /// "Chat with your notes": answers stream in as they are written, drawing on
-/// the chosen notes (or all of them).
+/// the chosen notes (or all of them). Each conversation is saved with its
+/// notes, so it can be read and continued later.
 struct StudyChatView: View {
     @EnvironmentObject private var store: LibraryStore
+    @EnvironmentObject private var workspace: WorkspaceStore
     @Environment(\.noteNavigation) private var navigation
     @ObservedObject private var ai = AISettings.shared
 
@@ -11,12 +13,21 @@ struct StudyChatView: View {
     let liveContent: [UUID: NoteContent]
     let firstQuestion: String
 
+    /// The saved conversation; `nil` until the first question.
+    @State private var chatID: UUID?
     @State private var messages: [AIMessage] = []
     @State private var input = ""
     @State private var isAnswering = false
     @State private var notes: String?
     @State private var stage: String?
     @State private var answerTask: Task<Void, Never>?
+
+    init(sources: [UUID], liveContent: [UUID: NoteContent], firstQuestion: String = "", chatID: UUID? = nil) {
+        self.sources = sources
+        self.liveContent = liveContent
+        self.firstQuestion = firstQuestion
+        _chatID = State(initialValue: chatID)
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -47,7 +58,10 @@ struct StudyChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.openURL, OpenURLAction { InkPadLink.handle($0, with: navigation) })
         .onAppear {
-            if messages.isEmpty, !firstQuestion.isEmpty {
+            if let chatID, messages.isEmpty,
+               let chat = workspace.studyChats.first(where: { $0.id == chatID }) {
+                messages = chat.messages
+            } else if messages.isEmpty, !firstQuestion.isEmpty {
                 send(firstQuestion)
             }
         }
@@ -150,6 +164,24 @@ struct StudyChatView: View {
                 messages[index].text = "(Stopped.)"
             }
             isAnswering = false
+            saveChat()
         }
+    }
+
+    /// Keeps the conversation with its notes.
+    private func saveChat() {
+        guard let question = messages.first(where: { $0.role == .user })?.text else { return }
+        let now = Date()
+        let existing = chatID.flatMap { id in workspace.studyChats.first(where: { $0.id == id }) }
+        let id = chatID ?? UUID()
+        chatID = id
+        workspace.save(StudyChat(
+            id: id,
+            title: existing?.title ?? String(question.prefix(80)),
+            sourceNoteIDs: sources,
+            messages: messages,
+            createdAt: existing?.createdAt ?? now,
+            modifiedAt: now
+        ))
     }
 }
