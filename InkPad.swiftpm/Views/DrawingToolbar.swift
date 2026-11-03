@@ -459,8 +459,10 @@ struct DrawingToolbar<InsertMenu: View>: View {
         let range = tool.widthRange
         let current = style.selectedWidth(for: tool)
         let previewColor = tool.isInking ? style.selectedColor.color : Color.secondary
-        // The preview grows with the width, so every level shows its real size.
-        let previewHeight = min(max(current + 32, 44), 152)
+        // The box keeps its size; only the line in it grows and shrinks. Tools
+        // wider than the box are drawn to scale, so every step still shows.
+        let previewHeight: CGFloat = 92
+        let previewScale = min(1, (previewHeight - 28) / max(range.upperBound, 1))
 
         return VStack(spacing: 14) {
             // Preview of the stroke at the chosen width.
@@ -473,7 +475,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     control2: CGPoint(x: size.width * 0.65, y: size.height / 2 + 14)
                 )
                 let opacity = tool == .highlighter ? DrawingTool.highlighterOpacity : 1
-                let lineWidth = min(current, size.height - 32)
+                let lineWidth = max(current * previewScale, 0.75)
                 if style.ignoresPressure(for: tool) || !tool.isInking {
                     context.stroke(
                         wave,
@@ -481,18 +483,28 @@ struct DrawingToolbar<InsertMenu: View>: View {
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )
                 } else {
-                    // With pressure on, the stroke swells in the middle.
-                    for (fraction, factor) in [(0.0, 0.5), (0.2, 0.8), (0.4, 1.0), (0.6, 1.0), (0.8, 0.8)] {
-                        context.stroke(
-                            wave.trimmedPath(from: fraction, to: fraction + 0.2),
-                            with: .color(previewColor.opacity(opacity)),
-                            style: StrokeStyle(lineWidth: lineWidth * factor, lineCap: .round)
-                        )
+                    // With pressure on, the stroke swells smoothly toward the
+                    // middle, like a real pen stroke.
+                    // Drawn in one layer, so the overlapping pieces of see-through
+                    // ink don't darken where they meet.
+                    let pieces = 40
+                    var faded = context
+                    faded.opacity = opacity
+                    faded.drawLayer { layer in
+                        for piece in 0..<pieces {
+                            let start = Double(piece) / Double(pieces)
+                            let middle = start + 0.5 / Double(pieces)
+                            let factor = 0.45 + 0.55 * sin(Double.pi * middle)
+                            layer.stroke(
+                                wave.trimmedPath(from: start, to: start + 1 / Double(pieces) + 0.004),
+                                with: .color(previewColor),
+                                style: StrokeStyle(lineWidth: lineWidth * factor, lineCap: .round)
+                            )
+                        }
                     }
                 }
             }
             .frame(height: previewHeight)
-            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.85), value: previewHeight)
 
             // Levels 1...20, mapped onto the tool's real width range.
             WidthLevelBar(position: Binding(
