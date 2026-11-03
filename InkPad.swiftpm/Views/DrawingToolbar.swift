@@ -385,6 +385,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
 
     private func widthButtons(_ style: ToolStyle) -> some View {
         let widths = style.widths(for: palette.tool)
+        let range = palette.tool.widthRange
         return AxisStack(vertical: isVertical, spacing: 6) {
             ForEach(widths.indices, id: \.self) { index in
                 Button {
@@ -395,9 +396,12 @@ struct DrawingToolbar<InsertMenu: View>: View {
                         canvas.applyTool()
                     }
                 } label: {
+                    // Each dot is sized like its width on the slider's scale.
+                    let level = WidthLevelBar.level(forWidth: widths[index], in: range)
+                    let diameter = 4 + 20 * CGFloat(level - 1) / CGFloat(WidthLevelBar.levels - 1)
                     Circle()
                         .fill(Color.primary)
-                        .frame(width: CGFloat(5 + index * 5), height: CGFloat(5 + index * 5))
+                        .frame(width: diameter, height: diameter)
                         .frame(width: 30, height: 30)
                         .background(index == style.widthIndex ? Color.accentColor.opacity(0.2) : Color.clear, in: Circle())
                         .overlay(Circle().stroke(index == style.widthIndex ? Color.accentColor : Color.clear, lineWidth: 1.5))
@@ -419,6 +423,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
         let range = tool.widthRange
         let current = style.selectedWidth(for: tool)
         let previewColor = tool.isInking ? style.selectedColor.color : Color.secondary
+        // The preview grows with the width, so every level shows its real size.
+        let previewHeight = min(max(current + 32, 44), 152)
 
         return VStack(spacing: 14) {
             // Preview of the stroke at the chosen width.
@@ -427,11 +433,11 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 wave.move(to: CGPoint(x: 12, y: size.height / 2))
                 wave.addCurve(
                     to: CGPoint(x: size.width - 12, y: size.height / 2),
-                    control1: CGPoint(x: size.width * 0.35, y: -size.height * 0.2),
-                    control2: CGPoint(x: size.width * 0.65, y: size.height * 1.2)
+                    control1: CGPoint(x: size.width * 0.35, y: size.height / 2 - 14),
+                    control2: CGPoint(x: size.width * 0.65, y: size.height / 2 + 14)
                 )
                 let opacity = tool == .highlighter ? DrawingTool.highlighterOpacity : 1
-                let lineWidth = min(current, size.height - 4)
+                let lineWidth = min(current, size.height - 32)
                 if style.ignoresPressure(for: tool) || !tool.isInking {
                     context.stroke(
                         wave,
@@ -449,7 +455,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     }
                 }
             }
-            .frame(height: 44)
+            .frame(height: previewHeight)
+            .animation(.snappy(duration: 0.15), value: previewHeight)
 
             // Levels 1...20, mapped onto the tool's real width range.
             WidthLevelBar(level: Binding(

@@ -45,15 +45,25 @@ struct WidthLevelBar: View {
         .sensoryFeedback(.selection, trigger: level)
     }
 
-    /// Maps a level onto a real width in `range`.
+    /// Maps a level onto a real width in `range`. Each step multiplies the
+    /// width by the same amount, so every step looks like the same change:
+    /// a straight scale grows thin pens in big jumps and barely changes thick
+    /// ones.
     static func width(forLevel level: Int, in range: ClosedRange<CGFloat>) -> CGFloat {
         let fraction = CGFloat(min(max(level, 1), levels) - 1) / CGFloat(levels - 1)
-        return range.lowerBound + (range.upperBound - range.lowerBound) * fraction
+        guard range.lowerBound > 0, range.upperBound > range.lowerBound else {
+            return range.lowerBound + (range.upperBound - range.lowerBound) * fraction
+        }
+        return range.lowerBound * pow(range.upperBound / range.lowerBound, fraction)
     }
 
     static func level(forWidth width: CGFloat, in range: ClosedRange<CGFloat>) -> Int {
-        let span = max(range.upperBound - range.lowerBound, 0.001)
-        let fraction = min(max((width - range.lowerBound) / span, 0), 1)
-        return 1 + Int((fraction * CGFloat(levels - 1)).rounded())
+        let fraction: CGFloat
+        if range.lowerBound > 0, range.upperBound > range.lowerBound {
+            fraction = log(max(width, range.lowerBound) / range.lowerBound) / log(range.upperBound / range.lowerBound)
+        } else {
+            fraction = (width - range.lowerBound) / max(range.upperBound - range.lowerBound, 0.001)
+        }
+        return 1 + Int((min(max(fraction, 0), 1) * CGFloat(levels - 1)).rounded())
     }
 }
