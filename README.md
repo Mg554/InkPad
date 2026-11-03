@@ -67,9 +67,14 @@ Done:
   solid/dashed/dotted, colors), Copy as Text (handwriting read with
   Vision), Duplicate, Cut, Copy, Paste and Delete. On PDF pages, circle
   printed text to Copy Text or Highlight it
-- Laser pointer for explaining: a glowing line that follows Apple Pencil
-  and fades away, in four colors; it is never saved (AirPlay mirroring
-  shows it on a projector or TV)
+- Laser pointer for explaining, like Notability's: a smooth glowing line
+  that stays while you point and fades softly after you lift the pencil,
+  or with Tail on a short trail that follows it; four colors; never saved
+  (AirPlay mirroring shows it on a projector or TV)
+- Customize Toolbar (gear button): show or hide each tool and drag to
+  reorder them, like Notability's Toolbox
+- Width bar: the size follows the pencil smoothly along 20 levels on an
+  even (geometric) scale, with a preview at the real size
 - Text boxes: tap the page with the Text tool; bold, italic, underline,
   strikethrough, size, color, bulleted lists; move and resize. Type with
   the keyboard, or switch to "Write with Pencil" (in the toolbar or the

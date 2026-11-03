@@ -21,6 +21,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     @AppStorage("toolbarCollapsed") private var isCollapsed = false
     @State private var customColor = Color.black
     @State private var isAdjustingWidth = false
+    @State private var isCustomizing = false
     /// Why the keyboard didn't come up after "Show Keyboard", if it didn't.
     @State private var keyboardHelp: String?
 
@@ -91,7 +92,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             grip
             scrollingIfNeeded(isVertical ? .vertical : .horizontal) {
                 AxisStack(vertical: isVertical, spacing: isVertical ? 0 : 2) {
-                    ForEach(DrawingTool.allCases) { tool in
+                    ForEach(palette.toolbarTools) { tool in
                         toolButton(tool)
                     }
                     barDivider
@@ -143,6 +144,16 @@ struct DrawingToolbar<InsertMenu: View>: View {
             isOn: Binding(get: { !pencilOnly }, set: { pencilOnly = !$0 })
         )
         barDivider
+        Button {
+            isCustomizing = true
+        } label: {
+            icon("gearshape")
+        }
+        .accessibilityLabel("Customize Toolbar")
+        .sheet(isPresented: $isCustomizing) {
+            ToolbarCustomizer { canvas.applyTool() }
+                .environmentObject(palette)
+        }
         Button(action: onHide) {
             icon("eye.slash")
         }
@@ -202,6 +213,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 }
             }
             barDivider
+            laserTailToggle
             hint("Point at the page while you explain; the line fades away and isn't saved.")
 
         case .text:
@@ -281,6 +293,30 @@ struct DrawingToolbar<InsertMenu: View>: View {
         )
     }
 
+    /// Notability's "Tail": a short trail that follows the pencil, instead of
+    /// the whole line fading after the pencil lifts.
+    private var laserTailToggle: some View {
+        let isOn = palette.laserLeavesTail
+        return Button {
+            palette.laserLeavesTail.toggle()
+            canvas.applyTool()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "scribble")
+                if !isVertical {
+                    Text("Tail")
+                        .font(.footnote.weight(.medium))
+                }
+            }
+            .padding(.horizontal, isVertical ? 0 : 10)
+            .frame(minWidth: 38, minHeight: 32)
+            .foregroundStyle(isOn ? Color.accentColor : Color.primary)
+            .background(isOn ? Color.accentColor.opacity(0.15) : Color.clear, in: Capsule())
+        }
+        .accessibilityLabel("Laser Tail")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
     /// After erasing, go straight back to the tool used before the eraser.
     private var eraserReturnToggle: some View {
         let isOn = palette.returnsAfterErasing
@@ -336,6 +372,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             // Realistic pens, like Apple Notes, pointing at the page.
             PenIcon(tool: tool, color: palette.style(for: tool).selectedColor.color)
                 .frame(width: 22, height: 38)
+                .shadow(color: .black.opacity(isSelected ? 0.28 : 0.16), radius: isSelected ? 3 : 1.5, y: 1)
                 .rotationEffect(.degrees(penAngle))
                 .frame(width: isVertical ? 38 : 22, height: isVertical ? 22 : 38)
         } else {
@@ -397,8 +434,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     }
                 } label: {
                     // Each dot is sized like its width on the slider's scale.
-                    let level = WidthLevelBar.level(forWidth: widths[index], in: range)
-                    let diameter = 4 + 20 * CGFloat(level - 1) / CGFloat(WidthLevelBar.levels - 1)
+                    let diameter = 4 + 20 * WidthLevelBar.position(forWidth: widths[index], in: range)
                     Circle()
                         .fill(Color.primary)
                         .frame(width: diameter, height: diameter)
@@ -456,13 +492,13 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 }
             }
             .frame(height: previewHeight)
-            .animation(.snappy(duration: 0.15), value: previewHeight)
+            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.85), value: previewHeight)
 
             // Levels 1...20, mapped onto the tool's real width range.
-            WidthLevelBar(level: Binding(
-                get: { WidthLevelBar.level(forWidth: current, in: range) },
+            WidthLevelBar(position: Binding(
+                get: { WidthLevelBar.position(forWidth: current, in: range) },
                 set: {
-                    palette.setSelectedWidth(WidthLevelBar.width(forLevel: $0, in: range))
+                    palette.setSelectedWidth(WidthLevelBar.width(atPosition: $0, in: range))
                     canvas.applyTool()
                 }
             ))

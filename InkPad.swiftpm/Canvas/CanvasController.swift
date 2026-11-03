@@ -120,6 +120,7 @@ final class CanvasController: NSObject, ObservableObject {
         case .lasso: host.setMode(.lasso)
         case .laser:
             host.laser.color = palette.style(for: .laser).selectedColor.uiColor
+            host.laser.leavesTail = palette.laserLeavesTail
             host.setMode(.laser)
         default: host.setMode(.draw)
         }

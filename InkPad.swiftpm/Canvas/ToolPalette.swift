@@ -184,6 +184,9 @@ final class ToolPalette: ObservableObject {
         var erasesWholeStrokes: Bool
         var snapsShapes: Bool?
         var returnsAfterErasing: Bool?
+        var toolbarOrder: [DrawingTool]?
+        var hiddenTools: [DrawingTool]?
+        var laserLeavesTail: Bool?
     }
 
     private static let defaultsKey = "toolPalette"
@@ -196,6 +199,13 @@ final class ToolPalette: ObservableObject {
     @Published var snapsShapes = true { didSet { save() } }
     /// After an erase, switch straight back to the tool used before the eraser.
     @Published var returnsAfterErasing = true { didSet { save() } }
+    /// The tools in the toolbar's order, including hidden ones.
+    @Published private(set) var toolbarOrder: [DrawingTool] = DrawingTool.allCases { didSet { save() } }
+    /// Tools taken off the toolbar (Customize Toolbar).
+    @Published private(set) var hiddenTools: Set<DrawingTool> = [] { didSet { save() } }
+    /// The laser leaves a short tail that follows the pencil; otherwise the
+    /// whole line stays until you lift the pencil, then fades away.
+    @Published var laserLeavesTail = false { didSet { save() } }
 
     private var pendingSave: DispatchWorkItem?
 
@@ -211,7 +221,49 @@ final class ToolPalette: ObservableObject {
             erasesWholeStrokes = saved.erasesWholeStrokes
             snapsShapes = saved.snapsShapes ?? true
             returnsAfterErasing = saved.returnsAfterErasing ?? true
+            toolbarOrder = Self.completeOrder(saved.toolbarOrder ?? DrawingTool.allCases)
+            hiddenTools = Set(saved.hiddenTools ?? [])
+            laserLeavesTail = saved.laserLeavesTail ?? false
         }
+    }
+
+    // MARK: Toolbar
+
+    /// The tools shown in the toolbar, in order.
+    var toolbarTools: [DrawingTool] {
+        toolbarOrder.filter { !hiddenTools.contains($0) }
+    }
+
+    func isShown(_ tool: DrawingTool) -> Bool {
+        !hiddenTools.contains(tool)
+    }
+
+    /// Shows or hides a tool; at least one tool always stays.
+    func setShown(_ shown: Bool, for tool: DrawingTool) {
+        if shown {
+            hiddenTools.remove(tool)
+        } else if toolbarTools.count > 1 {
+            hiddenTools.insert(tool)
+            if self.tool == tool, let first = toolbarTools.first {
+                select(first)
+            }
+        }
+    }
+
+    func moveTools(from source: IndexSet, to destination: Int) {
+        toolbarOrder.move(fromOffsets: source, toOffset: destination)
+    }
+
+    func resetToolbar() {
+        toolbarOrder = DrawingTool.allCases
+        hiddenTools = []
+    }
+
+    /// A saved order with tools added in later versions put at the end.
+    private static func completeOrder(_ order: [DrawingTool]) -> [DrawingTool] {
+        var seen = Set<DrawingTool>()
+        let known = order.filter { seen.insert($0).inserted }
+        return known + DrawingTool.allCases.filter { !seen.contains($0) }
     }
 
     func style(for tool: DrawingTool) -> ToolStyle {
@@ -322,7 +374,10 @@ final class ToolPalette: ObservableObject {
             styles: styles,
             erasesWholeStrokes: erasesWholeStrokes,
             snapsShapes: snapsShapes,
-            returnsAfterErasing: returnsAfterErasing
+            returnsAfterErasing: returnsAfterErasing,
+            toolbarOrder: toolbarOrder,
+            hiddenTools: Array(hiddenTools),
+            laserLeavesTail: laserLeavesTail
         )
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: Self.defaultsKey)
