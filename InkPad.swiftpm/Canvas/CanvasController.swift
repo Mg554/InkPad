@@ -25,6 +25,8 @@ final class CanvasController: NSObject, ObservableObject {
     var onEdit: (() -> Void)?
     /// Called when ink from the open recording is tapped, with when it was written.
     var onInkTapped: ((Date) -> Void)?
+    /// Lasso › Think: the selected writing as text.
+    var onThink: ((String) -> Void)?
 
     private weak var host: NoteCanvasHostView?
     private weak var palette: ToolPalette?
@@ -53,6 +55,7 @@ final class CanvasController: NSObject, ObservableObject {
         host.canvas.isRulerActive = isRulerActive
         host.elementLayer.onChange = { [weak self] in self?.contentDidChange() }
         host.lasso.onChange = { [weak self] in self?.contentDidChange() }
+        host.lasso.onThink = { [weak self] text in self?.onThink?(text) }
         host.elementLayer.onTextStateChange = { [weak self] in
             self?.formattingRevision += 1
         }

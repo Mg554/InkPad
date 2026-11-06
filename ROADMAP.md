@@ -30,7 +30,8 @@
    - AI Firewall: notes and folders that are never sent to AI — done
      (needs on-device testing)
    - Write → Think → Build: turn lasso-selected writing into concepts,
-     flashcards, questions and explanations — next
+     flashcards, questions and explanations — done (needs on-device
+     testing with an AI key)
 
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 

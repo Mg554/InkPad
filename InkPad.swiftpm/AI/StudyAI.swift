@@ -92,6 +92,41 @@ enum StudyAI {
         """
     }
 
+    // MARK: Write → Think → Build
+
+    static func thinkPrompt(_ mode: ThinkMode, passage: String, noteTitle: String) -> String {
+        let task: String
+        switch mode {
+        case .concepts:
+            task = """
+                Find the key concepts in it. For each concept write a "### " heading with its name, a one or two \
+                sentence explanation, and how it connects to the other concepts. End with a "### How it fits \
+                together" paragraph.
+                """
+        case .questions:
+            task = """
+                Write 6 questions that make the reader think about it: two to check understanding, two to apply it, \
+                two to go deeper. Number them, and after each write "**Answer:**" and a short, complete answer.
+                """
+        case .explain:
+            task = """
+                Explain it like a patient tutor: what it means in plain words, why it matters, one worked example, \
+                and the mistakes people often make. Use "## " headings.
+                """
+        case .flashcards:
+            return flashcardsPrompt(notes: "From \"\(noteTitle)\":\n\(passage)", count: 8)
+        }
+        return [
+            "Below is a passage from the note \"\(noteTitle)\". It was read from handwriting, so fix obvious "
+                + "recognition mistakes silently.",
+            task,
+            "Use Markdown. Write in the same language as the passage.",
+            "",
+            "Passage:",
+            passage,
+        ].joined(separator: "\n")
+    }
+
     // MARK: Slides
 
     static func slidesPrompt(notes: String, format: DeckFormat, length: DeckLength, focus: String) -> String {

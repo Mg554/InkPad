@@ -77,9 +77,8 @@ InkPad.swiftpm/
   in Swift Playgrounds.
 - Bring back Flowmodoro's break-end notification for the installed app
   (it was removed because it crashes inside Playgrounds).
-- Library backup/restore, Recently Deleted, page reorder and the AI
-  Firewall are done; test them on the iPad. Every path that sends note text
-  to AI must go through `NoteTexts.sources` or check
-  `LibraryStore.isHiddenFromAI` (the AI Firewall). Next agreed feature:
-  "Write → Think → Build" (turn lasso-selected writing into concepts,
-  flashcards, questions and explanations).
+- Library backup/restore, Recently Deleted, page reorder, the AI Firewall
+  and Write → Think → Build (lasso › Think, Views/ThinkView.swift) are
+  done; test them on the iPad. Every path that sends note text to AI must
+  go through `NoteTexts.sources` or check `LibraryStore.isHiddenFromAI`
+  (the AI Firewall).

@@ -32,6 +32,8 @@ struct NoteEditorView: View {
     @State private var recordingToDelete: AudioRecording?
     @State private var slidesRequest: SlidesRequest?
     @State private var studyRequest: SlidesRequest?
+    /// Lasso › Think (Write → Think → Build).
+    @State private var thinkRequest: ThinkRequest?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -143,7 +145,15 @@ struct NoteEditorView: View {
                 .environmentObject(store)
                 .environmentObject(workspace)
         }
-        .task { session.load(noteID: noteID, store: store) }
+        .sheet(item: $thinkRequest) { request in
+            ThinkView(noteID: noteID, text: request.text)
+                .environmentObject(store)
+                .environmentObject(workspace)
+        }
+        .task {
+            session.load(noteID: noteID, store: store)
+            canvas.onThink = { text in thinkRequest = ThinkRequest(text: text) }
+        }
         .onDisappear {
             // Stopping a recording stores it in the note before the save.
             session.audio.stopAll()

@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 
 /// Notability-style lasso: circle ink to select it, then use the menu
-/// (Style, Copy as Text, Duplicate, Cut, Copy, Paste, Delete) or drag the
+/// (Style, Think, Copy as Text, Duplicate, Cut, Copy, Paste, Delete) or drag the
 /// selection. Circling a PDF's printed text selects that text, to copy or
 /// highlight. Replaces PencilKit's lasso, which cannot restyle strokes.
 @MainActor
@@ -16,6 +16,9 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     private weak var host: NoteCanvasHostView?
     /// Called after the drawing changes, to save and refresh undo state.
     var onChange: (() -> Void)?
+    /// Think: the selected writing (read with Vision) or PDF text, to turn
+    /// into concepts, flashcards, questions or an explanation.
+    var onThink: ((String) -> Void)?
 
     private let overlay: SelectionOverlayView
     private(set) lazy var pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
@@ -279,12 +282,14 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         if hasTextSelection {
             actions += [
                 UIAction(title: "Copy Text", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in self?.copyPDFText() },
+                UIAction(title: "Think", image: UIImage(systemName: "lightbulb")) { [weak self] _ in self?.thinkAboutPDFText() },
                 UIAction(title: "Highlight", image: UIImage(systemName: "highlighter")) { [weak self] _ in self?.highlightPDFText() },
             ]
         }
         if hasSelection {
             actions += [
                 UIAction(title: "Style", image: UIImage(systemName: "paintpalette")) { [weak self] _ in self?.showStylePanel() },
+                UIAction(title: "Think", image: UIImage(systemName: "lightbulb")) { [weak self] _ in self?.thinkAboutInk() },
                 UIAction(title: "Copy as Text", image: UIImage(systemName: "text.viewfinder")) { [weak self] _ in self?.copyInkAsText() },
                 UIAction(title: "Duplicate", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in self?.duplicateSelection() },
                 UIAction(title: "Cut", image: UIImage(systemName: "scissors")) { [weak self] _ in self?.cutSelection() },
@@ -397,6 +402,22 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
 
     /// Reads the selected handwriting with Vision and copies it as text.
     private func copyInkAsText() {
+        readSelectedInk { text in
+            if !text.isEmpty { UIPasteboard.general.string = text }
+        }
+    }
+
+    private func thinkAboutInk() {
+        readSelectedInk { [weak self] text in self?.onThink?(text) }
+    }
+
+    private func thinkAboutPDFText() {
+        guard let text = textHit?.text else { return }
+        onThink?(text)
+    }
+
+    /// Reads the selected handwriting with Vision, off the main thread.
+    private func readSelectedInk(_ done: @escaping @MainActor (String) -> Void) {
         guard let host, hasSelection else { return }
         let bounds = selected.reduce(CGRect.null) { $0.union($1.renderBounds) }.insetBy(dx: -12, dy: -12)
         var ink = UIImage()
@@ -412,9 +433,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         guard let image = picture.cgImage else { return }
         Task.detached(priority: .userInitiated) {
             let text = NoteReader.recognizeText(in: image)
-            await MainActor.run {
-                if !text.isEmpty { UIPasteboard.general.string = text }
-            }
+            await MainActor.run { done(text) }
         }
     }
 

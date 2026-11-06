@@ -59,6 +59,11 @@ Done:
   service, or Apple Intelligence on the iPad. Set it up in Study with AI ›
   AI Settings: pick the service, paste your API key (kept in the iPad's
   keychain) and tap Test Connection
+- Write → Think → Build: circle writing (or PDF text) with the lasso and
+  tap Think. Check the words read from your handwriting, then make
+  Concepts, Flashcards, Questions (with answers) or an Explanation with
+  your AI service; save the result as a text note in "Thinking" (linked
+  back to the note) or add the cards to your flashcards
 - AI Firewall: "Hide from AI" on any note or folder (in its menu, or in
   AI Settings › AI Firewall) keeps it out of every AI feature: chat,
   flashcards, quizzes, Smart Notes and slides, with any service including
@@ -70,7 +75,7 @@ Done:
 - Rotating the iPad keeps the page steady, with the same part of the page
   in the middle
 - Lasso (Notability-style): circle ink, drag it, and use Style (size 1-20,
-  solid/dashed/dotted, colors), Copy as Text (handwriting read with
+  solid/dashed/dotted, colors), Think, Copy as Text (handwriting read with
   Vision), Duplicate, Cut, Copy, Paste and Delete. On PDF pages, circle
   printed text to Copy Text or Highlight it
 - Laser pointer for explaining, like Notability's: a smooth glowing line
