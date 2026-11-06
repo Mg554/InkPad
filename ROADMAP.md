@@ -22,7 +22,9 @@
      restore it, with an automatic copy kept before each restore — done
      (needs on-device testing)
    - Dark-mode chrome, page delete — done
-   - Page reorder, recently deleted — next
+   - Recently Deleted (notes kept 30 days, restore or delete for good)
+     and page reorder (drag in the page list, or Move Up/Down) — done
+     (needs on-device testing)
 
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 

@@ -9,7 +9,6 @@ struct NotesGridView: View {
 
     @State private var searchText = ""
     @State private var prompt: NamePrompt?
-    @State private var noteToDelete: NoteSummary?
     @State private var isImportingPDF = false
     @State private var isShowingTemplates = false
     @State private var slidesNote: NoteSummary?
@@ -133,21 +132,6 @@ struct NotesGridView: View {
                 .environmentObject(store)
                 .environmentObject(workspace)
         }
-        .confirmationDialog(
-            "Delete \"\(noteToDelete?.title ?? "")\"?",
-            isPresented: Binding(
-                get: { noteToDelete != nil },
-                set: { if !$0 { noteToDelete = nil } }
-            ),
-            titleVisibility: .visible,
-            presenting: noteToDelete
-        ) { note in
-            Button("Delete Note", role: .destructive) {
-                store.deleteNote(note.id)
-            }
-        } message: { _ in
-            Text("This cannot be undone.")
-        }
     }
 
     @ViewBuilder
@@ -198,7 +182,8 @@ struct NotesGridView: View {
         }
 
         Button(role: .destructive) {
-            noteToDelete = note
+            // Kept in Recently Deleted, so no confirmation is needed.
+            withAnimation { store.deleteNote(note.id) }
         } label: {
             Label("Delete", systemImage: "trash")
         }

@@ -43,6 +43,8 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     var kind: NoteKind?
     /// Tags set from the library. Text notes also get the #tags in their text.
     var tags: [String]?
+    /// Set while the note is in Recently Deleted.
+    var deletedAt: Date?
 
     var isText: Bool { kind == .text }
 }
@@ -133,14 +135,17 @@ struct TextTemplate: Codable, Identifiable, Hashable {
 /// The persisted index of folders and notes (`library.json`).
 struct LibraryIndex: Codable {
     /// Version 2 added folder `parentID` and `color`; version 3 added note
-    /// `kind` and `tags`, and `textTemplates`. Older files still decode unchanged.
-    static let currentVersion = 3
+    /// `kind` and `tags`, and `textTemplates`; version 4 added `trash`
+    /// (Recently Deleted). Older files still decode unchanged.
+    static let currentVersion = 4
 
     var version: Int
     var folders: [Folder]
     var notes: [NoteSummary]
     /// The user's own templates (built-ins are not stored).
     var textTemplates: [TextTemplate]?
+    /// Deleted notes, kept for `LibraryStore.trashDays` days.
+    var trash: [NoteSummary]?
 }
 
 /// What the library sidebar can select.

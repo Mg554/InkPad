@@ -99,7 +99,10 @@ Done:
 - Quick export, or "Export as..." with background paper, page margins,
   page range and password options
 - Page sidebar with thumbnails (insert a blank page after any page, delete
-  pages), page counter with previous/next
+  pages, reorder pages by dragging or with Move Up/Down; the writing moves
+  with its page), page counter with previous/next
+- Recently Deleted (sidebar): deleted notes are kept for 30 days; restore
+  them or delete them for good
 - Undo / redo for ink; autosave in the background
 - Obsidian-style text notes: Markdown with live highlighting, edit/split/
   preview, `[[links]]` (unresolved links create the note), backlinks
@@ -159,7 +162,8 @@ InkPad.swiftpm/
 
 Stored under the app's `Documents/InkPad/`:
 
-- `library.json` — folders and note summaries
+- `library.json` — folders and note summaries; deleted notes are listed
+  under `trash` (their folders stay in `notes/` until deleted for good)
 - `notes/<id>/note.json` — template, paper color, page count, text boxes
 - `notes/<id>/drawing.data` — PencilKit drawing
 - `notes/<id>/document.pdf` — imported PDF (copied, never modified)

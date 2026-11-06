@@ -52,7 +52,8 @@ struct NoteEditorView: View {
                             revision: session.snapshotRevision,
                             background: background,
                             insertPage: { session.insertPage(after: $0) },
-                            deletePage: { session.deletePage(at: $0) }
+                            deletePage: { session.deletePage(at: $0) },
+                            movePage: { session.movePage(from: $0, to: $1) }
                         )
                         .transition(.move(edge: .trailing))
                     }

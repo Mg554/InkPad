@@ -110,6 +110,31 @@ final class EditorSession: ObservableObject {
         scrollAfterLayout(to: min(index, pages.count - 1))
     }
 
+    /// Moves a page to a new position, with what is written on it.
+    func movePage(from source: Int, to destination: Int) {
+        guard let content = baseContent, let rects = background?.layout.pageRects,
+              rects.indices.contains(source), rects.indices.contains(destination), source != destination
+        else { return }
+        let pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
+        guard pages.count == rects.count else { return }
+        var order = Array(rects.indices)
+        order.insert(order.remove(at: source), at: destination)
+        let newRects = PageLayout(pageSizes: order.map { rects[$0].size }).pageRects
+        var newTop = Array(repeating: CGFloat(0), count: rects.count)
+        for (newIndex, oldIndex) in order.enumerated() {
+            newTop[oldIndex] = newRects[newIndex].minY
+        }
+        let gap = PageLayout.pageGap
+        canvas.moveContent { y in
+            // Content belongs to the page it is on, or the nearest one below
+            // the gap; anything past the last page stays with it.
+            let page = rects.firstIndex { y < $0.maxY + gap / 2 } ?? rects.count - 1
+            return newTop[page] - rects[page].minY
+        }
+        setPages(order.map { pages[$0] })
+        scrollAfterLayout(to: destination)
+    }
+
     private func setPages(_ pages: [PageSource]) {
         updateMetadata {
             $0.pages = pages

@@ -300,6 +300,24 @@ final class CanvasController: NSObject, ObservableObject {
         contentDidChange()
     }
 
+    /// Moves ink and elements vertically; `offset` says how far content
+    /// centered at a given y moves (used to reorder pages).
+    func moveContent(by offset: (CGFloat) -> CGFloat) {
+        guard let host else { return }
+        var strokes = host.canvas.drawing.strokes
+        for index in strokes.indices {
+            let delta = offset(strokes[index].renderBounds.midY)
+            guard delta != 0 else { continue }
+            strokes[index].transform = strokes[index].transform
+                .concatenating(CGAffineTransform(translationX: 0, y: delta))
+        }
+        host.canvas.drawing = PKDrawing(strokes: strokes)
+        // Ink undo steps refer to the old positions.
+        host.canvas.undoManager?.removeAllActions()
+        host.elementLayer.moveElements(by: offset)
+        contentDidChange()
+    }
+
     func insertImage(file: String, image: UIImage, pixelSize: CGSize) {
         guard let host else { return }
         palette?.select(.text)

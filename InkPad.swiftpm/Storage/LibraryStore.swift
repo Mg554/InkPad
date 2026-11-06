@@ -82,6 +82,10 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var customTemplates: [TextTemplate] = []
     /// Recognized handwriting of handwritten notes, for search.
     @Published private(set) var recognizedText: [UUID: String] = [:]
+    /// Recently Deleted, newest first. Their files stay until they are
+    /// deleted for good, by hand or after `trashDays` days.
+    @Published private(set) var trashedNotes: [NoteSummary] = []
+    static let trashDays = 30
 
     /// `Documents/InkPad/`, the whole library (also read by backups).
     let rootURL: URL
@@ -99,6 +103,7 @@ final class LibraryStore: ObservableObject {
         loadIndex()
         loadTextIndex()
         loadRecognizedText()
+        removeExpiredTrash()
     }
 
     nonisolated static var defaultRootURL: URL {
@@ -114,10 +119,12 @@ final class LibraryStore: ObservableObject {
         customTemplates = []
         textIndex = [:]
         recognizedText = [:]
+        trashedNotes = []
         isReadOnly = false
         loadIndex()
         loadTextIndex()
         loadRecognizedText()
+        removeExpiredTrash()
         libraryGeneration += 1
     }
 
@@ -423,22 +430,81 @@ final class LibraryStore: ObservableObject {
         saveIndex()
     }
 
-    /// Removes the note's files first; the note stays in the library if that fails.
+    /// Moves the note to Recently Deleted; its files are kept so it can be
+    /// put back.
     func deleteNote(_ id: UUID) {
-        guard canWrite() else { return }
-        let directory = noteDirectory(id)
-        if fileManager.fileExists(atPath: directory.path) {
-            do {
-                try fileManager.removeItem(at: directory)
-            } catch {
-                errorMessage = "Could not delete the note: \(error.localizedDescription)"
-                return
-            }
-        }
+        guard canWrite(), var note = note(id) else { return }
+        note.deletedAt = Date()
         notes.removeAll { $0.id == id }
+        trashedNotes.insert(note, at: 0)
         textIndex[id] = nil
         recognizedText[id] = nil
         saveIndex()
+    }
+
+    /// Puts a deleted note back, in its folder if that still exists.
+    func restoreNote(_ id: UUID) {
+        guard canWrite(), var note = trashedNotes.first(where: { $0.id == id }) else { return }
+        note.deletedAt = nil
+        if let folderID = note.folderID, folder(folderID) == nil {
+            note.folderID = nil
+        }
+        trashedNotes.removeAll { $0.id == id }
+        notes.append(note)
+        if note.isText,
+           let text = try? String(contentsOf: noteDirectory(id).appendingPathComponent(NoteFiles.markdownFile), encoding: .utf8) {
+            textIndex[id] = TextNoteInfo(text: text)
+        }
+        if !note.isText,
+           let data = try? Data(contentsOf: noteDirectory(id).appendingPathComponent(NoteFiles.textFile)),
+           let saved = try? JSONDecoder().decode(RecognizedText.self, from: data) {
+            recognizedText[id] = saved.text
+        }
+        saveIndex()
+    }
+
+    /// Removes a deleted note's files for good. It stays in Recently
+    /// Deleted if that fails.
+    func deleteNotePermanently(_ id: UUID) {
+        guard canWrite(), trashedNotes.contains(where: { $0.id == id }) else { return }
+        guard removeNoteFiles(id) else { return }
+        trashedNotes.removeAll { $0.id == id }
+        saveIndex()
+    }
+
+    func emptyTrash() {
+        guard canWrite() else { return }
+        trashedNotes.removeAll { removeNoteFiles($0.id) }
+        saveIndex()
+    }
+
+    /// Days left before a deleted note is removed for good.
+    func daysLeft(in note: NoteSummary, now: Date = Date()) -> Int {
+        guard let deletedAt = note.deletedAt else { return Self.trashDays }
+        let days = Calendar.current.dateComponents([.day], from: deletedAt, to: now).day ?? 0
+        return max(0, Self.trashDays - days)
+    }
+
+    private func removeExpiredTrash() {
+        guard !isReadOnly else { return }
+        let limit = Date().addingTimeInterval(-Double(Self.trashDays) * 86_400)
+        let expired = trashedNotes.filter { ($0.deletedAt ?? .distantPast) < limit }
+        guard !expired.isEmpty else { return }
+        let removed = Set(expired.filter { removeNoteFiles($0.id) }.map(\.id))
+        trashedNotes.removeAll { removed.contains($0.id) }
+        saveIndex()
+    }
+
+    private func removeNoteFiles(_ id: UUID) -> Bool {
+        let directory = noteDirectory(id)
+        guard fileManager.fileExists(atPath: directory.path) else { return true }
+        do {
+            try fileManager.removeItem(at: directory)
+            return true
+        } catch {
+            errorMessage = "Could not delete the note: \(error.localizedDescription)"
+            return false
+        }
     }
 
     func loadContent(for id: UUID) throws -> NoteContent {
@@ -629,6 +695,7 @@ final class LibraryStore: ObservableObject {
             folders = index.folders
             notes = index.notes
             customTemplates = index.textTemplates ?? []
+            trashedNotes = (index.trash ?? []).sorted { ($0.deletedAt ?? .distantPast) > ($1.deletedAt ?? .distantPast) }
         } catch {
             isReadOnly = true
             errorMessage = "Your library could not be read (\(error.localizedDescription)). "
@@ -641,7 +708,8 @@ final class LibraryStore: ObservableObject {
             version: LibraryIndex.currentVersion,
             folders: folders,
             notes: notes,
-            textTemplates: customTemplates.isEmpty ? nil : customTemplates
+            textTemplates: customTemplates.isEmpty ? nil : customTemplates,
+            trash: trashedNotes.isEmpty ? nil : trashedNotes
         )
         do {
             try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)

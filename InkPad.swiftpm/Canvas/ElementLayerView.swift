@@ -141,6 +141,17 @@ final class ElementLayerView: UIView {
         if changed { elementsDidChange() }
     }
 
+    func moveElements(by offset: (CGFloat) -> CGFloat) {
+        var changed = false
+        for case let view as PageElementView in subviews {
+            let delta = offset(view.frame.midY)
+            guard delta != 0 else { continue }
+            view.center.y += delta
+            changed = true
+        }
+        if changed { elementsDidChange() }
+    }
+
     /// Re-rasterizes text for the current zoom so it stays sharp.
     func setRenderScale(_ scale: CGFloat) {
         renderScale = scale

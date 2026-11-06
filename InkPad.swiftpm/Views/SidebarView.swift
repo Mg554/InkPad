@@ -9,6 +9,7 @@ struct SidebarView: View {
     @State private var folderToDelete: Folder?
     @State private var collapsed: Set<UUID> = []
     @State private var showsBackup = false
+    @State private var showsRecentlyDeleted = false
 
     private var expandedFolders: Set<UUID> {
         Set(store.folders.map(\.id)).subtracting(collapsed)
@@ -36,6 +37,18 @@ struct SidebarView: View {
                     .tag(LibraryScope.graph)
                 Label("Study with AI", systemImage: "graduationcap")
                     .tag(LibraryScope.study)
+                Button {
+                    showsRecentlyDeleted = true
+                } label: {
+                    HStack {
+                        Label("Recently Deleted", systemImage: "trash")
+                        Spacer()
+                        if !store.trashedNotes.isEmpty {
+                            Text("\(store.trashedNotes.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
 
             Section("Workspace") {
@@ -100,6 +113,9 @@ struct SidebarView: View {
         }
         .sheet(isPresented: $showsBackup) {
             BackupView()
+        }
+        .sheet(isPresented: $showsRecentlyDeleted) {
+            RecentlyDeletedView()
         }
         .namePrompt($prompt)
         .confirmationDialog(

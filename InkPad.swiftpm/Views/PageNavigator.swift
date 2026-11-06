@@ -51,8 +51,11 @@ struct PageSidebar: View {
     let background: NoteBackground
     let insertPage: (Int) -> Void
     let deletePage: (Int) -> Void
+    let movePage: (Int, Int) -> Void
 
     @State private var pageToDelete: Int?
+    /// The page being dragged to a new place.
+    @State private var draggedPage: Int?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -107,6 +110,28 @@ struct PageSidebar: View {
                         } label: {
                             Label("Insert Blank Page After", systemImage: "doc.badge.plus")
                         }
+                        let last = background.layout.pageRects.count - 1
+                        Button {
+                            movePage(index, index - 1)
+                        } label: {
+                            Label("Move Up", systemImage: "arrow.up")
+                        }
+                        .disabled(index == 0)
+                        Button {
+                            movePage(index, index + 1)
+                        } label: {
+                            Label("Move Down", systemImage: "arrow.down")
+                        }
+                        .disabled(index == last)
+                        Menu {
+                            Button("To the Start") { movePage(index, 0) }
+                                .disabled(index == 0)
+                            Button("To the End") { movePage(index, last) }
+                                .disabled(index == last)
+                        } label: {
+                            Label("Move", systemImage: "arrow.up.arrow.down")
+                        }
+                        Divider()
                         Button(role: .destructive) {
                             pageToDelete = index
                         } label: {
@@ -123,6 +148,17 @@ struct PageSidebar: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { canvas.scrollToPage(index) }
+                // Long-press and drag a page onto another to move it there.
+                .onDrag {
+                    draggedPage = index
+                    return NSItemProvider(object: "InkPad page \(index)" as NSString)
+                }
+                .onDrop(of: [.plainText], isTargeted: nil) { _ in
+                    defer { draggedPage = nil }
+                    guard let source = draggedPage, source != index else { return false }
+                    movePage(source, index)
+                    return true
+                }
             Text("\(index + 1)")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(isCurrent ? Color.accentColor : Color.secondary)
