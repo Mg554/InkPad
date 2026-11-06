@@ -6,7 +6,15 @@ struct LibraryView: View {
     @EnvironmentObject private var store: LibraryStore
     @EnvironmentObject private var workspace: WorkspaceStore
     @State private var scope: LibraryScope? = .allNotes
+    /// The section the detail column shows. It follows `scope` one step
+    /// behind: see `switchSection`.
+    @State private var shownScope: LibraryScope? = .allNotes
+    /// True for the moment between taking one section's navigation stack
+    /// down and putting the next one up.
+    @State private var isSwitchingSection = false
     @State private var path: [UUID] = []
+    /// A note to open once the section switch in progress has finished.
+    @State private var noteAfterSwitch: UUID?
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     private var navigation: NoteNavigation {
@@ -27,16 +35,17 @@ struct LibraryView: View {
     private func open(_ id: UUID) {
         switch scope {
         case .planner?, .expenses?, .mindMaps?, .slides?, .study?, .flowmodoro?:
+            // Changing the scope clears the path; the note opens once the
+            // notes section is up (see `switchSection`).
+            noteAfterSwitch = id
             scope = .allNotes
-            // Changing the scope clears the path; push after that.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { path = [id] }
         default:
             path.append(id)
         }
     }
 
-    /// Which kind of page the detail column shows.
-    private var detailSection: String {
+    /// Which kind of page a scope shows; each has its own navigation stack.
+    private func section(of scope: LibraryScope?) -> String {
         switch scope {
         case .planner: "planner"
         case .expenses: "expenses"
@@ -48,51 +57,88 @@ struct LibraryView: View {
         }
     }
 
+    /// The page for `shownScope`.
+    @ViewBuilder private var detail: some View {
+        switch shownScope {
+        case .planner:
+            NavigationStack { PlannerView() }
+        case .expenses:
+            NavigationStack { ExpensesView() }
+        case .mindMaps:
+            MindMapsView()
+        case .slides:
+            SlideDecksView()
+        case .study:
+            StudyView()
+        case .flowmodoro:
+            NavigationStack { FlowmodoroView() }
+        default:
+            NavigationStack(path: $path) {
+                Group {
+                    if shownScope == .graph {
+                        GraphView()
+                    } else {
+                        NotesGridView(scope: shownScope ?? .allNotes) { path.append($0) }
+                    }
+                }
+                .navigationDestination(for: UUID.self) { noteID in
+                    if store.note(noteID)?.isText == true {
+                        MarkdownNoteView(noteID: noteID)
+                    } else {
+                        NoteEditorView(noteID: noteID)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Changes section in two steps. SwiftUI keeps one navigation state for
+    /// the detail column and crashes (`comparisonTypeMismatch`) when a stack
+    /// whose path holds one type replaces a stack holding another type while
+    /// a page is open, for example opening Study with AI from the sidebar
+    /// while a note is open. So the open note is closed and the old stack is
+    /// taken down first; the new section's stack comes up on the next update.
+    private func switchSection() {
+        path = []
+        guard section(of: scope) != section(of: shownScope) else {
+            shownScope = scope
+            openNoteAfterSwitch()
+            return
+        }
+        isSwitchingSection = true
+        DispatchQueue.main.async {
+            shownScope = scope
+            isSwitchingSection = false
+            DispatchQueue.main.async { openNoteAfterSwitch() }
+        }
+    }
+
+    private func openNoteAfterSwitch() {
+        guard let id = noteAfterSwitch else { return }
+        noteAfterSwitch = nil
+        path = [id]
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(scope: $scope)
         } detail: {
             // Each section gets its own identity, so SwiftUI builds its
             // navigation stack afresh instead of reusing another section's
-            // (their paths hold different types, which crashes).
+            // (their paths hold different types, which crashes). Between two
+            // sections an empty view stands in for one update.
             Group {
-                switch scope {
-                case .planner:
-                    NavigationStack { PlannerView() }
-                case .expenses:
-                    NavigationStack { ExpensesView() }
-                case .mindMaps:
-                    MindMapsView()
-                case .slides:
-                    SlideDecksView()
-                case .study:
-                    StudyView()
-                case .flowmodoro:
-                    NavigationStack { FlowmodoroView() }
-                default:
-                    NavigationStack(path: $path) {
-                        Group {
-                            if scope == .graph {
-                                GraphView()
-                            } else {
-                                NotesGridView(scope: scope ?? .allNotes) { path.append($0) }
-                            }
-                        }
-                        .navigationDestination(for: UUID.self) { noteID in
-                            if store.note(noteID)?.isText == true {
-                                MarkdownNoteView(noteID: noteID)
-                            } else {
-                                NoteEditorView(noteID: noteID)
-                            }
-                        }
-                    }
+                if isSwitchingSection {
+                    Color.clear
+                } else {
+                    detail
                 }
             }
-            .id(detailSection)
+            .id(isSwitchingSection ? "switching" : section(of: shownScope))
         }
         .environment(\.noteNavigation, navigation)
         .onChange(of: scope) {
-            path = []
+            switchSection()
         }
         .onChange(of: store.libraryGeneration) {
             // A restored backup replaced the library: close what was open.
