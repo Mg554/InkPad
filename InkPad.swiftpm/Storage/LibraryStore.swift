@@ -83,20 +83,42 @@ final class LibraryStore: ObservableObject {
     /// Recognized handwriting of handwritten notes, for search.
     @Published private(set) var recognizedText: [UUID: String] = [:]
 
-    private let rootURL: URL
+    /// `Documents/InkPad/`, the whole library (also read by backups).
+    let rootURL: URL
     private let fileManager = FileManager.default
     /// Note files are written here, off the main thread, one save at a time.
-    private let writeQueue = DispatchQueue(label: "InkPad.noteWrites", qos: .userInitiated)
+    /// Backups run here too, so they never read a half-written note.
+    let writeQueue = DispatchQueue(label: "InkPad.noteWrites", qos: .userInitiated)
+    /// Changes when a restored backup replaces the library, so open screens close.
+    @Published private(set) var libraryGeneration = 0
 
     private var indexURL: URL { rootURL.appendingPathComponent("library.json") }
 
     init(rootURL: URL? = nil) {
-        self.rootURL = rootURL ?? FileManager.default
-            .urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("InkPad", isDirectory: true)
+        self.rootURL = rootURL ?? Self.defaultRootURL
         loadIndex()
         loadTextIndex()
         loadRecognizedText()
+    }
+
+    nonisolated static var defaultRootURL: URL {
+        FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("InkPad", isDirectory: true)
+    }
+
+    /// Reads everything again from disk, after a backup was restored.
+    func reload() {
+        folders = []
+        notes = []
+        customTemplates = []
+        textIndex = [:]
+        recognizedText = [:]
+        isReadOnly = false
+        loadIndex()
+        loadTextIndex()
+        loadRecognizedText()
+        libraryGeneration += 1
     }
 
     // MARK: Queries

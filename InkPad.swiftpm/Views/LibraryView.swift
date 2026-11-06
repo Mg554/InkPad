@@ -94,6 +94,11 @@ struct LibraryView: View {
         .onChange(of: scope) {
             path = []
         }
+        .onChange(of: store.libraryGeneration) {
+            // A restored backup replaced the library: close what was open.
+            path = []
+            scope = .allNotes
+        }
         .onChange(of: path) {
             // Give the editor the whole screen; bring the sidebar back in the library.
             columnVisibility = path.isEmpty ? .automatic : .detailOnly

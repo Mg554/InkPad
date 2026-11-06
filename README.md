@@ -109,6 +109,13 @@ Done:
   search, Today's Note (with today's planner tasks), text templates
   (built-in and "Save as Template"), and a Graph view of notes, links and
   tags
+- Backup (the drive button at the top of the sidebar): "Back Up Library…"
+  writes the whole library (notes, PDFs, pictures, recordings, folders,
+  planner, expenses, mind maps, slides and study) into one ZIP file and
+  lets you save it to iCloud Drive or anywhere in Files. "Restore from a
+  Backup…" checks the file first, then replaces the library; the library
+  it replaces is kept on the iPad (the last three) so a restore can be
+  undone. AI keys stay in the keychain and are never in a backup
 
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 
@@ -168,4 +175,9 @@ Stored under the app's `Documents/InkPad/`:
 - `decks/<id>/` — page pictures used in slide decks
 
 If `library.json` cannot be read, InkPad opens read-only instead of
-overwriting it.
+overwriting it (restoring a backup still works).
+
+A backup is a plain ZIP (files stored uncompressed): `backup.json` (format,
+date, note and folder counts) and an `InkPad/` folder with the files above
+exactly as they are. Copies kept before a restore are in
+`Documents/InkPad Safety Copies/`.

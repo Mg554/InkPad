@@ -17,8 +17,12 @@
 7. **Study with AI** — chat with notes, flashcards with spaced review,
    quizzes, smart notes, with any AI service — done (needs on-device
    testing)
-8. **Backup and polish** — export/import a whole library to iCloud Drive,
-   page delete/reorder, recently deleted, dark-mode chrome
+8. **Backup and polish**
+   - Back up the whole library to one file (iCloud Drive or Files) and
+     restore it, with an automatic copy kept before each restore — done
+     (needs on-device testing)
+   - Dark-mode chrome, page delete — done
+   - Page reorder, recently deleted — next
 
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 

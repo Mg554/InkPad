@@ -28,9 +28,7 @@ final class WorkspaceStore: ObservableObject {
     private let decksURL: URL
 
     init(rootURL: URL? = nil) {
-        let root = rootURL ?? FileManager.default
-            .urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("InkPad", isDirectory: true)
+        let root = rootURL ?? LibraryStore.defaultRootURL
         fileURL = root.appendingPathComponent("workspace.json")
         decksURL = root.appendingPathComponent("decks", isDirectory: true)
         load()
@@ -339,6 +337,26 @@ final class WorkspaceStore: ObservableObject {
     }
 
     // MARK: Persistence
+
+    /// Reads everything again from disk, after a backup was restored.
+    func reload() {
+        tasks = []
+        expenses = []
+        monthlyBudget = nil
+        currencyCode = Locale.current.currency?.identifier ?? "USD"
+        showsCents = false
+        mindMaps = []
+        decks = []
+        flashcardDecks = []
+        quizzes = []
+        studyChats = []
+        flowTasks = []
+        flowSessions = []
+        flowTimer = nil
+        flowBreakShare = Flowmodoro.defaultBreakShare
+        isReadOnly = false
+        load()
+    }
 
     private func load() {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return }

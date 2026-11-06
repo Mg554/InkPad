@@ -61,7 +61,7 @@ carefully for Swift pitfalls that have bitten before:
 InkPad.swiftpm/
   App/        entry point (appearance, Scribble gate install)
   Models/     notes, pages, workspace data (planner, decks, study, Flowmodoro)
-  Storage/    LibraryStore, WorkspaceStore: the only code that touches files
+  Storage/    LibraryStore, WorkspaceStore, backups (ZIP): the only code that touches files
   Canvas/     PencilKit host, tools, lasso, laser, text boxes, keyboard support
   Rendering/  page backgrounds, PDF, thumbnails, PDF/PPTX/ZIP export
   Audio/      recording and playback synced with ink
@@ -77,7 +77,8 @@ InkPad.swiftpm/
   in Swift Playgrounds.
 - Bring back Flowmodoro's break-end notification for the installed app
   (it was removed because it crashes inside Playgrounds).
-- Next features agreed: library backup/import, then the AI Firewall
+- Library backup/restore is done (Storage/LibraryBackup.swift); test it on
+  the iPad with iCloud Drive. Next features agreed: the AI Firewall
   (never send chosen notes or folders to AI), then "Write → Think → Build"
   (turn lasso-selected writing into concepts, flashcards, questions and
   explanations).

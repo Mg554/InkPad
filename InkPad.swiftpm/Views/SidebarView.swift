@@ -8,6 +8,7 @@ struct SidebarView: View {
     @State private var prompt: NamePrompt?
     @State private var folderToDelete: Folder?
     @State private var collapsed: Set<UUID> = []
+    @State private var showsBackup = false
 
     private var expandedFolders: Set<UUID> {
         Set(store.folders.map(\.id)).subtracting(collapsed)
@@ -87,8 +88,18 @@ struct SidebarView: View {
         .navigationTitle("InkPad")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showsBackup = true
+                } label: {
+                    Label("Backup", systemImage: "externaldrive.badge.icloud")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 AppearanceMenu()
             }
+        }
+        .sheet(isPresented: $showsBackup) {
+            BackupView()
         }
         .namePrompt($prompt)
         .confirmationDialog(
