@@ -24,6 +24,8 @@ struct Flashcard: Codable, Identifiable, Equatable {
     var back: String
     var box: Int
     var due: Date
+    /// When it was last reviewed (`nil` for cards from before this was kept).
+    var lastReviewed: Date?
 
     init(front: String, back: String) {
         id = UUID()
@@ -36,6 +38,7 @@ struct Flashcard: Codable, Identifiable, Equatable {
     var isDue: Bool { due <= Date() }
 
     mutating func review(_ rating: Rating, now: Date = Date()) {
+        lastReviewed = now
         switch rating {
         case .again:
             box = 0
@@ -53,6 +56,19 @@ struct Flashcard: Codable, Identifiable, Equatable {
     }
 }
 
+extension Flashcard {
+    /// The estimated chance of recalling the card now (0...1), from a
+    /// forgetting curve that reaches 90% when the card falls due. `nil` for a
+    /// card never studied; a card just forgotten counts as weak.
+    func recall(now: Date = Date()) -> Double? {
+        guard box > 0 else { return lastReviewed == nil ? nil : 0.2 }
+        let interval = max(Self.intervals[box], 0.5) * 86_400
+        let reviewed = lastReviewed ?? due.addingTimeInterval(-interval)
+        let elapsed = max(0, now.timeIntervalSince(reviewed))
+        return pow(0.9, elapsed / interval)
+    }
+}
+
 struct FlashcardDeck: Codable, Identifiable, Equatable {
     let id: UUID
     var title: String
@@ -62,6 +78,16 @@ struct FlashcardDeck: Codable, Identifiable, Equatable {
     var modifiedAt: Date
 
     var dueCount: Int { cards.filter(\.isDue).count }
+
+    /// Memory Heatmap: the average recall of the cards studied so far, or
+    /// `nil` before any card was studied.
+    func memoryStrength(now: Date = Date()) -> Double? {
+        let recalls = cards.compactMap { $0.recall(now: now) }
+        guard !recalls.isEmpty else { return nil }
+        return recalls.reduce(0, +) / Double(recalls.count)
+    }
+
+    var studiedCount: Int { cards.filter { $0.recall() != nil }.count }
 }
 
 struct QuizQuestion: Codable, Identifiable, Equatable {

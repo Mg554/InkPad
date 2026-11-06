@@ -27,11 +27,15 @@
      (needs on-device testing)
 
 9. **Privacy and thinking tools**
-   - AI Firewall: notes and folders that are never sent to AI — done
-     (needs on-device testing)
+   - AI Firewall with three levels (Allowed, This iPad Only, Never),
+     Explain This (answers placed on the page), Messy Mode (Organize This)
+     and the Memory Heatmap — done (needs on-device testing)
    - Write → Think → Build: turn lasso-selected writing into concepts,
      flashcards, questions and explanations — done (needs on-device
      testing with an AI key)
+   - Next ideas, in order: Voice → Timeline, Command Anywhere (⌘K),
+     Living Notes; then Focus Mode and Knowledge GPS; later Knowledge
+     Versioning, Replay, Spatial Knowledge Graph and Ink → Structure
 
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 

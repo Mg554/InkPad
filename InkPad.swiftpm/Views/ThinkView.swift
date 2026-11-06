@@ -38,6 +38,8 @@ enum ThinkMode: String, CaseIterable, Identifiable {
 struct ThinkRequest: Identifiable {
     let id = UUID()
     let text: String
+    /// Where the selection is on the page, to place the answer below it.
+    let anchor: CGRect
 }
 
 /// Write → Think → Build: turns the writing circled with the lasso into
@@ -50,6 +52,8 @@ struct ThinkView: View {
     @Environment(\.dismiss) private var dismiss
 
     let noteID: UUID
+    /// Puts an answer (Markdown, title) on the page under the selection.
+    let placeOnPage: ((String, String) -> Void)?
     @State private var passage: String
     @State private var mode: ThinkMode = .concepts
     @State private var isThinking = false
@@ -60,13 +64,15 @@ struct ThinkView: View {
     @State private var isShowingSettings = false
     @State private var task: Task<Void, Never>?
 
-    init(noteID: UUID, text: String) {
+    init(noteID: UUID, text: String, placeOnPage: ((String, String) -> Void)? = nil) {
         self.noteID = noteID
+        self.placeOnPage = placeOnPage
         _passage = State(initialValue: text)
     }
 
     private var noteTitle: String { store.note(noteID)?.title ?? "Note" }
-    private var isHidden: Bool { store.isHiddenFromAI(noteID) }
+    /// The AI Firewall keeps this note from the connected AI.
+    private var isHidden: Bool { !store.mayUseAI(noteID, onDevice: ai.provider.isOnDevice) }
     private var hasPassage: Bool { !passage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
@@ -76,7 +82,7 @@ struct ThinkView: View {
                     if isHidden {
                         notice(
                             "Protected by the AI Firewall",
-                            "This note is never sent to AI. Turn off \"Hide from AI\" on the note or its folder to think about it.",
+                            NoteTexts.firewallMessage(onDevice: ai.provider.isOnDevice),
                             image: "lock.shield.fill",
                             tint: .green
                         )
@@ -215,6 +221,16 @@ struct ThinkView: View {
             VStack(alignment: .leading, spacing: 12) {
                 MarkdownPreview(text: result) { _ in }
                 HStack {
+                    if let placeOnPage {
+                        Button {
+                            placeOnPage(result, mode.title)
+                            dismiss()
+                        } label: {
+                            Label("Add to Page", systemImage: "text.below.photo")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(mode.tint)
+                    }
                     Button {
                         saveNote(result)
                     } label: {
@@ -263,7 +279,9 @@ struct ThinkView: View {
 
     private func think() {
         // Checked again here: the AI Firewall is never bypassed.
-        guard !isHidden, hasPassage, let client = ai.client() else { return }
+        guard hasPassage, let client = ai.client(),
+              store.mayUseAI(noteID, onDevice: client.kind.isOnDevice)
+        else { return }
         let chosen = mode
         let prompt = StudyAI.thinkPrompt(chosen, passage: passage, noteTitle: noteTitle)
         isThinking = true

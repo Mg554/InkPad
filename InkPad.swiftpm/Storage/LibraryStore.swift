@@ -206,33 +206,41 @@ final class LibraryStore: ObservableObject {
 
     // MARK: AI Firewall
 
-    /// True when the note, or a folder it is in, is hidden from AI. A note
-    /// that no longer exists is treated as hidden.
-    func isHiddenFromAI(_ id: UUID) -> Bool {
-        guard let note = note(id) else { return true }
-        return note.hiddenFromAI == true || isFolderHiddenFromAI(note.folderID)
+    /// The strictest AI Firewall level of the note and the folders it is
+    /// in. A note that no longer exists is treated as never.
+    func aiAccess(of id: UUID) -> AIAccess {
+        guard let note = note(id) else { return .never }
+        return max(note.aiAccess, folderAIAccess(note.folderID))
     }
 
-    /// True when the folder or one of its parents is hidden from AI.
-    func isFolderHiddenFromAI(_ id: UUID?) -> Bool {
+    /// The strictest level of the folder and its parents.
+    func folderAIAccess(_ id: UUID?) -> AIAccess {
+        var result = AIAccess.allowed
         var current = id
         var visited: Set<UUID> = []
         while let folderID = current, visited.insert(folderID).inserted, let folder = folder(folderID) {
-            if folder.hiddenFromAI == true { return true }
+            result = max(result, folder.aiAccess)
             current = folder.parentID
         }
-        return false
+        return result
     }
 
-    func setNoteHiddenFromAI(_ id: UUID, _ hidden: Bool) {
+    /// Whether this AI (on the iPad, or an online service) may read the note.
+    func mayUseAI(_ id: UUID, onDevice: Bool) -> Bool {
+        aiAccess(of: id).permits(onDevice: onDevice)
+    }
+
+    func setAIAccess(_ access: AIAccess, forNote id: UUID) {
         guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
-        notes[index].hiddenFromAI = hidden ? true : nil
+        notes[index].hiddenFromAI = access == .never ? true : nil
+        notes[index].aiOnDeviceOnly = access == .onDeviceOnly ? true : nil
         saveIndex()
     }
 
-    func setFolderHiddenFromAI(_ id: UUID, _ hidden: Bool) {
+    func setAIAccess(_ access: AIAccess, forFolder id: UUID) {
         guard canWrite(), let index = folders.firstIndex(where: { $0.id == id }) else { return }
-        folders[index].hiddenFromAI = hidden ? true : nil
+        folders[index].hiddenFromAI = access == .never ? true : nil
+        folders[index].aiOnDeviceOnly = access == .onDeviceOnly ? true : nil
         saveIndex()
     }
 

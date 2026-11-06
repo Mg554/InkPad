@@ -11,11 +11,11 @@ struct AISettingsView: View {
     @State private var testResult: String?
 
     private var hiddenCountText: String {
-        let count = store.notes.filter { store.isHiddenFromAI($0.id) }.count
+        let count = store.notes.filter { store.aiAccess(of: $0.id) != .allowed }.count
         switch count {
         case 0: return "Off"
-        case 1: return "1 note hidden"
-        default: return "\(count) notes hidden"
+        case 1: return "1 note protected"
+        default: return "\(count) notes protected"
         }
     }
 

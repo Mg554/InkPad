@@ -31,6 +31,9 @@ enum AIProviderKind: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Runs on the iPad, so notes never leave it (AI Firewall "This iPad Only").
+    var isOnDevice: Bool { style == .onDevice }
+
     var style: Style {
         switch self {
         case .anthropic: .anthropic

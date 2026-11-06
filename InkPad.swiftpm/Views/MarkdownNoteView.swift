@@ -28,6 +28,7 @@ struct MarkdownNoteView: View {
     @State private var prompt: NamePrompt?
     @State private var isCreatingSlides = false
     @State private var isStudying = false
+    @State private var isOrganizing = false
 
     var body: some View {
         Group {
@@ -76,6 +77,12 @@ struct MarkdownNoteView: View {
                     }
                     Button {
                         save()
+                        isOrganizing = true
+                    } label: {
+                        Label("Organize This…", systemImage: "wand.and.stars")
+                    }
+                    Button {
+                        save()
                         isCreatingSlides = true
                     } label: {
                         Label("Create Slides…", systemImage: "rectangle.on.rectangle.angled")
@@ -92,6 +99,13 @@ struct MarkdownNoteView: View {
             }
         }
         .namePrompt($prompt)
+        .sheet(isPresented: $isOrganizing) {
+            OrganizeView(noteID: noteID, text: text) { organized in
+                text = organized
+                save()
+            }
+            .environmentObject(store)
+        }
         .sheet(isPresented: $isStudying) {
             StudyView(sources: [noteID], isSheet: true)
                 .environmentObject(store)

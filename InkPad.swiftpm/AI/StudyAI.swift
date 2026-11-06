@@ -92,6 +92,21 @@ enum StudyAI {
         """
     }
 
+    // MARK: Messy Mode
+
+    static func organizePrompt(_ text: String) -> String {
+        [
+            "Organize the messy note below into a clear Markdown note.",
+            "Keep every fact, idea, [[link]] and #tag exactly as written, and add nothing new.",
+            "Keep the first \"# \" title line if there is one. Group related points under \"## \" headings, "
+                + "turn loose lines into bullet lists, and write anything to do as \"- [ ] \" tasks.",
+            "Reply with the organized note only, no comments. Write in the same language as the note.",
+            "",
+            "Note:",
+            text,
+        ].joined(separator: "\n")
+    }
+
     // MARK: Write → Think → Build
 
     static func thinkPrompt(_ mode: ThinkMode, passage: String, noteTitle: String) -> String {

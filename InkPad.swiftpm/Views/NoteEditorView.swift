@@ -146,13 +146,15 @@ struct NoteEditorView: View {
                 .environmentObject(workspace)
         }
         .sheet(item: $thinkRequest) { request in
-            ThinkView(noteID: noteID, text: request.text)
+            ThinkView(noteID: noteID, text: request.text) { markdown, title in
+                canvas.placeText(TextBoxStyle.attributed(markdown: markdown, title: title), below: request.anchor)
+            }
                 .environmentObject(store)
                 .environmentObject(workspace)
         }
         .task {
             session.load(noteID: noteID, store: store)
-            canvas.onThink = { text in thinkRequest = ThinkRequest(text: text) }
+            canvas.onThink = { text, rect in thinkRequest = ThinkRequest(text: text, anchor: rect) }
         }
         .onDisappear {
             // Stopping a recording stores it in the note before the save.

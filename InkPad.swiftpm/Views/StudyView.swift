@@ -57,11 +57,14 @@ struct StudyView: View {
                     if let problem = ai.problem {
                         setupCard(problem)
                     }
-                    if NoteTexts.allHiddenFromAI(sources, store: store) {
+                    if NoteTexts.allBlocked(sources, store: store, onDevice: ai.provider.isOnDevice) {
                         firewallCard
                     }
                     chatCard
                     reviewCard
+                    if workspace.flashcardDecks.contains(where: { !$0.cards.isEmpty }) {
+                        MemoryHeatmap(decks: workspace.flashcardDecks) { path.append(.review($0)) }
+                    }
                     scopeCard
                     toolsCard
                     if !workspace.flashcardDecks.isEmpty || !workspace.quizzes.isEmpty {
@@ -169,12 +172,12 @@ struct StudyView: View {
 
     private var firewallCard: some View {
         HStack(alignment: .top, spacing: 14) {
-            HiddenFromAIBadge()
+            AIAccessBadge(access: .never)
                 .font(.title2)
             VStack(alignment: .leading, spacing: 6) {
                 Text("Protected by the AI Firewall")
                     .font(.headline)
-                Text("These notes are never sent to AI. Choose other notes below, or turn off \"Hide from AI\" on the note or its folder.")
+                Text(NoteTexts.firewallMessage(onDevice: ai.provider.isOnDevice))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -451,12 +454,13 @@ struct StudyView: View {
     /// The chosen notes as text for the AI, or `nil` (with a message) when there is none.
     private func notesText(for client: AIClient) async -> String? {
         stage = "Reading your notes…"
-        guard !NoteTexts.allHiddenFromAI(sources, store: store) else {
+        let onDevice = client.kind.isOnDevice
+        guard !NoteTexts.allBlocked(sources, store: store, onDevice: onDevice) else {
             stage = nil
-            message = NoteTexts.firewallMessage
+            message = NoteTexts.firewallMessage(onDevice: onDevice)
             return nil
         }
-        let found = await NoteTexts.sources(sources, store: store, live: liveContent) { stage = $0 }
+        let found = await NoteTexts.sources(sources, store: store, onDevice: onDevice, live: liveContent) { stage = $0 }
         guard !found.isEmpty else {
             stage = nil
             message = "There's no writing in these notes to study yet."

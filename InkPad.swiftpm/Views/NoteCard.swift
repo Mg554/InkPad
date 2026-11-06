@@ -35,8 +35,8 @@ struct NoteCard: View {
                 Text(note.title)
                     .font(.headline)
                     .lineLimit(1)
-                if store.isHiddenFromAI(note.id) {
-                    HiddenFromAIBadge()
+                if store.aiAccess(of: note.id) != .allowed {
+                    AIAccessBadge(access: store.aiAccess(of: note.id))
                         .font(.caption)
                 }
             }

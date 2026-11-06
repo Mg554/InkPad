@@ -25,8 +25,8 @@ final class CanvasController: NSObject, ObservableObject {
     var onEdit: (() -> Void)?
     /// Called when ink from the open recording is tapped, with when it was written.
     var onInkTapped: ((Date) -> Void)?
-    /// Lasso › Think: the selected writing as text.
-    var onThink: ((String) -> Void)?
+    /// Lasso › Think: the selected writing as text, and where it is.
+    var onThink: ((String, CGRect) -> Void)?
 
     private weak var host: NoteCanvasHostView?
     private weak var palette: ToolPalette?
@@ -55,7 +55,7 @@ final class CanvasController: NSObject, ObservableObject {
         host.canvas.isRulerActive = isRulerActive
         host.elementLayer.onChange = { [weak self] in self?.contentDidChange() }
         host.lasso.onChange = { [weak self] in self?.contentDidChange() }
-        host.lasso.onThink = { [weak self] text in self?.onThink?(text) }
+        host.lasso.onThink = { [weak self] text, rect in self?.onThink?(text, rect) }
         host.elementLayer.onTextStateChange = { [weak self] in
             self?.formattingRevision += 1
         }
@@ -319,6 +319,11 @@ final class CanvasController: NSObject, ObservableObject {
         host.canvas.undoManager?.removeAllActions()
         host.elementLayer.moveElements(by: offset)
         contentDidChange()
+    }
+
+    /// Places text (an AI answer) on the page below `rect`.
+    func placeText(_ text: NSAttributedString, below rect: CGRect) {
+        host?.elementLayer.addTextBox(text, below: rect)
     }
 
     func insertImage(file: String, image: UIImage, pixelSize: CGSize) {

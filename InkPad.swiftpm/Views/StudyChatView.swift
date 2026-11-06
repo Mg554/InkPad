@@ -133,8 +133,9 @@ struct StudyChatView: View {
     private func send(_ text: String) {
         let question = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty, !isAnswering else { return }
-        guard !NoteTexts.allHiddenFromAI(sources, store: store) else {
-            messages.append(AIMessage(.assistant, NoteTexts.firewallMessage))
+        let onDevice = ai.provider.isOnDevice
+        guard !NoteTexts.allBlocked(sources, store: store, onDevice: onDevice) else {
+            messages.append(AIMessage(.assistant, NoteTexts.firewallMessage(onDevice: onDevice)))
             return
         }
         guard let client = ai.client() else {
@@ -146,7 +147,7 @@ struct StudyChatView: View {
         isAnswering = true
         answerTask = Task {
             if notes == nil {
-                let found = await NoteTexts.sources(sources, store: store, live: liveContent) { stage = $0 }
+                let found = await NoteTexts.sources(sources, store: store, onDevice: client.kind.isOnDevice, live: liveContent) { stage = $0 }
                 notes = NoteTexts.context(found, budget: client.kind.contextBudget, question: question)
                 stage = nil
             }

@@ -18,7 +18,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     var onChange: (() -> Void)?
     /// Think: the selected writing (read with Vision) or PDF text, to turn
     /// into concepts, flashcards, questions or an explanation.
-    var onThink: ((String) -> Void)?
+    var onThink: ((String, CGRect) -> Void)?
 
     private let overlay: SelectionOverlayView
     private(set) lazy var pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
@@ -408,12 +408,13 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     }
 
     private func thinkAboutInk() {
-        readSelectedInk { [weak self] text in self?.onThink?(text) }
+        let rect = selectionBounds
+        readSelectedInk { [weak self] text in self?.onThink?(text, rect) }
     }
 
     private func thinkAboutPDFText() {
         guard let text = textHit?.text else { return }
-        onThink?(text)
+        onThink?(text, selectionBounds)
     }
 
     /// Reads the selected handwriting with Vision, off the main thread.

@@ -76,6 +76,17 @@ final class ElementLayerView: UIView {
         return box
     }
 
+    /// A finished text box placed just below `rect` (Think › Add to Page).
+    func addTextBox(_ text: NSAttributedString, below rect: CGRect) {
+        let width = min(PageLayout.pageWidth - 48, max(rect.width, 480))
+        let x = min(max(rect.minX, 24), PageLayout.pageWidth - 24 - width)
+        let frame = CGRect(x: x, y: rect.maxY + 12, width: width, height: 44)
+        let box = TextBoxView(id: UUID(), frame: frame, text: text)
+        add(box)
+        selectElement(box)
+        elementsDidChange()
+    }
+
     func addImage(file: String, image: UIImage, pixelSize: CGSize, centeredAt center: CGPoint) {
         let maxWidth = PageLayout.pageWidth * 0.6
         let width = min(maxWidth, pixelSize.width / 2)

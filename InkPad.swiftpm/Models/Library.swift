@@ -18,6 +18,12 @@ struct Folder: Codable, Identifiable, Hashable {
     /// AI Firewall: notes in this folder and its subfolders are never sent
     /// to an AI service.
     var hiddenFromAI: Bool?
+    /// AI Firewall: only Apple Intelligence on the iPad may read them.
+    var aiOnDeviceOnly: Bool?
+
+    var aiAccess: AIAccess {
+        hiddenFromAI == true ? .never : aiOnDeviceOnly == true ? .onDeviceOnly : .allowed
+    }
 
     init(id: UUID = UUID(), name: String, createdAt: Date = Date(), parentID: UUID? = nil, color: FolderColor? = nil) {
         self.id = id
@@ -25,6 +31,54 @@ struct Folder: Codable, Identifiable, Hashable {
         self.createdAt = createdAt
         self.parentID = parentID
         self.color = color
+    }
+}
+
+/// AI Firewall: who may read a note or a folder's notes. Stricter levels
+/// win: a note in a "Never" folder is never sent, whatever its own level.
+enum AIAccess: Int, CaseIterable, Identifiable, Comparable {
+    /// Any AI service the user connected.
+    case allowed
+    /// Only Apple Intelligence on this iPad; nothing leaves the device.
+    case onDeviceOnly
+    /// No AI at all.
+    case never
+
+    var id: Self { self }
+
+    static func < (lhs: AIAccess, rhs: AIAccess) -> Bool { lhs.rawValue < rhs.rawValue }
+
+    var title: String {
+        switch self {
+        case .allowed: "Allowed"
+        case .onDeviceOnly: "This iPad Only"
+        case .never: "Never"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .allowed: "Any AI service you connected may read it."
+        case .onDeviceOnly: "Only Apple Intelligence on this iPad; never sent online."
+        case .never: "Never read by any AI."
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .allowed: "lock.open"
+        case .onDeviceOnly: "ipad"
+        case .never: "lock.shield.fill"
+        }
+    }
+
+    /// Whether an AI running on the device (`onDevice`) or online may read it.
+    func permits(onDevice: Bool) -> Bool {
+        switch self {
+        case .allowed: true
+        case .onDeviceOnly: onDevice
+        case .never: false
+        }
     }
 }
 
@@ -50,6 +104,12 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     var deletedAt: Date?
     /// AI Firewall: never sent to an AI service.
     var hiddenFromAI: Bool?
+    /// AI Firewall: only Apple Intelligence on the iPad may read it.
+    var aiOnDeviceOnly: Bool?
+
+    var aiAccess: AIAccess {
+        hiddenFromAI == true ? .never : aiOnDeviceOnly == true ? .onDeviceOnly : .allowed
+    }
 
     var isText: Bool { kind == .text }
 }
@@ -141,7 +201,7 @@ struct TextTemplate: Codable, Identifiable, Hashable {
 struct LibraryIndex: Codable {
     /// Version 2 added folder `parentID` and `color`; version 3 added note
     /// `kind` and `tags`, and `textTemplates`; version 4 added `trash`
-    /// (Recently Deleted) and `hiddenFromAI` on notes and folders (AI
+    /// (Recently Deleted) and `hiddenFromAI`/`aiOnDeviceOnly` on notes and folders (AI
     /// Firewall). Older files still decode unchanged.
     static let currentVersion = 4
 

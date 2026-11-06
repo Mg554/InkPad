@@ -52,13 +52,13 @@ final class DeckGenerator: ObservableObject {
         defer { stage = nil }
 
         var texts: [SlideSource] = []
-        /// What an AI service may read: notes the AI Firewall hides are
-        /// outlined on the iPad only.
+        /// What the connected AI may read: notes the AI Firewall keeps from
+        /// it are outlined on the iPad only.
         var aiTexts: [SlideSource] = []
         var pictures: [Picture] = []
         for id in sources {
             guard let summary = store.note(id) else { continue }
-            let mayUseAI = !store.isHiddenFromAI(id)
+            let mayUseAI = store.mayUseAI(id, onDevice: AISettings.shared.provider.isOnDevice)
             if summary.isText {
                 if let markdown = try? store.loadMarkdown(for: id) {
                     let source = SlideSource(title: summary.title, text: markdown, isMarkdown: true)

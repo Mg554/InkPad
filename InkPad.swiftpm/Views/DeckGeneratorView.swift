@@ -256,8 +256,8 @@ struct NotePicker: View {
                             .frame(width: 24)
                         Text(note.title)
                             .foregroundStyle(.primary)
-                        if store.isHiddenFromAI(note.id) {
-                            HiddenFromAIBadge()
+                        if store.aiAccess(of: note.id) != .allowed {
+                            AIAccessBadge(access: store.aiAccess(of: note.id))
                                 .font(.caption)
                         }
                         Spacer()

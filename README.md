@@ -64,12 +64,21 @@ Done:
   Concepts, Flashcards, Questions (with answers) or an Explanation with
   your AI service; save the result as a text note in "Thinking" (linked
   back to the note) or add the cards to your flashcards
-- AI Firewall: "Hide from AI" on any note or folder (in its menu, or in
-  AI Settings › AI Firewall) keeps it out of every AI feature: chat,
-  flashcards, quizzes, Smart Notes and slides, with any service including
-  Apple Intelligence. A hidden folder hides its subfolders' notes too;
-  slides from hidden notes are outlined on the iPad. A green shield marks
-  hidden notes and folders
+- AI Firewall: "AI Access" on any note or folder (in its menu, or in
+  AI Settings › AI Firewall): Allowed, This iPad Only (only Apple
+  Intelligence on the iPad may read it; nothing goes online) or Never. It
+  covers chat, flashcards, quizzes, Smart Notes, Think and slides; a
+  folder's level covers its subfolders' notes, and the strictest level
+  wins. Slides from protected notes are outlined on the iPad
+- Explain This: in Think, "Add to Page" places the answer as a text box
+  right under the circled writing
+- Messy Mode: in a text note, ⋯ › Organize This… sorts messy writing into
+  headings, lists and tasks without changing what it says. Replace the
+  note (the messy version goes to Recently Deleted) or save it as a new
+  note
+- Memory Heatmap (Study): each flashcard deck as a tile from red to green
+  showing how much of it you likely remember now, with "You're forgetting…"
+  for the weakest topic
 - Handwriting search: handwritten and PDF notes are read with Vision after
   you edit them, and the library search finds their words
 - Rotating the iPad keeps the page steady, with the same part of the page
@@ -173,8 +182,8 @@ InkPad.swiftpm/
 
 Stored under the app's `Documents/InkPad/`:
 
-- `library.json` — folders and note summaries (`hiddenFromAI` marks the
-  AI Firewall); deleted notes are listed under `trash` (their folders stay
+- `library.json` — folders and note summaries (`hiddenFromAI` and
+  `aiOnDeviceOnly` are the AI Firewall levels); deleted notes are listed under `trash` (their folders stay
   in `notes/` until deleted for good)
 - `notes/<id>/note.json` — template, paper color, page count, text boxes
 - `notes/<id>/drawing.data` — PencilKit drawing

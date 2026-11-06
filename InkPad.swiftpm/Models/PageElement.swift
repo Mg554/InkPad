@@ -59,3 +59,40 @@ func exportFileName(_ title: String, fallback: String) -> String {
         .trimmingCharacters(in: .whitespacesAndNewlines)
     return cleaned.isEmpty ? fallback : cleaned
 }
+
+extension TextBoxStyle {
+    /// Simple Markdown (headings, bullets, **bold**) as text-box text, for
+    /// placing an AI answer on the page.
+    static func attributed(markdown: String, title: String? = nil, tint: UIColor = .systemPurple) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        let body = UIFont.systemFont(ofSize: 16)
+        let bold = UIFont.boldSystemFont(ofSize: 16)
+        if let title {
+            result.append(NSAttributedString(string: title + "\n", attributes: [
+                .font: UIFont.boldSystemFont(ofSize: 19), .foregroundColor: tint,
+            ]))
+        }
+        let lines = markdown.components(separatedBy: "\n")
+        for (index, raw) in lines.enumerated() {
+            var line = raw.trimmingCharacters(in: .whitespaces)
+            var font = body
+            if line.hasPrefix("#") {
+                line = line.drop(while: { $0 == "#" }).trimmingCharacters(in: .whitespaces)
+                font = UIFont.boldSystemFont(ofSize: 18)
+            } else if line.hasPrefix("- ") || line.hasPrefix("* ") {
+                line = "• " + line.dropFirst(2)
+            }
+            // **bold** spans: every other piece between the markers.
+            for (part, piece) in line.components(separatedBy: "**").enumerated() where !piece.isEmpty {
+                let isBold = part % 2 == 1 || font != body
+                result.append(NSAttributedString(string: piece, attributes: [
+                    .font: isBold && font == body ? bold : font, .foregroundColor: UIColor.black,
+                ]))
+            }
+            if index < lines.count - 1 {
+                result.append(NSAttributedString(string: "\n", attributes: [.font: body, .foregroundColor: UIColor.black]))
+            }
+        }
+        return result
+    }
+}

@@ -164,9 +164,9 @@ struct SidebarView: View {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(folder.color.tint)
             }
-            if folder.hiddenFromAI == true {
+            if folder.aiAccess != .allowed {
                 Spacer()
-                HiddenFromAIBadge()
+                AIAccessBadge(access: folder.aiAccess)
                     .font(.caption)
             }
         }
@@ -198,15 +198,10 @@ struct SidebarView: View {
             } label: {
                 Label("Color", systemImage: "paintpalette")
             }
-            Button {
-                store.setFolderHiddenFromAI(folder.id, folder.hiddenFromAI != true)
-            } label: {
-                if folder.hiddenFromAI == true {
-                    Label("Allow AI", systemImage: "lock.open")
-                } else {
-                    Label("Hide from AI", systemImage: "lock.shield")
-                }
-            }
+            AIAccessMenu(
+                current: folder.aiAccess,
+                inherited: store.folderAIAccess(folder.parentID)
+            ) { store.setAIAccess($0, forFolder: folder.id) }
             Button(role: .destructive) {
                 folderToDelete = folder
             } label: {

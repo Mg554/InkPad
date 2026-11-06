@@ -48,16 +48,18 @@ enum NoteTexts {
     }
 
     /// The text of several notes (every note when `ids` is empty). Notes
-    /// hidden by the AI Firewall are always left out.
+    /// the AI Firewall keeps from this AI (`onDevice`: Apple Intelligence on
+    /// the iPad) are always left out.
     static func sources(
         _ ids: [UUID],
         store: LibraryStore,
+        onDevice: Bool,
         live: [UUID: NoteContent] = [:],
         progress: ((String) -> Void)? = nil
     ) async -> [StudySource] {
         let chosen = ids.isEmpty ? store.notes(in: .allNotes).map(\.id) : ids
         var result: [StudySource] = []
-        for id in chosen where !store.isHiddenFromAI(id) {
+        for id in chosen where store.mayUseAI(id, onDevice: onDevice) {
             guard let note = store.note(id) else { continue }
             let words = await text(of: id, store: store, live: live[id], progress: progress)
             if !words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -67,14 +69,17 @@ enum NoteTexts {
         return result
     }
 
-    /// True when every chosen note is hidden by the AI Firewall (and at
-    /// least one was chosen), so there is nothing the AI may read.
-    static func allHiddenFromAI(_ ids: [UUID], store: LibraryStore) -> Bool {
-        !ids.isEmpty && ids.allSatisfy { store.isHiddenFromAI($0) }
+    /// True when the AI Firewall keeps every chosen note from this AI (and
+    /// at least one was chosen), so there is nothing it may read.
+    static func allBlocked(_ ids: [UUID], store: LibraryStore, onDevice: Bool) -> Bool {
+        !ids.isEmpty && ids.allSatisfy { !store.mayUseAI($0, onDevice: onDevice) }
     }
 
-    static let firewallMessage = "These notes are protected by the AI Firewall, so they are never sent to AI. "
-        + "Turn off \"Hide from AI\" on the note or its folder to study them."
+    static func firewallMessage(onDevice: Bool) -> String {
+        onDevice
+            ? "These notes are protected by the AI Firewall and are never read by AI. Change \"AI Access\" on the note or its folder to study them."
+            : "These notes are protected by the AI Firewall, so they are not sent to online AI. Change \"AI Access\" on the note or its folder, or use Apple Intelligence for notes set to \"This iPad Only\"."
+    }
 
     /// The notes as one block of text within `budget` characters. When they
     /// don't all fit, the notes sharing most words with `question` come first.
