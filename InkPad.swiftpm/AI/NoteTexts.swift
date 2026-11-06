@@ -47,7 +47,8 @@ enum NoteTexts {
         return text
     }
 
-    /// The text of several notes (every note when `ids` is empty).
+    /// The text of several notes (every note when `ids` is empty). Notes
+    /// hidden by the AI Firewall are always left out.
     static func sources(
         _ ids: [UUID],
         store: LibraryStore,
@@ -56,7 +57,7 @@ enum NoteTexts {
     ) async -> [StudySource] {
         let chosen = ids.isEmpty ? store.notes(in: .allNotes).map(\.id) : ids
         var result: [StudySource] = []
-        for id in chosen {
+        for id in chosen where !store.isHiddenFromAI(id) {
             guard let note = store.note(id) else { continue }
             let words = await text(of: id, store: store, live: live[id], progress: progress)
             if !words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -65,6 +66,15 @@ enum NoteTexts {
         }
         return result
     }
+
+    /// True when every chosen note is hidden by the AI Firewall (and at
+    /// least one was chosen), so there is nothing the AI may read.
+    static func allHiddenFromAI(_ ids: [UUID], store: LibraryStore) -> Bool {
+        !ids.isEmpty && ids.allSatisfy { store.isHiddenFromAI($0) }
+    }
+
+    static let firewallMessage = "These notes are protected by the AI Firewall, so they are never sent to AI. "
+        + "Turn off \"Hide from AI\" on the note or its folder to study them."
 
     /// The notes as one block of text within `budget` characters. When they
     /// don't all fit, the notes sharing most words with `question` come first.

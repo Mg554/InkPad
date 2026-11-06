@@ -52,12 +52,18 @@ final class DeckGenerator: ObservableObject {
         defer { stage = nil }
 
         var texts: [SlideSource] = []
+        /// What an AI service may read: notes the AI Firewall hides are
+        /// outlined on the iPad only.
+        var aiTexts: [SlideSource] = []
         var pictures: [Picture] = []
         for id in sources {
             guard let summary = store.note(id) else { continue }
+            let mayUseAI = !store.isHiddenFromAI(id)
             if summary.isText {
                 if let markdown = try? store.loadMarkdown(for: id) {
-                    texts.append(SlideSource(title: summary.title, text: markdown, isMarkdown: true))
+                    let source = SlideSource(title: summary.title, text: markdown, isMarkdown: true)
+                    texts.append(source)
+                    if mayUseAI { aiTexts.append(source) }
                 }
                 continue
             }
@@ -80,7 +86,9 @@ final class DeckGenerator: ObservableObject {
             if count == background.layout.pageRects.count {
                 store.saveRecognizedText(recognized, for: id)
             }
-            texts.append(SlideSource(title: summary.title, text: recognized, isMarkdown: false))
+            let source = SlideSource(title: summary.title, text: recognized, isMarkdown: false)
+            texts.append(source)
+            if mayUseAI { aiTexts.append(source) }
         }
 
         let hasText = texts.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -92,7 +100,13 @@ final class DeckGenerator: ObservableObject {
         // Write the slides.
         var outline: DeckOutline?
         var isAIWritten = false
-        if hasText, options.writer == .connected, let client = AISettings.shared.client() {
+        // AI writes the slides only when no chosen note is hidden from it;
+        // otherwise InkPad outlines them itself, so nothing private leaves.
+        let aiMayWrite = aiTexts.count == texts.count
+        if hasText, options.writer == .connected, !aiMayWrite {
+            notice = "Some of these notes are protected by the AI Firewall, so InkPad outlined the slides itself."
+        }
+        if hasText, aiMayWrite, options.writer == .connected, let client = AISettings.shared.client() {
             do {
                 if client.kind == .apple {
                     outline = try await SlideWriterAI.outline(

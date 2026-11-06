@@ -181,6 +181,20 @@ struct NotesGridView: View {
             Label("Study with AI…", systemImage: "graduationcap")
         }
 
+        if store.isFolderHiddenFromAI(note.folderID) {
+            Label("Hidden from AI by Its Folder", systemImage: "lock.shield.fill")
+        } else {
+            Button {
+                store.setNoteHiddenFromAI(note.id, note.hiddenFromAI != true)
+            } label: {
+                if note.hiddenFromAI == true {
+                    Label("Allow AI", systemImage: "lock.open")
+                } else {
+                    Label("Hide from AI", systemImage: "lock.shield")
+                }
+            }
+        }
+
         Button(role: .destructive) {
             // Kept in Recently Deleted, so no confirmation is needed.
             withAnimation { store.deleteNote(note.id) }

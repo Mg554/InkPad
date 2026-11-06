@@ -26,6 +26,12 @@
      and page reorder (drag in the page list, or Move Up/Down) — done
      (needs on-device testing)
 
+9. **Privacy and thinking tools**
+   - AI Firewall: notes and folders that are never sent to AI — done
+     (needs on-device testing)
+   - Write → Think → Build: turn lasso-selected writing into concepts,
+     flashcards, questions and explanations — next
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the

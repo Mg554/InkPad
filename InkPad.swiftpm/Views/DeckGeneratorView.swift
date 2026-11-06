@@ -256,6 +256,10 @@ struct NotePicker: View {
                             .frame(width: 24)
                         Text(note.title)
                             .foregroundStyle(.primary)
+                        if store.isHiddenFromAI(note.id) {
+                            HiddenFromAIBadge()
+                                .font(.caption)
+                        }
                         Spacer()
                         if selection.contains(note.id) {
                             Image(systemName: "checkmark.circle.fill")

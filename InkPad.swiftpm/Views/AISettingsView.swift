@@ -3,11 +3,21 @@ import SwiftUI
 /// Choose the AI service for studying and slides, and enter its API key.
 struct AISettingsView: View {
     @ObservedObject private var ai = AISettings.shared
+    @EnvironmentObject private var store: LibraryStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var keyText = ""
     @State private var isTesting = false
     @State private var testResult: String?
+
+    private var hiddenCountText: String {
+        let count = store.notes.filter { store.isHiddenFromAI($0.id) }.count
+        switch count {
+        case 0: return "Off"
+        case 1: return "1 note hidden"
+        default: return "\(count) notes hidden"
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -61,6 +71,21 @@ struct AISettingsView: View {
                             ? "Any service with an OpenAI-compatible Chat Completions API, such as LM Studio or Together."
                             : "Leave it as it is, or type any model the service offers.")
                     }
+                }
+
+                Section {
+                    NavigationLink {
+                        AIFirewallView()
+                    } label: {
+                        HStack {
+                            Label("AI Firewall", systemImage: "lock.shield")
+                            Spacer()
+                            Text(hiddenCountText)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } footer: {
+                    Text("Choose notes and folders that are never sent to AI.")
                 }
 
                 Section {

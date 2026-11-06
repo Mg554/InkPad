@@ -15,6 +15,9 @@ struct Folder: Codable, Identifiable, Hashable {
     var parentID: UUID?
     /// `nil` means the default color.
     var color: FolderColor?
+    /// AI Firewall: notes in this folder and its subfolders are never sent
+    /// to an AI service.
+    var hiddenFromAI: Bool?
 
     init(id: UUID = UUID(), name: String, createdAt: Date = Date(), parentID: UUID? = nil, color: FolderColor? = nil) {
         self.id = id
@@ -45,6 +48,8 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     var tags: [String]?
     /// Set while the note is in Recently Deleted.
     var deletedAt: Date?
+    /// AI Firewall: never sent to an AI service.
+    var hiddenFromAI: Bool?
 
     var isText: Bool { kind == .text }
 }
@@ -136,7 +141,8 @@ struct TextTemplate: Codable, Identifiable, Hashable {
 struct LibraryIndex: Codable {
     /// Version 2 added folder `parentID` and `color`; version 3 added note
     /// `kind` and `tags`, and `textTemplates`; version 4 added `trash`
-    /// (Recently Deleted). Older files still decode unchanged.
+    /// (Recently Deleted) and `hiddenFromAI` on notes and folders (AI
+    /// Firewall). Older files still decode unchanged.
     static let currentVersion = 4
 
     var version: Int

@@ -204,6 +204,38 @@ final class LibraryStore: ObservableObject {
         UIImage(contentsOfFile: noteDirectory(id).appendingPathComponent(NoteFiles.thumbnailFile).path)
     }
 
+    // MARK: AI Firewall
+
+    /// True when the note, or a folder it is in, is hidden from AI. A note
+    /// that no longer exists is treated as hidden.
+    func isHiddenFromAI(_ id: UUID) -> Bool {
+        guard let note = note(id) else { return true }
+        return note.hiddenFromAI == true || isFolderHiddenFromAI(note.folderID)
+    }
+
+    /// True when the folder or one of its parents is hidden from AI.
+    func isFolderHiddenFromAI(_ id: UUID?) -> Bool {
+        var current = id
+        var visited: Set<UUID> = []
+        while let folderID = current, visited.insert(folderID).inserted, let folder = folder(folderID) {
+            if folder.hiddenFromAI == true { return true }
+            current = folder.parentID
+        }
+        return false
+    }
+
+    func setNoteHiddenFromAI(_ id: UUID, _ hidden: Bool) {
+        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes[index].hiddenFromAI = hidden ? true : nil
+        saveIndex()
+    }
+
+    func setFolderHiddenFromAI(_ id: UUID, _ hidden: Bool) {
+        guard canWrite(), let index = folders.firstIndex(where: { $0.id == id }) else { return }
+        folders[index].hiddenFromAI = hidden ? true : nil
+        saveIndex()
+    }
+
     // MARK: Folders
 
     /// Folders in tree order. A folder whose parent is missing is shown at the

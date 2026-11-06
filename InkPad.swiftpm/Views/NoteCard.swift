@@ -31,9 +31,15 @@ struct NoteCard: View {
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
             .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
 
-            Text(note.title)
-                .font(.headline)
-                .lineLimit(1)
+            HStack(spacing: 4) {
+                Text(note.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                if store.isHiddenFromAI(note.id) {
+                    HiddenFromAIBadge()
+                        .font(.caption)
+                }
+            }
             let tags = store.tags(of: note)
             if !tags.isEmpty {
                 Text(tags.prefix(3).map { "#\($0)" }.joined(separator: " "))

@@ -59,6 +59,12 @@ Done:
   service, or Apple Intelligence on the iPad. Set it up in Study with AI ›
   AI Settings: pick the service, paste your API key (kept in the iPad's
   keychain) and tap Test Connection
+- AI Firewall: "Hide from AI" on any note or folder (in its menu, or in
+  AI Settings › AI Firewall) keeps it out of every AI feature: chat,
+  flashcards, quizzes, Smart Notes and slides, with any service including
+  Apple Intelligence. A hidden folder hides its subfolders' notes too;
+  slides from hidden notes are outlined on the iPad. A green shield marks
+  hidden notes and folders
 - Handwriting search: handwritten and PDF notes are read with Vision after
   you edit them, and the library search finds their words
 - Rotating the iPad keeps the page steady, with the same part of the page
@@ -162,8 +168,9 @@ InkPad.swiftpm/
 
 Stored under the app's `Documents/InkPad/`:
 
-- `library.json` — folders and note summaries; deleted notes are listed
-  under `trash` (their folders stay in `notes/` until deleted for good)
+- `library.json` — folders and note summaries (`hiddenFromAI` marks the
+  AI Firewall); deleted notes are listed under `trash` (their folders stay
+  in `notes/` until deleted for good)
 - `notes/<id>/note.json` — template, paper color, page count, text boxes
 - `notes/<id>/drawing.data` — PencilKit drawing
 - `notes/<id>/document.pdf` — imported PDF (copied, never modified)

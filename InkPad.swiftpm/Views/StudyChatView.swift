@@ -133,6 +133,10 @@ struct StudyChatView: View {
     private func send(_ text: String) {
         let question = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty, !isAnswering else { return }
+        guard !NoteTexts.allHiddenFromAI(sources, store: store) else {
+            messages.append(AIMessage(.assistant, NoteTexts.firewallMessage))
+            return
+        }
         guard let client = ai.client() else {
             messages.append(AIMessage(.assistant, ai.problem ?? "Connect an AI service in AI Settings."))
             return

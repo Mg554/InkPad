@@ -57,6 +57,9 @@ struct StudyView: View {
                     if let problem = ai.problem {
                         setupCard(problem)
                     }
+                    if NoteTexts.allHiddenFromAI(sources, store: store) {
+                        firewallCard
+                    }
                     chatCard
                     reviewCard
                     scopeCard
@@ -162,6 +165,23 @@ struct StudyView: View {
         }
         .padding(18)
         .glowCard(.purple)
+    }
+
+    private var firewallCard: some View {
+        HStack(alignment: .top, spacing: 14) {
+            HiddenFromAIBadge()
+                .font(.title2)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Protected by the AI Firewall")
+                    .font(.headline)
+                Text("These notes are never sent to AI. Choose other notes below, or turn off \"Hide from AI\" on the note or its folder.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .glowCard(.green)
     }
 
     private var chatCard: some View {
@@ -431,6 +451,11 @@ struct StudyView: View {
     /// The chosen notes as text for the AI, or `nil` (with a message) when there is none.
     private func notesText(for client: AIClient) async -> String? {
         stage = "Reading your notes…"
+        guard !NoteTexts.allHiddenFromAI(sources, store: store) else {
+            stage = nil
+            message = NoteTexts.firewallMessage
+            return nil
+        }
         let found = await NoteTexts.sources(sources, store: store, live: liveContent) { stage = $0 }
         guard !found.isEmpty else {
             stage = nil

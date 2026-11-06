@@ -164,6 +164,11 @@ struct SidebarView: View {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(folder.color.tint)
             }
+            if folder.hiddenFromAI == true {
+                Spacer()
+                HiddenFromAIBadge()
+                    .font(.caption)
+            }
         }
         .padding(.leading, CGFloat(row.depth) * 18)
         .tag(LibraryScope.folder(folder.id))
@@ -193,6 +198,15 @@ struct SidebarView: View {
                 }
             } label: {
                 Label("Color", systemImage: "paintpalette")
+            }
+            Button {
+                store.setFolderHiddenFromAI(folder.id, folder.hiddenFromAI != true)
+            } label: {
+                if folder.hiddenFromAI == true {
+                    Label("Allow AI", systemImage: "lock.open")
+                } else {
+                    Label("Hide from AI", systemImage: "lock.shield")
+                }
             }
             Button(role: .destructive) {
                 folderToDelete = folder
