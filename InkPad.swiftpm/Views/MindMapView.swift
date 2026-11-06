@@ -256,7 +256,7 @@ struct MindMapEditor: View {
                     Button {
                         update(node.id) { $0.color = color }
                     } label: {
-                        Label(color.title, systemImage: node.color == color ? "checkmark.circle.fill" : "circle.fill")
+                        Label { Text(color.title) } icon: { color.menuDot(selected: node.color == color) }
                     }
                 }
             } label: {

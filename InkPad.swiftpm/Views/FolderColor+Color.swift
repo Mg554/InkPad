@@ -14,6 +14,15 @@ extension FolderColor {
         case .pink: .pink
         }
     }
+
+    /// A dot in this color for menus. Menus draw symbol images in one
+    /// color, so the image is colored before it gets there.
+    func menuDot(selected: Bool) -> Image {
+        let name = selected ? "checkmark.circle.fill" : "circle.fill"
+        let image = UIImage(systemName: name)?
+            .withTintColor(UIColor(color), renderingMode: .alwaysOriginal)
+        return image.map { Image(uiImage: $0) } ?? Image(systemName: name)
+    }
 }
 
 extension Optional where Wrapped == FolderColor {

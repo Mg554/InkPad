@@ -192,9 +192,8 @@ struct SidebarView: View {
                     Button {
                         store.setFolderColor(folder.id, to: color)
                     } label: {
-                        Label(color.title, systemImage: folder.color == color ? "checkmark.circle.fill" : "circle.fill")
+                        Label { Text(color.title) } icon: { color.menuDot(selected: folder.color == color) }
                     }
-                    .tint(color.color)
                 }
             } label: {
                 Label("Color", systemImage: "paintpalette")
