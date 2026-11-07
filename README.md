@@ -31,8 +31,27 @@ Done:
   are still holding (the highlighter snaps straight)
 - Workspace (Notion-style): Planner with Board (drag between columns),
   List and Calendar views; Expenses with income, monthly budget,
-  interactive category chart, currency and optional decimals; Mind Maps
-  with curved glowing branches, drag, pinch-zoom and one-tap tidy layout
+  interactive category chart, budget rings, category bars and a
+  day-by-day chart with the budget pace, currency and optional decimals;
+  Mind Maps with drag, pinch-zoom and one-tap tidy layout
+- Expenses › Customize (brush): Glass, Neon, Minimal or Paper charts,
+  which charts show, a glow you tune (on/off, color, strength, size) and
+  a background of its own (theme, plain, old paper, glass or a season)
+- Mind Maps › Customize: ready styles (Spring Tree, Autumn Tree, Organic,
+  Org Chart, Notebook, Dreamy) or mix your own: layout (free, growing
+  right, both sides, radial, a real tree on a trunk, org chart),
+  branches (curved, organic tapered, straight, elbow, wooden), idea
+  shapes (capsule, rounded, box, circle, cloud, leaf, underline, text
+  only; each idea can have its own), colors, font, glow, spacing and
+  background. Write an idea by hand ("Write by Hand"); or Sketch & Reshape:
+  draw the whole map freely with the pencil, and Reshape reads the
+  writing and the lines you drew (on the iPad) and turns it into a tidy
+  map in the layout you pick, keeping your handwriting if you like; "Let
+  AI Organize It" sends only the ideas' words to your AI service
+- Refine Handwriting (the wand in the drawing toolbar): smooths strokes
+  when the pencil lifts, levels a slanted line and evens out word sizes
+  after a pause; each can be turned on or off. Lasso › Refine does it for
+  writing already on the page
 - Apple Pencil double-tap switches to the eraser and back
 - Audio recording synced with your writing, like Notability: record while
   you write; when you play a recording, writing that came later is faded
@@ -120,12 +139,17 @@ Done:
   saved. Hybrid paper: new notes start on the theme's paper and each note
   can still change its own. Also the app font (Standard, Rounded, Serif,
   Mono), the typing font and size for text typed with the keyboard, and
-  note card size
+  note card size. Season themes (Spring, Summer, Autumn, Winter) draw
+  grass, flowers, leaves or snow at the edges with falling petals,
+  leaves or snow (can be turned off). Glass has hue, strength and blur
+  sliders, and Glass Cards makes tiles frosted
 - Reminders (sidebar): Apple Reminders inside InkPad, with Today,
   Scheduled, All, Priority and Completed, your lists, dates, times and
   alerts (sent by the Reminders app), priorities and notes. Link a
   reminder to a note; "Remind Me…" in a note's menu, or circle writing
-  with the lasso and tap Remind Me
+  with the lasso and tap Remind Me. Customize: glass, gradient or minimal
+  tiles, row spacing, the done button's shape, a small celebration, glow,
+  a background, and each list's color and icon or emoji (Edit List)
 - Flowmodoro (from the Pythonation/flowmodoro-wep-app web app): a task
   list; tap a task to start the work stopwatch, stop when your focus fades
   and you earn a break of 5% of the work time (at least a minute; 10, 15
@@ -151,7 +175,10 @@ Done:
 - Tags in the sidebar (from text and from "Tags…" on any note), full-text
   search, Today's Note (with today's planner tasks), text templates
   (built-in and "Save as Template"), and a Graph view of notes, links and
-  tags
+  tags: arrange it as a web, folder islands, a timeline, rings around a
+  note, a tree, a grid or by hand (drag notes; places are kept), with
+  dots, bubbles or cards colored by kind, folder or age, and straight,
+  curved or dashed links
 - Backup (the drive button at the top of the sidebar): "Back Up Library…"
   writes the whole library (notes, PDFs, pictures, recordings, folders,
   planner, expenses, mind maps, slides and study) into one ZIP file and

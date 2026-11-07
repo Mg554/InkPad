@@ -132,6 +132,10 @@ struct MindNode: Codable, Identifiable, Equatable {
     var y: Double
     /// `nil` uses the branch's default color.
     var color: FolderColor?
+    /// `nil` uses the map's shape.
+    var shape: MindMapStyle.NodeShape?
+    /// Handwriting shown instead of the typed text (a PKDrawing).
+    var ink: Data?
 
     init(text: String, parentID: UUID?, x: Double, y: Double, color: FolderColor? = nil) {
         id = UUID()
@@ -149,6 +153,10 @@ struct MindMap: Codable, Identifiable, Equatable {
     var nodes: [MindNode]
     let createdAt: Date
     var modifiedAt: Date
+    /// `nil` is the classic look.
+    var style: MindMapStyle?
+    /// A freehand sketch of the map (a PKDrawing), before Reshape.
+    var sketch: Data?
 
     init(title: String) {
         id = UUID()

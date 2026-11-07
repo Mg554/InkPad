@@ -71,6 +71,8 @@ struct MindMapsView: View {
         VStack(alignment: .leading, spacing: 10) {
             MindMapPreview(map: map)
                 .frame(height: 120)
+                .background { ScreenBackdropView(backdrop: map.appliedStyle.backdrop, animated: false) }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             Text(map.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
@@ -111,10 +113,8 @@ private struct MindMapPreview: View {
             let byID = Dictionary(map.nodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             for node in map.nodes {
                 guard let parent = node.parentID.flatMap({ byID[$0] }) else { continue }
-                var path = Path()
-                path.move(to: point(parent))
-                path.addLine(to: point(node))
-                context.stroke(path, with: .color(.purple.opacity(0.5)), lineWidth: 1.5)
+                MindBranchPainter.draw(in: &context, from: point(parent), to: point(node), style: map.appliedStyle,
+                                       color: map.appliedStyle.palette.colors[0].opacity(0.7), scale: 0.4, weight: 0.4, glows: false)
             }
             for node in map.nodes {
                 let center = point(node)
@@ -142,12 +142,33 @@ struct MindMapEditor: View {
     @State private var scaleStart: CGFloat?
     @State private var dragStart: [UUID: CGPoint] = [:]
     @State private var prompt: NamePrompt?
+    @State private var isCustomizing = false
+    @State private var isSketching = false
+    @State private var writingNode: MindNode?
+
+    private var style: MindMapStyle { map?.appliedStyle ?? MindMapStyle() }
+
+    /// Changing the layout or spacing rearranges the map.
+    private var styleBinding: Binding<MindMapStyle> {
+        Binding {
+            style
+        } set: { newStyle in
+            let old = style
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
+                map?.style = newStyle
+                if newStyle.layout != old.layout || newStyle.spacing != old.spacing {
+                    map?.arrange(newStyle.layout, spacing: newStyle.spacing)
+                }
+            }
+            persist()
+        }
+    }
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 // Background: pan and zoom; tapping clears the selection.
-                Color(uiColor: .systemBackground)
+                Color.clear
                     .contentShape(Rectangle())
                     .gesture(panGesture)
                     .simultaneousGesture(zoomGesture)
@@ -164,13 +185,25 @@ struct MindMapEditor: View {
             .clipped()
             .coordinateSpace(name: Self.canvasSpace)
         }
+        .background { ScreenBackdropView(backdrop: style.backdrop) }
+        .fontDesign(style.font.design)
         .navigationTitle(map?.title ?? "Mind Map")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
+                    isSketching = true
+                } label: {
+                    Label("Sketch & Reshape", systemImage: "pencil.and.scribble")
+                }
+                Button {
+                    isCustomizing = true
+                } label: {
+                    Label("Customize", systemImage: "paintbrush")
+                }
+                Button {
                     withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                        map?.autoLayout()
+                        map?.arrange(style.layout == .free ? .right : style.layout, spacing: style.spacing)
                         offset = .zero
                     }
                     persist()
@@ -194,6 +227,33 @@ struct MindMapEditor: View {
             }
         }
         .namePrompt($prompt)
+        .sheet(isPresented: $isCustomizing) {
+            MindMapStyleView(style: styleBinding)
+        }
+        .sheet(item: $writingNode) { node in
+            HandwrittenIdeaEditor(initial: node.ink) { data, text in
+                update(node.id) { idea in
+                    idea.ink = data
+                    if data != nil, !text.isEmpty { idea.text = text }
+                }
+                if node.parentID == nil, data != nil, !text.isEmpty {
+                    map?.title = text
+                    persist()
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $isSketching) {
+            MindSketchView(initial: map?.sketch, style: style) { result, layout, keepsHandwriting, sketch in
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.82)) {
+                    map?.adopt(result, layout: layout, keepsHandwriting: keepsHandwriting)
+                    map?.sketch = sketch
+                    selectedID = nil
+                    offset = .zero
+                    scale = 1
+                }
+                persist()
+            }
+        }
         .onAppear {
             if map == nil { map = workspace.mindMaps.first { $0.id == mapID } }
         }
@@ -202,20 +262,27 @@ struct MindMapEditor: View {
     // MARK: Drawing
 
     private func connections(_ map: MindMap, in size: CGSize) -> some View {
-        Canvas { context, _ in
+        let style = map.appliedStyle
+        return Canvas { context, _ in
             let byID = Dictionary(map.nodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            let total = CGFloat(max(map.nodes.count - 1, 1))
+            if style.layout == .tree, let root = map.root {
+                MindBranchPainter.drawTrunk(in: &context, at: screenPoint(root, in: size), scale: scale, wood: style.branch == .wood, color: branchColor(root, in: map))
+            }
             for node in map.nodes {
                 guard let parent = node.parentID.flatMap({ byID[$0] }) else { continue }
-                let start = screenPoint(parent, in: size)
-                let end = screenPoint(node, in: size)
-                let bend = (end.x - start.x) * 0.5
-                var path = Path()
-                path.move(to: start)
-                path.addCurve(to: end, control1: CGPoint(x: start.x + bend, y: start.y), control2: CGPoint(x: end.x - bend, y: end.y))
-                let color = branchColor(node, in: map)
-                // A wide faint stroke under a thin one gives the branch a glow.
-                context.stroke(path, with: .color(color.opacity(0.25)), lineWidth: 8 * scale)
-                context.stroke(path, with: .color(color.opacity(0.85)), lineWidth: 2.5 * scale)
+                // Thicker branches carry more of the map.
+                let weight = min(CGFloat(map.subtree(of: node.id).count) / total * 2.5, 1)
+                MindBranchPainter.draw(
+                    in: &context,
+                    from: screenPoint(parent, in: size),
+                    to: screenPoint(node, in: size),
+                    style: style,
+                    color: branchColor(node, in: map),
+                    scale: scale,
+                    weight: weight,
+                    glows: style.glow
+                )
             }
         }
         .allowsHitTesting(false)
@@ -225,19 +292,25 @@ struct MindMapEditor: View {
         let isRoot = node.parentID == nil
         let isSelected = node.id == selectedID
         let color = branchColor(node, in: map)
-        return Text(node.text.isEmpty ? "Idea" : node.text)
-            .font(isRoot ? .title3.bold() : .body.weight(.medium))
-            .multilineTextAlignment(.center)
+        let style = map.appliedStyle
+        let shape = node.shape ?? (isRoot ? style.rootShape : style.shape)
+        let filled = isRoot && shape != .underline && shape != .plain
+        return Group {
+            if let ink = node.ink {
+                InkImage(data: ink, color: color, maxHeight: isRoot ? 80 : 56)
+            } else {
+                // Short ideas hug their text; long ones wrap at a fixed width.
+                Text(node.text.isEmpty ? "Idea" : node.text)
+                    .font(isRoot ? .title3.bold() : .body.weight(.medium))
+                    .multilineTextAlignment(.center)
+                    .frame(width: node.text.count > 22 ? 200 : nil)
+                    .fixedSize(horizontal: node.text.count <= 22, vertical: true)
+            }
+        }
             .padding(.horizontal, isRoot ? 20 : 14)
             .padding(.vertical, isRoot ? 14 : 9)
-            .frame(maxWidth: 220)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(isRoot ? color : color.opacity(0.18))
-            )
-            .foregroundStyle(isRoot ? Color.white : Color.primary)
-            .overlay(Capsule(style: .continuous).stroke(color.opacity(isSelected ? 1 : 0.6), lineWidth: isSelected ? 3 : 1.5))
-            .shadow(color: color.opacity(isSelected ? 0.9 : 0.4), radius: isSelected ? 16 : 8)
+            .foregroundStyle(filled ? Color.white : Color.primary)
+            .modifier(MindNodeChrome(shape: shape, color: color, isRoot: isRoot, isSelected: isSelected, glows: style.glow))
             .scaleEffect(scale * (isSelected && dragStart.isEmpty ? 1.06 : 1))
             .animation(dragStart.isEmpty ? .snappy : nil, value: isSelected)
             .onTapGesture(count: 2) { rename(node) }
@@ -252,6 +325,23 @@ struct MindMapEditor: View {
                 barButton("Add Sibling", systemImage: "arrow.turn.down.right") { addSibling(of: node) }
             }
             barButton("Rename", systemImage: "pencil") { rename(node) }
+            barButton(node.ink == nil ? "Write by Hand" : "Edit Writing", systemImage: "applepencil.tip") { writingNode = node }
+            Menu {
+                Button {
+                    update(node.id) { $0.shape = nil }
+                } label: {
+                    Label("Map's Shape", systemImage: node.shape == nil ? "checkmark" : "circle.dashed")
+                }
+                ForEach(MindMapStyle.NodeShape.allCases) { shape in
+                    Button {
+                        update(node.id) { $0.shape = shape }
+                    } label: {
+                        Label(shape.title, systemImage: node.shape == shape ? "checkmark" : shape.systemImage)
+                    }
+                }
+            } label: {
+                barLabel("Shape", systemImage: "square.on.circle")
+            }
             Menu {
                 ForEach(FolderColor.allCases) { color in
                     Button {
@@ -358,6 +448,7 @@ struct MindMapEditor: View {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
             self.map?.nodes.append(child)
             selectedID = child.id
+            if style.layout != .free { self.map?.arrange(style.layout, spacing: style.spacing) }
         }
         persist()
         rename(child)
@@ -383,6 +474,7 @@ struct MindMapEditor: View {
         withAnimation(.snappy) {
             map?.nodes.removeAll { ids.contains($0.id) }
             selectedID = node.parentID
+            if style.layout != .free { map?.arrange(style.layout, spacing: style.spacing) }
         }
         persist()
     }
@@ -414,7 +506,7 @@ struct MindMapEditor: View {
             if let color = item.color { return color.color }
             if item.parentID == map.root?.id {
                 // Main branches get distinct colors in order.
-                let palette: [Color] = [.blue, .orange, .green, .pink, .teal, .red, .indigo, .yellow]
+                let palette = map.appliedStyle.palette.colors
                 let index = map.children(of: map.root?.id ?? item.id).firstIndex { $0.id == item.id } ?? 0
                 return palette[index % palette.count]
             }

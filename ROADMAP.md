@@ -39,6 +39,11 @@
    - Restore options (add, choose notes, replace), automatic backups,
      note history, Reminders (Apple Reminders) and Themes with the Theme
      Mixer — done (needs on-device testing)
+   - Season themes and glass controls; Expenses, Reminders and Graph
+     customization; Refine Handwriting; mind map styles (real tree,
+     organic, org chart...), handwritten ideas and Sketch & Reshape —
+     done (needs on-device testing, especially Reshape with real
+     handwriting and Refine with the pencil)
    - Next ideas, in order: Command Anywhere (⌘K),
      Living Notes; then Focus Mode and Knowledge GPS; later Knowledge
      Versioning, Replay, Spatial Knowledge Graph and Ink → Structure

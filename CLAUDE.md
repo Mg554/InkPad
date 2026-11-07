@@ -84,4 +84,8 @@ InkPad.swiftpm/
   go through `NoteTexts.sources` or check `LibraryStore.isHiddenFromAI`
   (the AI Firewall).
 - Colors: use `Color.inkAccent` (the theme's accent), not
-  `Color.accentColor`, and `.themedBackground()` on new screens.
+  `Color.accentColor`, and `.themedBackground()` on new screens (or
+  `.screenBackdrop(_:)` for a screen with its own background). Shared
+  style pieces live in Views/Theme/ScreenStyle.swift (backdrops, glow,
+  `StoredLook`). Saved settings structs decode with
+  `container.value(_:or:)` so adding a field never resets them.
