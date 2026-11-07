@@ -206,6 +206,18 @@ final class ReminderCenter: ObservableObject {
         }
     }
 
+    func updateList(_ list: EKCalendar, name: String, color: Color) {
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { list.title = title }
+        list.cgColor = UIColor(color).cgColor
+        do {
+            try eventStore.saveCalendar(list, commit: true)
+            Task { await refresh() }
+        } catch {
+            errorMessage = "Could not change the list: \(error.localizedDescription)"
+        }
+    }
+
     func deleteList(_ list: EKCalendar) {
         do {
             try eventStore.removeCalendar(list, commit: true)

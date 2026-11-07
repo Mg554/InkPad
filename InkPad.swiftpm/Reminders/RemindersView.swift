@@ -5,8 +5,13 @@ import SwiftUI
 /// Priority, Completed) and your lists, all kept in Apple Reminders.
 struct RemindersView: View {
     @ObservedObject private var center = ReminderCenter.shared
+    @ObservedObject private var style = ReminderLookStore.shared
     @State private var newListName: NamePrompt?
     @State private var listToDelete: EKCalendar?
+    @State private var listToEdit: EKCalendar?
+    @State private var isCustomizing = false
+
+    private var look: ReminderLook { style.look }
 
     var body: some View {
         Group {
@@ -32,8 +37,21 @@ struct RemindersView: View {
                 )
             }
         }
-        .themedBackground()
+        .screenBackdrop(look.backdrop)
         .navigationTitle("Reminders")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isCustomizing = true
+                } label: {
+                    Label("Customize", systemImage: "paintbrush")
+                }
+            }
+        }
+        .sheet(isPresented: $isCustomizing) { ReminderStyleView() }
+        .sheet(item: Binding(get: { listToEdit.map(EditedList.init) }, set: { listToEdit = $0?.list })) { item in
+            ReminderListEditor(list: item.list)
+        }
         .task { await center.refresh() }
         .alert("Reminders", isPresented: Binding(get: { center.errorMessage != nil }, set: { if !$0 { center.errorMessage = nil } })) {
             Button("OK", role: .cancel) {}
@@ -74,9 +92,8 @@ struct RemindersView: View {
                             ReminderListView(source: .list(list))
                         } label: {
                             HStack(spacing: 14) {
-                                Image(systemName: "list.bullet.circle.fill")
-                                    .font(.title)
-                                    .foregroundStyle(Color(cgColor: list.cgColor))
+                                ListIcon(icon: look.icon(for: list), color: Color(cgColor: list.cgColor))
+                                    .styledGlow(look.glow, color: Color(cgColor: list.cgColor))
                                 Text(list.title)
                                     .foregroundStyle(Color(uiColor: .label))
                                 Spacer()
@@ -87,12 +104,17 @@ struct RemindersView: View {
                                     .foregroundStyle(.tertiary)
                             }
                             .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, look.density == .compact ? 7 : 12)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
                             if list.allowsContentModifications {
+                                Button {
+                                    listToEdit = list
+                                } label: {
+                                    Label("Edit List…", systemImage: "pencil")
+                                }
                                 Button(role: .destructive) {
                                     listToDelete = list
                                 } label: {
@@ -103,7 +125,7 @@ struct RemindersView: View {
                         Divider().padding(.leading, 60)
                     }
                 }
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                .modifier(ReminderTileBackground(tiles: look.tiles == .gradient ? .glass : look.tiles, tint: .inkAccent, cornerRadius: 14))
             }
             .padding(24)
             .frame(maxWidth: 820)
@@ -127,18 +149,21 @@ struct RemindersView: View {
             HStack {
                 Image(systemName: smart.systemImage)
                     .font(.title)
-                    .foregroundStyle(smart.tint)
+                    .foregroundStyle(look.tiles == .gradient ? Color.white : smart.tint)
+                    .styledGlow(look.glow, color: smart.tint)
                 Spacer()
                 Text(smart == .completed ? "" : "\(center.reminders(in: smart).count)")
                     .font(.title.bold())
-                    .foregroundStyle(Color(uiColor: .label))
+                    .foregroundStyle(look.tiles == .gradient ? Color.white : Color(uiColor: .label))
+                    .contentTransition(.numericText())
             }
             Text(smart.title)
                 .font(.headline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(look.tiles == .gradient ? Color.white.opacity(0.9) : Color.secondary)
         }
-        .padding(14)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        .padding(look.density == .compact ? 10 : 14)
+        .modifier(ReminderTileBackground(tiles: look.tiles, tint: smart.tint))
+        .styledGlow(look.tiles == .gradient ? look.glow : GlowStyle.off, color: smart.tint)
     }
 }
 
@@ -152,6 +177,7 @@ struct ReminderListView: View {
     @EnvironmentObject private var store: LibraryStore
     @Environment(\.noteNavigation) private var navigation
     @ObservedObject private var center = ReminderCenter.shared
+    @ObservedObject private var style = ReminderLookStore.shared
     let source: Source
 
     @State private var newTitle = ""
@@ -192,6 +218,7 @@ struct ReminderListView: View {
                 } openNote: { id in
                     navigation.openNote(id)
                 }
+                .listRowBackground(rowBackground)
                 .swipeActions {
                     Button(role: .destructive) {
                         center.delete(reminder)
@@ -210,13 +237,14 @@ struct ReminderListView: View {
                         .submitLabel(.done)
                         .onSubmit(addQuickly)
                 }
+                .listRowBackground(rowBackground)
             }
             if reminders.isEmpty && !canAdd {
                 Text("Nothing completed in the last 30 days.")
                     .foregroundStyle(.secondary)
             }
         }
-        .themedBackground()
+        .screenBackdrop(style.look.backdrop)
         .navigationTitle(title)
         .toolbar {
             if canAdd {
@@ -234,6 +262,14 @@ struct ReminderListView: View {
                 .environmentObject(store)
         }
         .refreshable { await center.refresh() }
+    }
+
+    @ViewBuilder
+    private var rowBackground: some View {
+        switch style.look.tiles {
+        case .glass, .gradient: Rectangle().fill(.ultraThinMaterial)
+        case .minimal: Color(uiColor: .secondarySystemGroupedBackground)
+        }
     }
 
     private func newReminder() -> EKReminder {
@@ -259,18 +295,32 @@ struct ReminderListView: View {
 struct ReminderRow: View {
     @EnvironmentObject private var store: LibraryStore
     @ObservedObject private var center = ReminderCenter.shared
+    @ObservedObject private var style = ReminderLookStore.shared
     let reminder: EKReminder
     let edit: () -> Void
     let openNote: (UUID) -> Void
+    @State private var bursts = 0
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Button {
-                withAnimation { center.toggle(reminder) }
+                let finishing = !reminder.isCompleted
+                if finishing && style.look.celebrate {
+                    bursts += 1
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                }
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) { center.toggle(reminder) }
             } label: {
-                Image(systemName: reminder.isCompleted ? "largecircle.fill.circle" : "circle")
+                Image(systemName: style.look.check.symbol(done: reminder.isCompleted))
                     .font(.title2)
                     .foregroundStyle(reminder.isCompleted ? reminder.listColor : Color.secondary)
+                    .symbolEffect(.bounce, value: bursts)
+                    .styledGlow(reminder.isCompleted ? style.look.glow : GlowStyle.off, color: reminder.listColor)
+                    .overlay {
+                        if bursts > 0 {
+                            CelebrationBurst(color: reminder.listColor).id(bursts)
+                        }
+                    }
             }
             .buttonStyle(.plain)
             .accessibilityLabel(reminder.isCompleted ? "Mark as Not Done" : "Mark as Done")
@@ -319,6 +369,7 @@ struct ReminderRow: View {
             .buttonStyle(.borderless)
             .accessibilityLabel("Details")
         }
+        .padding(.vertical, style.look.rowPadding - 4)
         .contentShape(Rectangle())
         .onTapGesture(perform: edit)
     }
@@ -337,4 +388,10 @@ struct ReminderRow: View {
         }
         return hasTime ? "\(day), \(date.formatted(date: .omitted, time: .shortened))" : day
     }
+}
+
+/// A list being edited (EKCalendar isn't Identifiable).
+private struct EditedList: Identifiable {
+    let list: EKCalendar
+    var id: String { list.calendarIdentifier }
 }

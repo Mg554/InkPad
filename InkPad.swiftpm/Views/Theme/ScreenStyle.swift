@@ -146,6 +146,12 @@ struct GlowStyle: Codable, Equatable {
     var intensity = 0.5
     var radius = 12.0
 
+    static let off: GlowStyle = {
+        var glow = GlowStyle()
+        glow.isOn = false
+        return glow
+    }()
+
     /// The glow color for an item whose own color is `own`.
     func color(for own: Color) -> Color {
         switch source {
