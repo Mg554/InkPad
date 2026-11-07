@@ -132,26 +132,10 @@ enum LibraryBackup {
     /// safety copy, so nothing is lost if any step fails.
     static func restore(from url: URL, into root: URL) throws {
         let fileManager = FileManager.default
-        let reader = try ZipFileReader(url: url)
-        _ = try manifest(in: reader)
-
-        let staging = root.deletingLastPathComponent()
-            .appendingPathComponent(".InkPad Restore \(UUID().uuidString)", isDirectory: true)
+        let unpacked = try unpack(url, beside: root)
+        let staging = unpacked.deletingLastPathComponent()
         defer { try? fileManager.removeItem(at: staging) }
-        let unpacked = staging.appendingPathComponent("InkPad", isDirectory: true)
-        try fileManager.createDirectory(at: unpacked, withIntermediateDirectories: true)
-        for entry in reader.entries where entry.path != manifestPath {
-            guard let relative = safeRelativePath(entry.path) else { throw ZipArchiveError.unsafePath(entry.path) }
-            try reader.extract(entry, to: unpacked.appendingPathComponent(relative))
-        }
-        try checkVersion(of: unpacked.appendingPathComponent("library.json"), current: LibraryIndex.currentVersion)
-        try checkVersion(of: unpacked.appendingPathComponent("workspace.json"), current: WorkspaceFile.currentVersion)
-
-        if fileManager.fileExists(atPath: root.path), !(try files(in: root)).isEmpty {
-            try fileManager.createDirectory(at: safetyCopiesURL, withIntermediateDirectories: true)
-            try writeArchive(of: root, to: safetyCopiesURL.appendingPathComponent(fileName("Before Restore")))
-            pruneSafetyCopies()
-        }
+        try keepSafetyCopy(of: root)
 
         let previous = staging.appendingPathComponent("Previous", isDirectory: true)
         if fileManager.fileExists(atPath: root.path) {
@@ -164,6 +148,217 @@ enum LibraryBackup {
                 try? fileManager.moveItem(at: previous, to: root)
             }
             throw error
+        }
+    }
+
+    /// Unpacks and checks a backup into a staging folder next to `root`;
+    /// returns its `InkPad` folder. The caller removes the staging folder.
+    private static func unpack(_ url: URL, beside root: URL) throws -> URL {
+        let fileManager = FileManager.default
+        let reader = try ZipFileReader(url: url)
+        _ = try manifest(in: reader)
+        let staging = root.deletingLastPathComponent()
+            .appendingPathComponent(".InkPad Restore \(UUID().uuidString)", isDirectory: true)
+        let unpacked = staging.appendingPathComponent("InkPad", isDirectory: true)
+        do {
+            try fileManager.createDirectory(at: unpacked, withIntermediateDirectories: true)
+            for entry in reader.entries where entry.path != manifestPath {
+                guard let relative = safeRelativePath(entry.path) else { throw ZipArchiveError.unsafePath(entry.path) }
+                try reader.extract(entry, to: unpacked.appendingPathComponent(relative))
+            }
+            try checkVersion(of: unpacked.appendingPathComponent("library.json"), current: LibraryIndex.currentVersion)
+            try checkVersion(of: unpacked.appendingPathComponent("workspace.json"), current: WorkspaceFile.currentVersion)
+        } catch {
+            try? fileManager.removeItem(at: staging)
+            throw error
+        }
+        return unpacked
+    }
+
+    /// Saves the current library as a safety copy, if it has anything in it.
+    private static func keepSafetyCopy(of root: URL) throws {
+        guard FileManager.default.fileExists(atPath: root.path), !(try files(in: root)).isEmpty else { return }
+        try FileManager.default.createDirectory(at: safetyCopiesURL, withIntermediateDirectories: true)
+        try writeArchive(of: root, to: safetyCopiesURL.appendingPathComponent(fileName("Before Restore")))
+        pruneSafetyCopies()
+    }
+
+    // MARK: Adding from a backup
+
+    /// What a backup holds, for choosing what to restore.
+    struct Contents {
+        var manifest: BackupManifest
+        var folders: [Folder]
+        var notes: [NoteSummary]
+    }
+
+    /// Reads the backup's manifest and its list of notes and folders.
+    static func readContents(at url: URL) throws -> Contents {
+        let reader = try ZipFileReader(url: url)
+        let manifest = try manifest(in: reader)
+        guard let entry = reader.entries.first(where: { $0.path == folderPrefix + "library.json" }) else {
+            return Contents(manifest: manifest, folders: [], notes: [])
+        }
+        let index = try JSONDecoder.inkpad.decode(LibraryIndex.self, from: reader.data(of: entry))
+        return Contents(manifest: manifest, folders: index.folders, notes: index.notes)
+    }
+
+    enum AddMode {
+        /// Every note and item the library is missing; notes in both are
+        /// updated when the backup's copy is newer.
+        case everything
+        /// Only these notes; ones already in the library come back as copies.
+        case notes(Set<UUID>)
+    }
+
+    struct AddResult {
+        var added = 0
+        var updated = 0
+        var copied = 0
+    }
+
+    /// Adds notes (and, for `.everything`, folders, templates, planner,
+    /// decks and the rest of the workspace) from the backup to the library
+    /// at `root`, removing nothing. A safety copy is kept first.
+    static func add(from url: URL, into root: URL, mode: AddMode) throws -> AddResult {
+        let fileManager = FileManager.default
+        let unpacked = try unpack(url, beside: root)
+        defer { try? fileManager.removeItem(at: unpacked.deletingLastPathComponent()) }
+        try keepSafetyCopy(of: root)
+        try fileManager.createDirectory(at: root.appendingPathComponent("notes", isDirectory: true), withIntermediateDirectories: true)
+
+        let indexURL = root.appendingPathComponent("library.json")
+        var index = (try? JSONDecoder.inkpad.decode(LibraryIndex.self, from: Data(contentsOf: indexURL)))
+            ?? LibraryIndex(version: LibraryIndex.currentVersion, folders: [], notes: [])
+        let backup = (try? JSONDecoder.inkpad.decode(
+            LibraryIndex.self,
+            from: Data(contentsOf: unpacked.appendingPathComponent("library.json"))
+        )) ?? LibraryIndex(version: LibraryIndex.currentVersion, folders: [], notes: [])
+
+        var result = AddResult()
+        let chosen: [NoteSummary]
+        switch mode {
+        case .everything: chosen = backup.notes
+        case let .notes(ids): chosen = backup.notes.filter { ids.contains($0.id) }
+        }
+
+        func noteFolder(_ id: UUID, in base: URL) -> URL {
+            base.appendingPathComponent("notes", isDirectory: true).appendingPathComponent(id.uuidString, isDirectory: true)
+        }
+        /// Brings in the note's folder (and its parents) from the backup if
+        /// the library doesn't have it; nil if the backup doesn't either.
+        func ensureFolder(_ id: UUID?) -> UUID? {
+            guard let id else { return nil }
+            if index.folders.contains(where: { $0.id == id }) { return id }
+            guard var folder = backup.folders.first(where: { $0.id == id }) else { return nil }
+            folder.parentID = folder.parentID == id ? nil : ensureFolder(folder.parentID)
+            index.folders.append(folder)
+            return id
+        }
+
+        for var note in chosen {
+            let source = noteFolder(note.id, in: unpacked)
+            guard fileManager.fileExists(atPath: source.path) else { continue }
+            note.folderID = ensureFolder(note.folderID)
+            note.deletedAt = nil
+            let existing = index.notes.first { $0.id == note.id } ?? index.trash?.first { $0.id == note.id }
+            if let existing {
+                switch mode {
+                case .everything:
+                    // Kept as is unless the backup's copy is newer.
+                    guard note.modifiedAt > existing.modifiedAt else { continue }
+                    let target = noteFolder(note.id, in: root)
+                    if fileManager.fileExists(atPath: target.path) {
+                        _ = try fileManager.replaceItemAt(target, withItemAt: source)
+                    } else {
+                        try fileManager.moveItem(at: source, to: target)
+                    }
+                    index.notes.removeAll { $0.id == note.id }
+                    index.trash?.removeAll { $0.id == note.id }
+                    index.notes.append(note)
+                    result.updated += 1
+                case .notes:
+                    // Both versions are kept: the backup's comes back as a copy.
+                    var copy = NoteSummary(
+                        id: UUID(),
+                        title: note.title + " (from backup)",
+                        folderID: note.folderID,
+                        createdAt: note.createdAt,
+                        modifiedAt: note.modifiedAt,
+                        kind: note.kind
+                    )
+                    copy.tags = note.tags
+                    copy.hiddenFromAI = note.hiddenFromAI
+                    copy.aiOnDeviceOnly = note.aiOnDeviceOnly
+                    try fileManager.moveItem(at: source, to: noteFolder(copy.id, in: root))
+                    index.notes.append(copy)
+                    result.copied += 1
+                }
+            } else {
+                try fileManager.moveItem(at: source, to: noteFolder(note.id, in: root))
+                index.notes.append(note)
+                result.added += 1
+            }
+        }
+
+        if case .everything = mode {
+            for folder in backup.folders where !index.folders.contains(where: { $0.id == folder.id }) {
+                _ = ensureFolder(folder.id)
+            }
+            let templateIDs = Set((index.textTemplates ?? []).map(\.id))
+            let newTemplates = (backup.textTemplates ?? []).filter { !templateIDs.contains($0.id) }
+            if !newTemplates.isEmpty {
+                index.textTemplates = (index.textTemplates ?? []) + newTemplates
+            }
+            try mergeWorkspace(from: unpacked, into: root)
+        }
+
+        index.version = LibraryIndex.currentVersion
+        try JSONEncoder.inkpad.encode(index).write(to: indexURL, options: .atomic)
+        return result
+    }
+
+    /// Adds every planner task, expense, mind map, deck, flashcard deck,
+    /// quiz, chat and Flowmodoro item the library is missing (matched by id);
+    /// settings stay as they are. Slide pictures come along.
+    private static func mergeWorkspace(from unpacked: URL, into root: URL) throws {
+        let fileManager = FileManager.default
+        let backupURL = unpacked.appendingPathComponent("workspace.json")
+        guard let backupData = try? Data(contentsOf: backupURL),
+              let backup = try JSONSerialization.jsonObject(with: backupData) as? [String: Any]
+        else { return }
+        let currentURL = root.appendingPathComponent("workspace.json")
+        guard let currentData = try? Data(contentsOf: currentURL),
+              var current = try JSONSerialization.jsonObject(with: currentData) as? [String: Any]
+        else {
+            try fileManager.copyItem(at: backupURL, to: currentURL)
+            try copyMissingItems(in: "decks", from: unpacked, to: root)
+            return
+        }
+        for (key, value) in backup {
+            guard let items = value as? [[String: Any]] else {
+                if current[key] == nil { current[key] = value }
+                continue
+            }
+            var mine = current[key] as? [[String: Any]] ?? []
+            let ids = Set(mine.compactMap { $0["id"] as? String })
+            mine += items.filter { item in (item["id"] as? String).map { !ids.contains($0) } ?? false }
+            current[key] = mine
+        }
+        let merged = try JSONSerialization.data(withJSONObject: current, options: [.prettyPrinted, .sortedKeys])
+        try merged.write(to: currentURL, options: .atomic)
+        try copyMissingItems(in: "decks", from: unpacked, to: root)
+    }
+
+    /// Copies the backup's `folder/<item>` entries the library doesn't have.
+    private static func copyMissingItems(in folder: String, from unpacked: URL, to root: URL) throws {
+        let fileManager = FileManager.default
+        let source = unpacked.appendingPathComponent(folder, isDirectory: true)
+        guard let items = try? fileManager.contentsOfDirectory(at: source, includingPropertiesForKeys: nil) else { return }
+        let target = root.appendingPathComponent(folder, isDirectory: true)
+        try fileManager.createDirectory(at: target, withIntermediateDirectories: true)
+        for item in items where !fileManager.fileExists(atPath: target.appendingPathComponent(item.lastPathComponent).path) {
+            try fileManager.moveItem(at: item, to: target.appendingPathComponent(item.lastPathComponent))
         }
     }
 
@@ -273,6 +468,27 @@ extension LibraryStore {
                 continuation.resume(with: Result { try LibraryBackup.readManifest(at: url) })
             }
         }
+    }
+
+    func readBackupContents(at url: URL) async throws -> LibraryBackup.Contents {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(with: Result { try LibraryBackup.readContents(at: url) })
+            }
+        }
+    }
+
+    /// Adds notes (or everything) from the backup without removing anything,
+    /// then reads the library again.
+    func addFromBackup(at url: URL, mode: LibraryBackup.AddMode) async throws -> LibraryBackup.AddResult {
+        let root = rootURL
+        let result = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<LibraryBackup.AddResult, Error>) in
+            writeQueue.async {
+                continuation.resume(with: Result { try LibraryBackup.add(from: url, into: root, mode: mode) })
+            }
+        }
+        reload()
+        return result
     }
 
     /// Replaces the library with the backup and reads it again. Allowed

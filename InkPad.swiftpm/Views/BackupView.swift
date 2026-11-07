@@ -20,11 +20,15 @@ struct BackupView: View {
     @State private var pendingRestore: PendingRestore?
     @State private var safetyCopies: [SafetyCopy] = []
     @State private var notice: Notice?
+    /// The restore picked in the options sheet; run once the sheet closes.
+    @State private var chosen: (PendingRestore, RestoreChoice)?
+    /// The backup shown in the options sheet (still set after it closes).
+    @State private var shownPick: PendingRestore?
 
     private struct PendingRestore: Identifiable {
         let id = UUID()
         let url: URL
-        let manifest: BackupManifest
+        let contents: LibraryBackup.Contents
         /// A picked file is a temporary copy; a safety copy is kept.
         let isTemporary: Bool
     }
@@ -76,7 +80,7 @@ struct BackupView: View {
                 } header: {
                     Text("Restore")
                 } footer: {
-                    Text("Replaces everything in InkPad with the backup. Your current library is kept below first, so you can go back.")
+                    Text("Add the backup's notes to your library, choose which notes to bring back, or replace the library. Your current library is kept below first, so you can go back.")
                 }
 
                 if !safetyCopies.isEmpty {
@@ -139,24 +143,11 @@ struct BackupView: View {
                 notice = Notice(title: "Cannot Open the File", message: error.localizedDescription)
             }
         }
-        .alert(
-            "Replace Your Library?",
-            isPresented: Binding(
-                get: { pendingRestore != nil },
-                set: { if !$0 { cancelRestore() } }
-            ),
-            presenting: pendingRestore
-        ) { pending in
-            Button("Replace Library", role: .destructive) {
-                // Cleared first, so closing the alert keeps the picked file.
-                pendingRestore = nil
-                Task { await restore(pending) }
+        .sheet(item: $pendingRestore, onDismiss: discardUnusedPick) { pending in
+            RestoreOptionsView(contents: pending.contents) { choice in
+                chosen = (pending, choice)
             }
-            Button("Cancel", role: .cancel) {
-                cancelRestore()
-            }
-        } message: { pending in
-            Text(restoreMessage(pending.manifest))
+            .environmentObject(store)
         }
         .alert(item: $notice) { notice in
             Alert(title: Text(notice.title), message: Text(notice.message))
@@ -187,17 +178,6 @@ struct BackupView: View {
         guard lastBackupAt > 0 else { return "Not backed up yet." }
         let date = Date(timeIntervalSince1970: lastBackupAt)
         return "Last backup: \(date.formatted(.relative(presentation: .named)))."
-    }
-
-    private func restoreMessage(_ manifest: BackupManifest) -> String {
-        let date = manifest.createdAt.formatted(date: .long, time: .shortened)
-        let notes = manifest.noteCount == 1 ? "1 note" : "\(manifest.noteCount) notes"
-        let folders = manifest.folderCount == 1 ? "1 folder" : "\(manifest.folderCount) folders"
-        return [
-            "This backup from \(date) has \(notes) in \(folders).",
-            "It replaces all notes, folders, planner, expenses, mind maps, slides and study in InkPad now.",
-            "A copy of your current library is kept under Copies Kept Before Restoring."
-        ].joined(separator: " ")
     }
 
     // MARK: Actions
@@ -238,8 +218,10 @@ struct BackupView: View {
         progress = "Checking Backup…"
         defer { progress = nil }
         do {
-            let manifest = try await store.readBackup(at: url)
-            pendingRestore = PendingRestore(url: url, manifest: manifest, isTemporary: isTemporary)
+            let contents = try await store.readBackupContents(at: url)
+            let pick = PendingRestore(url: url, contents: contents, isTemporary: isTemporary)
+            shownPick = pick
+            pendingRestore = pick
         } catch {
             if isTemporary {
                 try? FileManager.default.removeItem(at: url)
@@ -248,14 +230,19 @@ struct BackupView: View {
         }
     }
 
-    private func cancelRestore() {
-        if let pending = pendingRestore, pending.isTemporary {
+    /// After the options sheet closes: runs the chosen restore, or removes
+    /// the picked file if nothing was chosen.
+    private func discardUnusedPick() {
+        if let (pending, choice) = chosen {
+            chosen = nil
+            Task { await restore(pending, choice) }
+        } else if let pending = shownPick, pending.isTemporary {
             try? FileManager.default.removeItem(at: pending.url)
         }
-        pendingRestore = nil
+        shownPick = nil
     }
 
-    private func restore(_ pending: PendingRestore) async {
+    private func restore(_ pending: PendingRestore, _ choice: RestoreChoice) async {
         progress = "Restoring…"
         defer {
             progress = nil
@@ -265,13 +252,30 @@ struct BackupView: View {
             }
         }
         do {
-            try await store.restoreBackup(at: pending.url)
-            workspace.reload()
-            let count = store.notes.count
-            notice = Notice(
-                title: "Library Restored",
-                message: count == 1 ? "1 note was restored." : "\(count) notes were restored."
-            )
+            switch choice {
+            case .replace:
+                try await store.restoreBackup(at: pending.url)
+                workspace.reload()
+                notice = Notice(title: "Library Restored", message: RestoreOptionsView.count(store.notes.count, "note") + " in your library now.")
+            case .addEverything:
+                let result = try await store.addFromBackup(at: pending.url, mode: .everything)
+                workspace.reload()
+                notice = Notice(
+                    title: "Added from Backup",
+                    message: "\(RestoreOptionsView.count(result.added, "note")) added and \(RestoreOptionsView.count(result.updated, "note")) updated. Nothing was removed."
+                )
+            case let .notes(ids):
+                let result = try await store.addFromBackup(at: pending.url, mode: .notes(ids))
+                notice = Notice(
+                    title: "Notes Restored",
+                    message: [
+                        result.added > 0 ? "\(RestoreOptionsView.count(result.added, "note")) restored." : nil,
+                        result.copied > 0
+                            ? "\(RestoreOptionsView.count(result.copied, "note")) you still had came back as a copy, marked \"(from backup)\"; your own stays as it is."
+                            : nil,
+                    ].compactMap { $0 }.joined(separator: " ")
+                )
+            }
         } catch {
             notice = Notice(title: "Restore Failed", message: "Nothing was changed. \(error.localizedDescription)")
         }

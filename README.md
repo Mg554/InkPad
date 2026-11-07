@@ -142,9 +142,13 @@ Done:
   writes the whole library (notes, PDFs, pictures, recordings, folders,
   planner, expenses, mind maps, slides and study) into one ZIP file and
   lets you save it to iCloud Drive or anywhere in Files. "Restore from a
-  Backup…" checks the file first, then replaces the library; the library
-  it replaces is kept on the iPad (the last three) so a restore can be
-  undone. AI keys stay in the keychain and are never in a backup
+  Backup…" checks the file and shows what it holds (notes new to the
+  library, newer in the backup, or the same), then offers: Add to My
+  Library (adds what's missing and updates notes that are newer in the
+  backup; nothing is removed), Choose Notes… (browse the backup and bring
+  back only the notes you pick; ones you still have come back as copies),
+  or Replace Library. Before any restore the library is kept on the iPad
+  (the last three copies) so it can be undone. AI keys stay in the keychain and are never in a backup
 
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 
