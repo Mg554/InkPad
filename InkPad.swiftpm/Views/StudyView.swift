@@ -207,7 +207,7 @@ struct StudyView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .themedCard(cornerRadius: 18)
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.teal.opacity(0.35)))
             chatHistory
         }

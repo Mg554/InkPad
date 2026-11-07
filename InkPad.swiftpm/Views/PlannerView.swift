@@ -250,7 +250,7 @@ private struct TaskCard: View {
         TaskSummary(task: task)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
-            .background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .themedCard(cornerRadius: 14)
             // High-priority and in-progress tasks glow.
             .glowCard(
                 task.priority == .high ? .red : PlannerView.color(for: task.status),

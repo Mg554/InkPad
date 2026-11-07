@@ -13,6 +13,8 @@ struct ThemePreset: Identifiable, Equatable {
     /// Colors blended behind the cards in the glass style.
     let glass: [Color]
     let paper: PaperColor
+    /// Nature drawn over the background (the season themes).
+    var season: Season = .none
 
     static func == (lhs: ThemePreset, rhs: ThemePreset) -> Bool { lhs.id == rhs.id }
 
@@ -48,6 +50,14 @@ struct ThemePreset: Identifiable, Equatable {
                     accent: Color(uiColor: rgb(0x5E81AC)), glass: [Color(uiColor: rgb(0x88C0D0)), Color(uiColor: rgb(0x81A1C1)), Color(uiColor: rgb(0xB48EAD)), Color(uiColor: rgb(0xA3BE8C))], paper: .mist),
         ThemePreset(id: "sunset", name: "Sunset", background: pair(0xFFF3EA, 0x1F1220), sidebar: pair(0xFBE6DA, 0x2A1729),
                     accent: .orange, glass: [.orange, .pink, .purple, .yellow], paper: .ivory),
+        ThemePreset(id: "spring", name: "Spring", background: pair(0xF1F8EC, 0x111C12), sidebar: pair(0xE4F1DC, 0x162317),
+                    accent: Color(uiColor: rgb(0x3FA34D)), glass: [.green, .pink, .mint, .yellow], paper: .white, season: .spring),
+        ThemePreset(id: "summer", name: "Summer", background: pair(0xFFF8E6, 0x1C1A10), sidebar: pair(0xFDEFC8, 0x252114),
+                    accent: Color(uiColor: rgb(0x00A3A3)), glass: [.yellow, .orange, .cyan, .teal], paper: .ivory, season: .summer),
+        ThemePreset(id: "autumn", name: "Autumn", background: pair(0xFBF1E2, 0x1E150D), sidebar: pair(0xF4E2C6, 0x281C11),
+                    accent: Color(uiColor: rgb(0xC8741A)), glass: [.orange, .yellow, .red, .brown], paper: .sand, season: .autumn),
+        ThemePreset(id: "winter", name: "Winter", background: pair(0xEEF4FA, 0x0E1520), sidebar: pair(0xE2ECF6, 0x131C2A),
+                    accent: Color(uiColor: rgb(0x4A8FD9)), glass: [.cyan, .blue, .white, .indigo], paper: .mist, season: .winter),
     ]
 
     static func named(_ id: String) -> ThemePreset {
@@ -123,6 +133,18 @@ struct ThemeRecipe: Codable, Equatable {
     /// The font used when typing with the keyboard (text boxes, text notes).
     var typingFont = FontStyle.standard
     var typingSize: Double = 18
+    /// Glass: turns its colors around the color wheel (degrees).
+    var glassHue: Double = 0
+    /// Glass: how strongly its colors show (0.1 faint ... 1 deep).
+    var glassStrength: Double = 0.4
+    /// Glass: how softly its colors blur together.
+    var glassBlur: Double = 30
+    /// Cards and tiles become frosted glass instead of solid.
+    var glassCards = false
+    /// Nature drawn over the background.
+    var season = Season.none
+    /// Falling leaves, petals or snow.
+    var animateSeason = true
 
     /// A whole preset, unmixed.
     static func preset(_ preset: ThemePreset) -> ThemeRecipe {
@@ -132,7 +154,16 @@ struct ThemeRecipe: Codable, Equatable {
         recipe.accentFrom = preset.id
         recipe.glassFrom = preset.id
         recipe.paperFrom = preset.id
-        recipe.backdrop = preset.id == "sunset" ? .glass : .plain
+        recipe.backdrop = preset.id == "sunset" || preset.season != .none ? .glass : .plain
+        recipe.glassStrength = preset.season != .none ? 0.3 : 0.4
+        recipe.season = preset.season
+        return recipe
+    }
+
+    /// The same theme without falling leaves or snow (small previews).
+    var still: ThemeRecipe {
+        var recipe = self
+        recipe.animateSeason = false
         return recipe
     }
 
@@ -155,6 +186,34 @@ struct ThemeRecipe: Codable, Equatable {
         let base = UIFont.systemFont(ofSize: size ?? CGFloat(typingSize), weight: weight)
         guard let descriptor = base.fontDescriptor.withDesign(typingFont.uiDesign) else { return base }
         return UIFont(descriptor: descriptor, size: size ?? CGFloat(typingSize))
+    }
+}
+
+extension ThemeRecipe {
+    /// Reads older saved themes too: a missing setting keeps its default.
+    init(from decoder: Decoder) throws {
+        self.init()
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        func value<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T {
+            ((try? container.decodeIfPresent(T.self, forKey: key)) ?? nil) ?? fallback
+        }
+        name = value(.name, name)
+        colorsFrom = value(.colorsFrom, colorsFrom)
+        accentFrom = value(.accentFrom, accentFrom)
+        backdrop = value(.backdrop, backdrop)
+        glassFrom = value(.glassFrom, glassFrom)
+        paperFrom = value(.paperFrom, paperFrom)
+        paperForNewNotes = value(.paperForNewNotes, paperForNewNotes)
+        appFont = value(.appFont, appFont)
+        cardSize = value(.cardSize, cardSize)
+        typingFont = value(.typingFont, typingFont)
+        typingSize = value(.typingSize, typingSize)
+        glassHue = value(.glassHue, glassHue)
+        glassStrength = value(.glassStrength, glassStrength)
+        glassBlur = value(.glassBlur, glassBlur)
+        glassCards = value(.glassCards, glassCards)
+        season = value(.season, season)
+        animateSeason = value(.animateSeason, animateSeason)
     }
 }
 
@@ -224,18 +283,31 @@ struct ThemeBackground: View {
                 recipe.background
             }
             if recipe.backdrop == .glass {
-                GlassBlend(colors: recipe.glass)
-                    .opacity(isSidebar ? 0.25 : 0.4)
+                GlassBlend(colors: recipe.glass, hue: recipe.glassHue, blur: recipe.glassBlur)
+                    .opacity(isSidebar ? recipe.glassStrength * 0.6 : recipe.glassStrength)
+            }
+            if recipe.season != .none {
+                SceneryView(season: recipe.season, animated: recipe.animateSeason && !isSidebar, isSidebar: isSidebar)
             }
         }
         .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 }
 
-private struct GlassBlend: View {
+struct GlassBlend: View {
     let colors: [Color]
+    var hue: Double = 0
+    var blur: Double = 30
 
     var body: some View {
+        blend
+            .hueRotation(.degrees(hue))
+            .blur(radius: blur)
+    }
+
+    @ViewBuilder
+    private var blend: some View {
         if #available(iOS 18.0, *) {
             let c = colors + colors
             MeshGradient(
@@ -248,10 +320,8 @@ private struct GlassBlend: View {
                 ],
                 colors: [c[0], c[1], c[2], c[3], .clear, c[0], c[2], c[3], c[1]]
             )
-            .blur(radius: 30)
         } else {
             LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-                .blur(radius: 30)
         }
     }
 }
@@ -262,5 +332,26 @@ extension View {
     func themedBackground(sidebar: Bool = false) -> some View {
         scrollContentBackground(.hidden)
             .background { ThemeBackground(isSidebar: sidebar) }
+    }
+
+    /// The background of a card or tile: solid, or frosted glass when the
+    /// theme has Glass Cards on.
+    func themedCard(cornerRadius: CGFloat = 14) -> some View {
+        modifier(ThemedCard(cornerRadius: cornerRadius))
+    }
+}
+
+private struct ThemedCard: ViewModifier {
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if ThemeSettings.current.glassCards {
+            content
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.stroke(.white.opacity(0.25), lineWidth: 0.8))
+        } else {
+            content.background(Color(uiColor: .secondarySystemGroupedBackground), in: shape)
+        }
     }
 }

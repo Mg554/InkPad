@@ -12,7 +12,8 @@ struct ExpensesView: View {
     @State private var selectedAmount: Double?
     /// The picked category; stays picked after the finger lifts.
     @State private var pickedCategory: Expense.Category?
-    @State private var glowPhase = false
+    @State private var look = ExpenseLook.load()
+    @State private var isCustomizing = false
 
     private var currency: String { workspace.currencyCode }
     private var money: MoneyFormatter { workspace.money }
@@ -29,6 +30,7 @@ struct ExpensesView: View {
 
     var body: some View {
         List {
+            Group {
             Section {
                 monthPicker
                 summary
@@ -37,9 +39,27 @@ struct ExpensesView: View {
                 }
             }
 
+            if look.showsRings && !monthItems.isEmpty {
+                Section("This Month") {
+                    BudgetRings(rings: rings, look: look)
+                }
+            }
+
             if !monthItems.filter({ $0.kind == .expense }).isEmpty {
-                Section("Spending by Category") {
-                    categoryChart
+                if look.showsDonut {
+                    Section("Spending by Category") {
+                        categoryChart
+                    }
+                }
+                if look.showsBars {
+                    Section("Category Bars") {
+                        categoryBars
+                    }
+                }
+                if look.showsDaily {
+                    Section("Day by Day") {
+                        dailyChart
+                    }
                 }
             }
 
@@ -50,7 +70,12 @@ struct ExpensesView: View {
                     }
                 }
             }
+            }
+            .listRowBackground(look.rowBackground)
         }
+        .environment(\.colorScheme, look.colorScheme ?? systemScheme)
+        .fontDesign(look.fontDesign)
+        .animation(.snappy, value: look)
         .overlay {
             if monthItems.isEmpty {
                 ContentUnavailableView(
@@ -61,10 +86,15 @@ struct ExpensesView: View {
                 .padding(.top, 200)
             }
         }
-        .themedBackground()
+        .screenBackdrop(look.backdrop)
         .navigationTitle("Expenses")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    isCustomizing = true
+                } label: {
+                    Label("Customize", systemImage: "paintbrush")
+                }
                 Button {
                     isEditingSettings = true
                 } label: {
@@ -92,7 +122,13 @@ struct ExpensesView: View {
         .sheet(isPresented: $isEditingSettings) {
             BudgetSettings()
         }
+        .sheet(isPresented: $isCustomizing) {
+            ExpenseStyleView(look: $look)
+        }
+        .onChange(of: look) { look.save() }
     }
+
+    @Environment(\.colorScheme) private var systemScheme
 
     // MARK: Sections
 
@@ -139,9 +175,8 @@ struct ExpensesView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .glowCard(color, isActive: glowPhase || title != "Balance")
-        .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: glowPhase)
-        .onAppear { glowPhase = true }
+        .glowCard(color, isActive: false)
+        .styledGlow(look.activeGlow, color: color)
     }
 
     private func budgetBar(_ budget: Decimal) -> some View {
@@ -157,7 +192,7 @@ struct ExpensesView: View {
             let tint: Color = used < 0.8 ? .green : used < 1 ? .orange : .red
             ProgressView(value: min(used, 1))
                 .tint(tint)
-                .shadow(color: tint.opacity(0.7), radius: 6)
+                .styledGlow(look.activeGlow, color: tint)
                 .animation(.snappy, value: used)
             if used >= 1 {
                 Text("Over budget by \(money.string(spent - budget))")
@@ -181,8 +216,8 @@ struct ExpensesView: View {
                     outerRadius: .ratio(selected == item.0 ? 1 : 0.92),
                     angularInset: 1.5
                 )
-                .cornerRadius(4)
-                .foregroundStyle(by: .value("Category", item.0.title))
+                .cornerRadius(look.style == .paper ? 1 : 4)
+                .foregroundStyle(look.fill(look.color(item.0)))
                 .opacity(selected == nil || selected == item.0 ? 1 : 0.4)
             }
             .chartLegend(.hidden)
@@ -204,7 +239,16 @@ struct ExpensesView: View {
                 }
             }
             .frame(width: 200, height: 200)
-            .shadow(color: .accentColor.opacity(0.25), radius: 14)
+            .styledGlow(look.activeGlow, color: look.color(selected ?? totals.first?.0 ?? .other))
+            .overlay {
+                if look.style == .glass {
+                    // A light sheen across the glass ring.
+                    Circle()
+                        .fill(LinearGradient(colors: [.white.opacity(0.35), .clear], startPoint: .topLeading, endPoint: .center))
+                        .frame(width: 200, height: 200)
+                        .allowsHitTesting(false)
+                }
+            }
             .animation(.snappy, value: selected)
 
             VStack(alignment: .leading, spacing: 8) {
@@ -215,6 +259,7 @@ struct ExpensesView: View {
                     } label: {
                         HStack {
                             Label(item.0.title, systemImage: item.0.systemImage)
+                                .foregroundStyle(look.color(item.0))
                                 .symbolEffect(.bounce, value: selected == item.0)
                             Spacer()
                             Text(money.string(item.1))
@@ -239,12 +284,13 @@ struct ExpensesView: View {
     }
 
     private func row(_ item: Expense) -> some View {
-        let tint: Color = item.kind == .income ? .green : .accentColor
+        let tint: Color = item.kind == .income ? .green : look.color(item.category)
         return HStack(spacing: 12) {
             Image(systemName: item.category.systemImage)
+                .foregroundStyle(tint)
                 .frame(width: 34, height: 34)
                 .background(tint.opacity(0.15), in: Circle())
-                .shadow(color: tint.opacity(0.5), radius: 6)
+                .styledGlow(look.activeGlow, color: tint)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title.isEmpty ? item.category.title : item.title)
                 if !item.note.isEmpty {
@@ -268,6 +314,116 @@ struct ExpensesView: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+
+    private var categoryTotals: [(Expense.Category, Double)] {
+        Expense.Category.allCases.compactMap { category in
+            let sum = total(monthItems.filter { $0.kind == .expense && $0.category == category })
+            return sum > 0 ? (category, NSDecimalNumber(decimal: sum).doubleValue) : nil
+        }
+        .sorted { $0.1 > $1.1 }
+    }
+
+    private var categoryBars: some View {
+        Chart(categoryTotals, id: \.0) { item in
+            BarMark(
+                x: .value("Category", item.0.title),
+                y: .value("Amount", item.1),
+                width: .ratio(0.6)
+            )
+            .cornerRadius(look.style == .paper ? 1 : 6)
+            .foregroundStyle(look.fill(look.color(item.0)))
+            .annotation(position: .top) {
+                Text(money.string(item.1))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .chartYAxis(.hidden)
+        .frame(height: 220)
+        .styledGlow(look.activeGlow, color: look.color(categoryTotals.first?.0 ?? .other))
+        .padding(.vertical, 8)
+    }
+
+    /// Spending added up day by day, with the budget's even pace.
+    private var dailyChart: some View {
+        let calendar = Calendar.current
+        let interval = calendar.dateInterval(of: .month, for: month)
+        let dayCount = interval.flatMap { calendar.range(of: .day, in: .month, for: $0.start)?.count } ?? 30
+        let isThisMonth = interval?.contains(Date()) ?? false
+        let lastDay = isThisMonth ? calendar.component(.day, from: Date()) : dayCount
+        var running = 0.0
+        let points: [(Int, Double)] = (1...max(lastDay, 1)).map { day in
+            let spentThatDay = monthItems
+                .filter { $0.kind == .expense && calendar.component(.day, from: $0.date) == day }
+                .reduce(0.0) { $0 + NSDecimalNumber(decimal: $1.amount).doubleValue }
+            running += spentThatDay
+            return (day, running)
+        }
+        let budget = workspace.monthlyBudget.map { NSDecimalNumber(decimal: $0).doubleValue }
+        let lineColor = look.style == .minimal ? Color.inkAccent : look.style == .paper ? Color(red: 0.3, green: 0.42, blue: 0.55) : look.style == .neon ? Color(red: 0.2, green: 0.8, blue: 1) : Color.inkAccent
+        return Chart {
+            ForEach(points, id: \.0) { point in
+                AreaMark(x: .value("Day", point.0), y: .value("Spent", point.1))
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(LinearGradient(colors: [lineColor.opacity(look.style == .paper ? 0.15 : 0.35), lineColor.opacity(0)], startPoint: .top, endPoint: .bottom))
+                LineMark(x: .value("Day", point.0), y: .value("Spent", point.1))
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(lineColor)
+                    .lineStyle(StrokeStyle(lineWidth: look.style == .neon ? 3 : 2.5, lineCap: .round))
+            }
+            if let budget, budget > 0 {
+                ForEach([1, dayCount], id: \.self) { day in
+                    LineMark(x: .value("Day", day), y: .value("Spent", budget * Double(day) / Double(dayCount)), series: .value("Line", "Budget pace"))
+                        .foregroundStyle(Color.secondary)
+                        .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
+                }
+            }
+        }
+        .chartXScale(domain: 1...dayCount)
+        .chartYAxis {
+            AxisMarks { value in
+                AxisGridLine().foregroundStyle(Color.secondary.opacity(0.2))
+                AxisValueLabel {
+                    if let amount = value.as(Double.self) { Text(money.string(amount)) }
+                }
+            }
+        }
+        .frame(height: 200)
+        .styledGlow(look.activeGlow, color: lineColor)
+        .padding(.vertical, 8)
+        .overlay(alignment: .topLeading) {
+            if budget != nil {
+                Label("Budget pace", systemImage: "line.diagonal")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var rings: [BudgetRings.Ring] {
+        let spentValue = NSDecimalNumber(decimal: spent).doubleValue
+        let earnedValue = NSDecimalNumber(decimal: earned).doubleValue
+        var rings: [BudgetRings.Ring] = []
+        if let budget = workspace.monthlyBudget, budget > 0 {
+            let budgetValue = NSDecimalNumber(decimal: budget).doubleValue
+            rings.append(.init(id: "budget", title: "Budget Used", value: spentValue / budgetValue,
+                               detail: "\(Int((spentValue / budgetValue * 100).rounded()))%",
+                               color: spentValue > budgetValue ? .red : look.style == .paper ? Color(red: 0.65, green: 0.22, blue: 0.18) : Color(red: 1, green: 0.2, blue: 0.4)))
+        }
+        if earnedValue > 0 {
+            let kept = max(earnedValue - spentValue, 0) / earnedValue
+            rings.append(.init(id: "kept", title: "Income Kept", value: kept, detail: "\(Int((kept * 100).rounded()))%",
+                               color: look.style == .paper ? Color(red: 0.42, green: 0.52, blue: 0.25) : Color(red: 0.4, green: 0.95, blue: 0.2)))
+        }
+        let calendar = Calendar.current
+        if let interval = calendar.dateInterval(of: .month, for: month) {
+            let days = calendar.range(of: .day, in: .month, for: interval.start)?.count ?? 30
+            let passed = interval.contains(Date()) ? calendar.component(.day, from: Date()) : (interval.end < Date() ? days : 0)
+            rings.append(.init(id: "month", title: "Month Passed", value: Double(passed) / Double(days), detail: "\(passed) of \(days) days",
+                               color: look.style == .paper ? Color(red: 0.3, green: 0.42, blue: 0.55) : Color(red: 0.2, green: 0.85, blue: 1)))
+        }
+        return rings
     }
 
     // MARK: Helpers
