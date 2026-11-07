@@ -99,6 +99,35 @@ struct MarkdownNoteView: View {
             }
         }
         .namePrompt($prompt)
+        .paletteNoteCommands(noteID) {
+            [
+                PaletteItem(id: "text-organize", title: "Organize This…", systemImage: "wand.and.stars", tint: .purple, section: .thisNote,
+                            keywords: ["messy", "tidy", "رتب", "نظم"]) {
+                    save()
+                    isOrganizing = true
+                },
+                PaletteItem(id: "text-study", title: "Study This with AI…", subtitle: "Flashcards, quizzes, chat", systemImage: "graduationcap",
+                            tint: .blue, section: .thisNote, keywords: ["flashcards", "quiz", "بطاقات", "اختبار", "لخص", "summary"]) {
+                    save()
+                    isStudying = true
+                },
+                PaletteItem(id: "text-slides", title: "Create Slides from This…", systemImage: "rectangle.on.rectangle.angled", tint: .orange,
+                            section: .thisNote, keywords: ["presentation", "شرائح", "عرض"]) {
+                    save()
+                    isCreatingSlides = true
+                },
+                PaletteItem(id: "text-rename", title: "Rename This Note…", systemImage: "pencil", section: .thisNote, keywords: ["اعادة تسمية"]) {
+                    prompt = NamePrompt(title: "Rename Note", initialText: store.note(noteID)?.title ?? "", confirmTitle: "Rename") {
+                        store.renameNote(noteID, to: $0)
+                    }
+                },
+                PaletteItem(id: "text-template", title: "Save as Template…", systemImage: "doc.badge.plus", section: .thisNote, keywords: ["قالب"]) {
+                    prompt = NamePrompt(title: "Save as Template", initialText: store.note(noteID)?.title ?? "", confirmTitle: "Save") {
+                        store.saveTemplate(named: $0, body: text)
+                    }
+                },
+            ]
+        }
         .sheet(isPresented: $isOrganizing) {
             OrganizeView(noteID: noteID, text: text) { organized in
                 text = organized

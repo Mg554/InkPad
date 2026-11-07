@@ -44,8 +44,10 @@
      organic, org chart...), handwritten ideas and Sketch & Reshape —
      done (needs on-device testing, especially Reshape with real
      handwriting and Refine with the pencil)
-   - Next ideas, in order: Command Anywhere (⌘K),
-     Living Notes; then Focus Mode and Knowledge GPS; later Knowledge
+   - Command Anywhere (⌘K, floating button, three-finger swipe; typed,
+     handwritten or spoken commands in English and Arabic) — done (needs
+     on-device testing, especially voice and Pencil input)
+   - Next ideas, in order: Living Notes; then Focus Mode and Knowledge GPS; later Knowledge
      Versioning, Replay, Spatial Knowledge Graph and Ink → Structure
 
 Not yet possible with PencilKit: dashed and dotted pen strokes.

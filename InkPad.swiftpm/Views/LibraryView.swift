@@ -16,6 +16,8 @@ struct LibraryView: View {
     /// A note to open once the section switch in progress has finished.
     @State private var noteAfterSwitch: UUID?
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+    @ObservedObject private var commands = CommandCenter.shared
+    @State private var themeToApply: ThemeRecipe?
 
     private var navigation: NoteNavigation {
         NoteNavigation(
@@ -140,6 +142,37 @@ struct LibraryView: View {
             .id(isSwitchingSection ? "switching" : section(of: shownScope))
         }
         .environment(\.noteNavigation, navigation)
+        // Command Anywhere: ⌘K, the floating button, three fingers down.
+        .background {
+            ThreeFingerSwipe()
+            CommandShortcuts()
+        }
+        .overlay { FloatingCommandButton().opacity(commands.isPresented ? 0 : 1) }
+        .overlay(alignment: .bottom) { CommandToast() }
+        .overlay {
+            if commands.isPresented {
+                CommandPalette()
+            }
+        }
+        .onAppear {
+            commands.navigate = { scope = $0 }
+            commands.openNote = { navigation.openNote($0) }
+        }
+        .sheet(item: $commands.sheet, onDismiss: {
+            if let themeToApply {
+                self.themeToApply = nil
+                DispatchQueue.main.async { ThemeSettings.shared.apply(themeToApply) }
+            }
+        }) { sheet in
+            switch sheet {
+            case .themes:
+                ThemeView { themeToApply = $0 }
+            case let .history(note):
+                NoteHistoryView(note: note)
+            case let .reminder(draft):
+                ReminderEditor(draft: draft)
+            }
+        }
         .onChange(of: scope) {
             switchSection()
         }

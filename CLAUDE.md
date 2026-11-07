@@ -60,6 +60,7 @@ carefully for Swift pitfalls that have bitten before:
 ```
 InkPad.swiftpm/
   App/        entry point (appearance, theme, Scribble gate, automatic backups)
+  Command/    Command Anywhere (⌘K): palette, sentence parser, voice, AI fallback
   Models/     notes, pages, workspace data (planner, decks, study, Flowmodoro)
   Storage/    LibraryStore, WorkspaceStore, backups (ZIP): the only code that touches files
   Canvas/     PencilKit host, tools, lasso, laser, text boxes, keyboard support

@@ -48,6 +48,17 @@ Done:
   writing and the lines you drew (on the iPad) and turns it into a tidy
   map in the layout you pick, keeping your handwriting if you like; "Let
   AI Organize It" sends only the ideas' words to your AI service
+- Command Anywhere: ⌘K, the floating ⌘ button (drag it anywhere) or a
+  three-finger swipe down opens a glass command palette. Type, write with
+  the Pencil or speak (on the iPad, English or Arabic) to search notes
+  (titles, text and handwriting), go anywhere (sections, folders, tags),
+  create (note, text note, reminder, task, expense, mind map), run the
+  open note's commands (study, slides, export, paper, rename, history,
+  remind me) or change settings (themes, appearance, back up now,
+  handwriting, Flowmodoro). Sentences such as "remind me to call Sara
+  tomorrow at 9", "ذكرني بالمحاضرة غداً الساعة 9" or "coffee 15" are
+  understood on the iPad; "Ask AI" sends only that sentence when it
+  isn't. Shortcuts: ⌘N, ⌘⇧N, ⌘⇧R, ⌘⇧T, ⌘⇧E, ⌘⇧M, ⌘⇧B, ⌘⇧D, ⌘1–⌘8
 - Refine Handwriting (the wand in the drawing toolbar): smooths strokes
   when the pencil lifts, levels a slanted line and evens out word sizes
   after a pause; each can be turned on or off. Lasso › Refine does it for

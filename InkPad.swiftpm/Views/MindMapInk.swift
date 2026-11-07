@@ -6,6 +6,7 @@ import Vision
 struct InkCanvas: UIViewRepresentable {
     @Binding var drawing: PKDrawing
     var contentSize: CGSize?
+    var showsToolPicker = true
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -29,9 +30,11 @@ struct InkCanvas: UIViewRepresentable {
                 )
             }
         }
-        context.coordinator.toolPicker.setVisible(true, forFirstResponder: canvas)
-        context.coordinator.toolPicker.addObserver(canvas)
-        DispatchQueue.main.async { canvas.becomeFirstResponder() }
+        if showsToolPicker {
+            context.coordinator.toolPicker.setVisible(true, forFirstResponder: canvas)
+            context.coordinator.toolPicker.addObserver(canvas)
+            DispatchQueue.main.async { canvas.becomeFirstResponder() }
+        }
         return canvas
     }
 

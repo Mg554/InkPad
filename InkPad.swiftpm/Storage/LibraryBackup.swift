@@ -583,12 +583,16 @@ extension LibraryBackup {
 extension LibraryStore {
     /// Writes an automatic backup if one is due; returns true when it did.
     @discardableResult
-    func makeAutomaticBackupIfDue() async -> Bool {
+    /// With `force`, backs up now whatever the schedule (Back Up Now).
+    func makeAutomaticBackupIfDue(force: Bool = false) async -> Bool {
         let defaults = UserDefaults.standard
         let frequency = AutoBackupFrequency(rawValue: defaults.string(forKey: AutoBackupFrequency.storageKey) ?? "") ?? .weekly
-        guard let interval = frequency.interval, !isReadOnly, !notes.isEmpty else { return false }
-        let last = defaults.double(forKey: AutoBackupFrequency.lastKey)
-        guard Date().timeIntervalSince1970 - last >= interval else { return false }
+        guard !isReadOnly, !notes.isEmpty else { return false }
+        if !force {
+            guard let interval = frequency.interval else { return false }
+            let last = defaults.double(forKey: AutoBackupFrequency.lastKey)
+            guard Date().timeIntervalSince1970 - last >= interval else { return false }
+        }
         let keep = defaults.object(forKey: AutoBackupFrequency.keepKey) as? Int ?? 5
         let root = rootURL
         let folder = LibraryBackup.automaticBackupsURL

@@ -83,6 +83,7 @@ struct NoteEditorView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
         .namePrompt($prompt)
+        .paletteNoteCommands(noteID) { paletteCommands }
         .sheet(item: $exportedFile) { file in
             ShareSheet(items: file.urls)
         }
@@ -294,6 +295,50 @@ struct NoteEditorView: View {
         }
         .padding(10)
         .accessibilityLabel("Show Toolbar")
+    }
+
+    /// This note's commands in Command Anywhere (⌘K).
+    private var paletteCommands: [PaletteItem] {
+        [
+            PaletteItem(id: "ink-study", title: "Study This with AI…", subtitle: "Flashcards, quizzes, summary, chat", systemImage: "graduationcap",
+                        tint: .blue, section: .thisNote, keywords: ["flashcards", "quiz", "summary", "بطاقات", "اختبار", "لخص"]) {
+                session.save(thumbnail: false)
+                studyRequest = session.currentContent().map { SlidesRequest(content: $0) }
+            },
+            PaletteItem(id: "ink-slides", title: "Create Slides from This…", systemImage: "rectangle.on.rectangle.angled", tint: .orange,
+                        section: .thisNote, keywords: ["presentation", "شرائح", "عرض"]) {
+                slidesRequest = session.currentContent().map { SlidesRequest(content: $0) }
+            },
+            PaletteItem(id: "ink-export", title: "Export as PDF", systemImage: "square.and.arrow.up", tint: .green, section: .thisNote,
+                        keywords: ["share", "pdf", "تصدير", "مشاركة"]) {
+                export(PDFExportOptions())
+            },
+            PaletteItem(id: "ink-export-as", title: "Export as…", systemImage: "square.and.arrow.up.on.square", tint: .green, section: .thisNote,
+                        keywords: ["pages", "password", "تصدير"]) {
+                isShowingExportOptions = true
+            },
+            PaletteItem(id: "ink-add-page", title: "Add a Page", systemImage: "doc.badge.plus", section: .thisNote, keywords: ["page", "صفحة"]) {
+                session.insertPage(after: canvas.currentPage)
+            },
+            PaletteItem(id: "ink-paper", title: "Paper & Template…", systemImage: "doc.richtext", section: .thisNote,
+                        keywords: ["lined", "grid", "background", "ورق", "قالب"]) {
+                isShowingTemplates = true
+            },
+            PaletteItem(id: "ink-pages", title: isShowingPages ? "Hide Pages" : "Show Pages", systemImage: "sidebar.right", section: .thisNote,
+                        keywords: ["thumbnails", "صفحات"]) {
+                isShowingPages.toggle()
+            },
+            PaletteItem(id: "ink-toolbar", title: isToolbarHidden ? "Show Toolbar" : "Hide Toolbar", systemImage: "eye", section: .thisNote,
+                        keywords: ["tools", "ادوات"]) {
+                setToolbarHidden(!isToolbarHidden)
+            },
+            PaletteItem(id: "ink-ruler", title: "Ruler", systemImage: "ruler", section: .thisNote, keywords: ["مسطرة"]) {
+                canvas.isRulerActive.toggle()
+            },
+            PaletteItem(id: "ink-rename", title: "Rename This Note…", systemImage: "pencil", section: .thisNote, keywords: ["اعادة تسمية"]) {
+                prompt = NamePrompt(title: "Rename Note", initialText: title, confirmTitle: "Rename") { store.renameNote(noteID, to: $0) }
+            },
+        ]
     }
 
     private func setToolbarHidden(_ hidden: Bool) {
