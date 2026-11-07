@@ -76,6 +76,12 @@ Done:
   headings, lists and tasks without changing what it says. Replace the
   note (the messy version goes to Recently Deleted) or save it as a new
   note
+- Voice → Timeline: in the playback bar, the timeline button turns a
+  recording into text on the iPad (Apple speech recognition, on-device
+  only) with chapters: named by your AI service when the AI Firewall
+  allows it, otherwise outlined on the iPad. Tap a chapter or a line to
+  play from there, or search a word ("PEEP") to jump to where it was said;
+  save the transcript as a text note
 - Memory Heatmap (Study): each flashcard deck as a tile from red to green
   showing how much of it you likely remember now, with "You're forgetting…"
   for the weakest topic
@@ -191,7 +197,9 @@ Stored under the app's `Documents/InkPad/`:
 - `notes/<id>/images/` — images placed on pages
 - `notes/<id>/note.md` — a text note's Markdown
 - `notes/<id>/audio/` — audio recordings (`note.json` lists them with the
-  moment each started, to match them with the writing)
+  moment each started, to match them with the writing), and
+  `<file>.transcript.json` with each one's transcript and chapters
+  (derived, safe to lose)
 - `notes/<id>/thumbnail.png` — preview (regenerated on save)
 - `notes/<id>/text.json` — handwriting and PDF text read with Vision
   (regenerated when needed; used by search and AI study)

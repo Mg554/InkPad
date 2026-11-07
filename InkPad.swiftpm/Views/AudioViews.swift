@@ -35,7 +35,9 @@ struct RecordButton: View {
 /// speed, and the list of recordings. While it is open the ink replays with
 /// the audio, and tapping writing plays from when it was written.
 struct AudioPlaybackBar: View {
+    @EnvironmentObject private var store: LibraryStore
     @ObservedObject var audio: AudioController
+    let noteID: UUID
     let recordings: [AudioRecording]
     let open: (AudioRecording) -> Void
     let rename: (AudioRecording) -> Void
@@ -43,6 +45,7 @@ struct AudioPlaybackBar: View {
     let delete: (AudioRecording) -> Void
 
     private static let rates: [Float] = [0.75, 1, 1.25, 1.5, 2]
+    @State private var showsTimeline = false
 
     /// 1×, 1.25×, 0.75×.
     private static func rateLabel(_ rate: Float) -> String {
@@ -90,6 +93,16 @@ struct AudioPlaybackBar: View {
                 .foregroundStyle(.secondary)
                 .fixedSize()
             speedMenu
+            Button {
+                showsTimeline = true
+            } label: {
+                Image(systemName: "list.bullet.below.rectangle")
+            }
+            .accessibilityLabel("Timeline")
+            .popover(isPresented: $showsTimeline) {
+                RecordingTimelineView(audio: audio, recording: current, noteID: noteID)
+                    .environmentObject(store)
+            }
             Button {
                 withAnimation(.snappy(duration: 0.25)) { audio.closePlayer() }
             } label: {

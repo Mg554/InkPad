@@ -620,6 +620,33 @@ final class LibraryStore: ObservableObject {
     func deleteAudioFile(_ file: String, for id: UUID) {
         guard canWrite(), isPlainFileName(file) else { return }
         try? fileManager.removeItem(at: audioDirectory(for: id).appendingPathComponent(file))
+        try? fileManager.removeItem(at: transcriptURL(file, of: id))
+    }
+
+    // MARK: Transcripts (Voice → Timeline)
+
+    /// `audio/<file>.transcript.json`, next to the recording.
+    private func transcriptURL(_ file: String, of id: UUID) -> URL {
+        audioDirectory(for: id).appendingPathComponent(file + ".transcript.json")
+    }
+
+    func transcript(of recording: AudioRecording, in id: UUID) -> AudioTranscript? {
+        guard isPlainFileName(recording.file),
+              let data = try? Data(contentsOf: transcriptURL(recording.file, of: id)),
+              let transcript = try? JSONDecoder().decode(AudioTranscript.self, from: data),
+              transcript.version <= AudioTranscript.currentVersion
+        else { return nil }
+        return transcript
+    }
+
+    func saveTranscript(_ transcript: AudioTranscript, of recording: AudioRecording, in id: UUID) {
+        guard canWrite(), isPlainFileName(recording.file), note(id) != nil else { return }
+        do {
+            try fileManager.createDirectory(at: audioDirectory(for: id), withIntermediateDirectories: true)
+            try JSONEncoder().encode(transcript).write(to: transcriptURL(recording.file, of: id), options: .atomic)
+        } catch {
+            errorMessage = "Could not save the transcript: \(error.localizedDescription)"
+        }
     }
 
     /// A copy of the recording named after the note, for sharing.

@@ -30,7 +30,8 @@ let package = Package(
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
             ],
             capabilities: [
-                .microphone(purposeString: "InkPad records audio with your notes so you can play it back in step with your writing.")
+                .microphone(purposeString: "InkPad records audio with your notes so you can play it back in step with your writing."),
+                .speechRecognition(purposeString: "InkPad turns your recordings into text on this iPad, so you can search them and jump to each part.")
             ],
             appCategory: .productivity
         )

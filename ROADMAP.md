@@ -33,7 +33,10 @@
    - Write → Think → Build: turn lasso-selected writing into concepts,
      flashcards, questions and explanations — done (needs on-device
      testing with an AI key)
-   - Next ideas, in order: Voice → Timeline, Command Anywhere (⌘K),
+   - Voice → Timeline: on-device transcripts, chapters and word search
+     for recordings — done (needs on-device testing; the simulator has no
+     speech models)
+   - Next ideas, in order: Command Anywhere (⌘K),
      Living Notes; then Focus Mode and Knowledge GPS; later Knowledge
      Versioning, Replay, Spatial Knowledge Graph and Ink → Structure
 

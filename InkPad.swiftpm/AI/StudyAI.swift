@@ -92,6 +92,52 @@ enum StudyAI {
         """
     }
 
+    // MARK: Voice → Timeline
+
+    static func chaptersPrompt(_ transcript: AudioTranscript, title: String) -> String {
+        [
+            "Below is the transcript of the recording \"\(title)\", one line per phrase with its time as [mm:ss].",
+            "Split it into chapters where the topic changes: usually 3 to 12, each at least half a minute long.",
+            "Give each chapter a short, specific title of 2 to 6 words naming its topic (for example \"Auto-PEEP\"), "
+                + "and the time of the line where it starts. The first chapter starts at 00:00.",
+            "Write the titles in the same language as the transcript.",
+            "Answer with JSON only, in exactly this shape:",
+            "{\"chapters\": [{\"start\": \"00:00\", \"title\": \"...\"}]}",
+            "",
+            "Transcript:",
+            transcript.timedLines,
+        ].joined(separator: "\n")
+    }
+
+    static func chapters(from reply: String) throws -> [AudioTranscript.Chapter] {
+        guard let json = AIJSON.object(in: reply), let items = json["chapters"] as? [[String: Any]] else {
+            throw AIError.unreadable
+        }
+        let chapters = items.compactMap { item -> AudioTranscript.Chapter? in
+            guard let title = (item["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty
+            else { return nil }
+            let start: TimeInterval?
+            if let seconds = item["start"] as? Double {
+                start = seconds
+            } else if let text = item["start"] as? String {
+                start = seconds(fromClock: text)
+            } else {
+                start = nil
+            }
+            return start.map { AudioTranscript.Chapter(start: $0, title: title) }
+        }
+        .sorted { $0.start < $1.start }
+        guard !chapters.isEmpty else { throw AIError.empty }
+        return chapters
+    }
+
+    /// "1:02:03", "02:03" or "123" as seconds.
+    static func seconds(fromClock text: String) -> TimeInterval? {
+        let parts = text.trimmingCharacters(in: CharacterSet(charactersIn: "[] ")).split(separator: ":").map { Double($0) }
+        guard !parts.isEmpty, parts.allSatisfy({ $0 != nil }) else { return nil }
+        return parts.compactMap { $0 }.reduce(0) { $0 * 60 + $1 }
+    }
+
     // MARK: Messy Mode
 
     static func organizePrompt(_ text: String) -> String {

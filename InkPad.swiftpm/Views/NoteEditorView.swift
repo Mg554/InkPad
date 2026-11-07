@@ -187,6 +187,7 @@ struct NoteEditorView: View {
             .overlay(alignment: .top) {
                 AudioPlaybackBar(
                     audio: session.audio,
+                    noteID: noteID,
                     recordings: session.recordings,
                     open: { session.openRecording($0) },
                     rename: { renameRecording($0) },
