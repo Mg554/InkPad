@@ -260,6 +260,13 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         }
     }
 
+    /// Smooths the selected writing, levels its lines and evens word sizes.
+    private func refineSelection() {
+        let settings = HandwritingSettingsStore.shared.settings
+        edit { selected = HandwritingRefiner.refine(selected, settings: settings) }
+        presentMenu()
+    }
+
     func setDash(_ style: DashStyle) {
         edit { dash = style }
     }
@@ -291,6 +298,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         if hasSelection {
             actions += [
                 UIAction(title: "Style", image: UIImage(systemName: "paintpalette")) { [weak self] _ in self?.showStylePanel() },
+                UIAction(title: "Refine", image: UIImage(systemName: "wand.and.stars")) { [weak self] _ in self?.refineSelection() },
                 UIAction(title: "Think", image: UIImage(systemName: "lightbulb")) { [weak self] _ in self?.thinkAboutInk() },
                 UIAction(title: "Remind Me", image: UIImage(systemName: "bell")) { [weak self] _ in
                     self?.readSelectedInk { text in self?.onRemind?(text) }

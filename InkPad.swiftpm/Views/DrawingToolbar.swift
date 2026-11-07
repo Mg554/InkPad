@@ -138,6 +138,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         .accessibilityLabel("Insert")
         toggleButton("Ruler", systemImage: "ruler", isOn: $canvas.isRulerActive)
         toggleButton("Hold to Snap Shapes", systemImage: "skew", isOn: $palette.snapsShapes)
+        RefineHandwritingButton(size: CGSize(width: 38, height: isVertical ? 34 : 38))
         toggleButton(
             "Draw with Finger",
             systemImage: pencilOnly ? "hand.raised.slash" : "hand.draw",
@@ -747,6 +748,30 @@ private struct HintButton: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(width: 260)
                 .padding()
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+}
+
+/// Opens the Refine Handwriting settings; lit while any is on.
+private struct RefineHandwritingButton: View {
+    @ObservedObject private var store = HandwritingSettingsStore.shared
+    let size: CGSize
+    @State private var isShowing = false
+
+    var body: some View {
+        Button {
+            isShowing = true
+        } label: {
+            Image(systemName: "wand.and.stars")
+                .font(.title3)
+                .frame(width: size.width, height: size.height)
+                .foregroundStyle(store.settings.isActive ? Color.inkAccent : Color.primary)
+                .background(store.settings.isActive ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+        }
+        .accessibilityLabel("Refine Handwriting")
+        .popover(isPresented: $isShowing) {
+            HandwritingSettingsView()
                 .presentationCompactAdaptation(.popover)
         }
     }

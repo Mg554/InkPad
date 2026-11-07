@@ -47,6 +47,9 @@ final class CanvasController: NSObject, ObservableObject {
     /// Audio playback replay, kept so a new canvas view picks it up.
     private var replayInterval: DateInterval?
     private var replayNow = Date.distantPast
+    /// The first stroke not yet leveled by Refine Handwriting.
+    private var refineStart: Int?
+    private var refineTask: Task<Void, Never>?
 
     var drawing: PKDrawing? { host?.canvas.drawing ?? lastDrawing }
     var elements: [PageElement]? { host?.elementLayer.elements ?? lastElements }
@@ -69,6 +72,7 @@ final class CanvasController: NSObject, ObservableObject {
         holdTracker.coordinateView = host.elementLayer
         holdTracker.onTouchBegan = { [weak self, weak host] in
             self?.drawingAtTouch = host?.canvas.drawing
+            self?.refineTask?.cancel()
             self?.expectsNewStroke = false
             self?.didEraseDuringTouch = false
             self?.awaitsEraseAfterTouch = false
@@ -225,14 +229,75 @@ final class CanvasController: NSObject, ObservableObject {
               host.canvas.drawing.strokes.count == before.strokes.count + 1,
               let stroke = host.canvas.drawing.strokes.last
         else { return false }
-        guard palette.tool.isInking, palette.style(for: palette.tool).ignoresPressure(for: palette.tool) else { return true }
-        let width = palette.style(for: palette.tool).selectedWidth(for: palette.tool)
+        guard palette.tool.isInking else { return true }
+        let settings = HandwritingSettingsStore.shared.settings
+        let flattens = palette.style(for: palette.tool).ignoresPressure(for: palette.tool)
+        let smooths = settings.smooths && palette.tool != .highlighter
+        if palette.tool != .highlighter {
+            noteStrokeForRefining(at: host.canvas.drawing.strokes.count - 1, settings: settings)
+        }
+        guard flattens || smooths else { return true }
+        var replacement = stroke
+        if flattens {
+            replacement = ShapeRecognizer.withoutPressure(replacement, width: palette.style(for: palette.tool).selectedWidth(for: palette.tool))
+        }
+        if smooths {
+            replacement = HandwritingRefiner.smooth(replacement, strength: settings.smoothStrength)
+        }
         var even = host.canvas.drawing
-        even.strokes[even.strokes.count - 1] = ShapeRecognizer.withoutPressure(stroke, width: width)
+        even.strokes[even.strokes.count - 1] = replacement
         isReplacingStroke = true
         host.canvas.drawing = even
         isReplacingStroke = false
         return true
+    }
+
+    // MARK: Refine Handwriting
+
+    /// Remembers a new stroke, and levels its line once the writer pauses.
+    private func noteStrokeForRefining(at index: Int, settings: HandwritingSettings) {
+        guard settings.straightens || settings.evensSize else { return }
+        if refineStart == nil || refineStart! > index { refineStart = index }
+        refineTask?.cancel()
+        refineTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(settings.pause))
+            guard !Task.isCancelled else { return }
+            self?.refinePendingLines()
+        }
+    }
+
+    private func refinePendingLines() {
+        guard let host, let start = refineStart else { return }
+        refineStart = nil
+        let drawing = host.canvas.drawing
+        guard start < drawing.strokes.count else { return }
+        let settings = HandwritingSettingsStore.shared.settings
+        var strokes = drawing.strokes
+        let fresh = Dictionary(uniqueKeysWithValues: (start..<strokes.count)
+            .filter { strokes[$0].ink.inkType != .marker }
+            .map { ($0, strokes[$0]) })
+        var changed = false
+        for line in HandwritingRefiner.lines(of: fresh) {
+            let original = line.map { strokes[$0] }
+            guard HandwritingRefiner.looksLikeWriting(original) else { continue }
+            var refined = original
+            if settings.straightens { refined = HandwritingRefiner.straighten(refined) }
+            if settings.evensSize { refined = HandwritingRefiner.evenSize(refined) }
+            for (index, (before, after)) in zip(line, zip(original, refined)) where before.transform != after.transform {
+                strokes[index] = after
+                changed = true
+            }
+        }
+        guard changed else { return }
+        var refined = drawing
+        refined.strokes = strokes
+        isReplacingStroke = true
+        host.canvas.drawing = refined
+        host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
+            canvas.drawing = drawing
+        }
+        isReplacingStroke = false
+        contentDidChange()
     }
 
     // MARK: Audio replay
