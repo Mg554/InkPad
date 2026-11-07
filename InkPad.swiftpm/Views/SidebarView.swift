@@ -10,6 +10,13 @@ struct SidebarView: View {
     @State private var collapsed: Set<UUID> = []
     @State private var showsBackup = false
     @State private var showsRecentlyDeleted = false
+    @AppStorage(BackupView.lastBackupKey) private var lastBackupAt: Double = 0
+    @AppStorage(AutoBackupFrequency.lastKey) private var lastAutomaticAt: Double = 0
+
+    /// No backup of any kind for two weeks while there are notes.
+    private var backupIsOverdue: Bool {
+        !store.notes.isEmpty && Date().timeIntervalSince1970 - max(lastBackupAt, lastAutomaticAt) > 14 * 86_400
+    }
 
     private var expandedFolders: Set<UUID> {
         Set(store.folders.map(\.id)).subtracting(collapsed)
@@ -52,6 +59,8 @@ struct SidebarView: View {
             }
 
             Section("Workspace") {
+                Label("Reminders", systemImage: "list.bullet.circle")
+                    .tag(LibraryScope.reminders)
                 Label("Planner", systemImage: "checklist")
                     .tag(LibraryScope.planner)
                 Label("Expenses", systemImage: "creditcard")
@@ -104,7 +113,8 @@ struct SidebarView: View {
                 Button {
                     showsBackup = true
                 } label: {
-                    Label("Backup", systemImage: "externaldrive.badge.icloud")
+                    Label("Backup", systemImage: backupIsOverdue ? "externaldrive.badge.exclamationmark" : "externaldrive.badge.icloud")
+                        .foregroundStyle(backupIsOverdue ? Color.orange : Color.accentColor)
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {

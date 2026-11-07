@@ -229,6 +229,8 @@ enum LibraryScope: Hashable {
     case study
     /// The Flowmodoro focus timer and its tasks.
     case flowmodoro
+    /// Apple Reminders, shown and edited in InkPad.
+    case reminders
     /// Notes with this tag (without the #).
     case tag(String)
     /// The graph of notes and their links.

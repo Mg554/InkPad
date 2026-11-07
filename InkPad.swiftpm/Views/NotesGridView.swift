@@ -13,6 +13,8 @@ struct NotesGridView: View {
     @State private var isShowingTemplates = false
     @State private var slidesNote: NoteSummary?
     @State private var studyNote: NoteSummary?
+    @State private var reminderRequest: NoteReminderRequest?
+    @State private var historyNote: NoteSummary?
 
     private var visibleNotes: [NoteSummary] {
         let notes = store.notes(in: scope)
@@ -30,6 +32,7 @@ struct NotesGridView: View {
         case .slides: "Slides"
         case .study: "Study"
         case .flowmodoro: "Flowmodoro"
+        case .reminders: "Reminders"
         case .graph: "Graph"
         case let .tag(tag): "#\(tag)"
         case let .folder(id): store.folder(id)?.name ?? "Folder"
@@ -39,7 +42,7 @@ struct NotesGridView: View {
     private var targetFolderID: UUID? {
         switch scope {
         case let .folder(id): return id
-        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .graph, .tag: return nil
+        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .tag: return nil
         }
     }
 
@@ -122,6 +125,14 @@ struct NotesGridView: View {
             .ignoresSafeArea()
         }
         .namePrompt($prompt)
+        .sheet(item: $historyNote) { note in
+            NoteHistoryView(note: note)
+                .environmentObject(store)
+        }
+        .sheet(item: $reminderRequest) { request in
+            ReminderEditor(draft: request.draft())
+                .environmentObject(store)
+        }
         .sheet(item: $studyNote) { note in
             StudyView(sources: [note.id], isSheet: true)
                 .environmentObject(store)
@@ -179,6 +190,18 @@ struct NotesGridView: View {
             studyNote = note
         } label: {
             Label("Study with AI…", systemImage: "graduationcap")
+        }
+
+        Button {
+            historyNote = note
+        } label: {
+            Label("Earlier Versions…", systemImage: "clock.arrow.circlepath")
+        }
+
+        Button {
+            reminderRequest = NoteReminderRequest(noteID: note.id, title: note.title)
+        } label: {
+            Label("Remind Me…", systemImage: "bell")
         }
 
         AIAccessMenu(

@@ -34,6 +34,7 @@ struct NoteEditorView: View {
     @State private var studyRequest: SlidesRequest?
     /// Lasso › Think (Write → Think → Build).
     @State private var thinkRequest: ThinkRequest?
+    @State private var reminderRequest: NoteReminderRequest?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -145,6 +146,10 @@ struct NoteEditorView: View {
                 .environmentObject(store)
                 .environmentObject(workspace)
         }
+        .sheet(item: $reminderRequest) { request in
+            ReminderEditor(draft: request.draft())
+                .environmentObject(store)
+        }
         .sheet(item: $thinkRequest) { request in
             ThinkView(noteID: noteID, text: request.text) { markdown, title in
                 canvas.placeText(TextBoxStyle.attributed(markdown: markdown, title: title), below: request.anchor)
@@ -155,6 +160,10 @@ struct NoteEditorView: View {
         .task {
             session.load(noteID: noteID, store: store)
             canvas.onThink = { text, rect in thinkRequest = ThinkRequest(text: text, anchor: rect) }
+            canvas.onRemind = { text in
+                let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                reminderRequest = NoteReminderRequest(noteID: noteID, title: title.isEmpty ? self.title : title)
+            }
         }
         .onDisappear {
             // Stopping a recording stores it in the note before the save.

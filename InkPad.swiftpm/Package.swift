@@ -31,7 +31,8 @@ let package = Package(
             ],
             capabilities: [
                 .microphone(purposeString: "InkPad records audio with your notes so you can play it back in step with your writing."),
-                .speechRecognition(purposeString: "InkPad turns your recordings into text on this iPad, so you can search them and jump to each part.")
+                .speechRecognition(purposeString: "InkPad turns your recordings into text on this iPad, so you can search them and jump to each part."),
+                .reminders(purposeString: "InkPad shows and edits your Reminders, and links reminders to your notes.")
             ],
             appCategory: .productivity
         )

@@ -19,6 +19,10 @@ struct BackupView: View {
     @State private var isPickingBackup = false
     @State private var pendingRestore: PendingRestore?
     @State private var safetyCopies: [SafetyCopy] = []
+    @State private var automaticBackups: [SafetyCopy] = []
+    @AppStorage(AutoBackupFrequency.storageKey) private var frequency: AutoBackupFrequency = .weekly
+    @AppStorage(AutoBackupFrequency.keepKey) private var keep = 5
+    @AppStorage(AutoBackupFrequency.lastKey) private var lastAutomaticAt: Double = 0
     @State private var notice: Notice?
     /// The restore picked in the options sheet; run once the sheet closes.
     @State private var chosen: (PendingRestore, RestoreChoice)?
@@ -81,6 +85,30 @@ struct BackupView: View {
                     Text("Restore")
                 } footer: {
                     Text("Add the backup's notes to your library, choose which notes to bring back, or replace the library. Your current library is kept below first, so you can go back.")
+                }
+
+                Section {
+                    Picker(selection: $frequency) {
+                        ForEach(AutoBackupFrequency.allCases) { Text($0.title).tag($0) }
+                    } label: {
+                        Label("Automatic Backup", systemImage: "clock.arrow.2.circlepath")
+                    }
+                    if frequency != .off {
+                        Stepper("Keep the Last \(keep)", value: $keep, in: 2...20)
+                    }
+                    ForEach(automaticBackups) { copy in
+                        safetyCopyRow(copy)
+                    }
+                    .onDelete { offsets in
+                        for index in offsets {
+                            try? LibraryBackup.deleteSafetyCopy(automaticBackups[index])
+                        }
+                        automaticBackups = LibraryBackup.automaticBackups()
+                    }
+                } header: {
+                    Text("Automatic Backups on This iPad")
+                } footer: {
+                    Text(automaticFooter)
                 }
 
                 if !safetyCopies.isEmpty {
@@ -153,7 +181,14 @@ struct BackupView: View {
             Alert(title: Text(notice.title), message: Text(notice.message))
         }
         .interactiveDismissDisabled(progress != nil)
+        .onChange(of: frequency) {
+            Task {
+                await store.makeAutomaticBackupIfDue()
+                automaticBackups = LibraryBackup.automaticBackups()
+            }
+        }
         .onAppear {
+            automaticBackups = LibraryBackup.automaticBackups()
             safetyCopies = LibraryBackup.safetyCopies()
         }
     }
@@ -172,6 +207,16 @@ struct BackupView: View {
             }
             .buttonStyle(.bordered)
         }
+    }
+
+    private var automaticFooter: String {
+        guard frequency != .off else {
+            return "Turn on to have InkPad back up the library by itself when you open it. Each backup can be restored like a backup file, and earlier versions of a note can be brought back from its menu."
+        }
+        let last = lastAutomaticAt > 0
+            ? "Last one: \(Date(timeIntervalSince1970: lastAutomaticAt).formatted(.relative(presentation: .named)))."
+            : "The first one is made now."
+        return "\(last) Kept on this iPad only, so also save a backup to iCloud Drive now and then. Earlier versions of a note can be brought back from its menu (Earlier Versions…)."
     }
 
     private var lastBackupText: String {

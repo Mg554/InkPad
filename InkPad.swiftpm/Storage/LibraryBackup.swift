@@ -415,9 +415,14 @@ enum LibraryBackup {
 
     /// Newest first.
     static func safetyCopies() -> [SafetyCopy] {
+        archives(in: safetyCopiesURL)
+    }
+
+    /// The ZIP files in a folder, newest first.
+    static func archives(in folder: URL) -> [SafetyCopy] {
         let keys: [URLResourceKey] = [.creationDateKey, .fileSizeKey]
         let files = (try? FileManager.default.contentsOfDirectory(
-            at: safetyCopiesURL,
+            at: folder,
             includingPropertiesForKeys: keys,
             options: [.skipsHiddenFiles]
         )) ?? []
@@ -501,5 +506,106 @@ extension LibraryStore {
             }
         }
         reload()
+    }
+}
+
+// MARK: Automatic backups and note history
+
+/// How often InkPad backs the library up by itself.
+enum AutoBackupFrequency: String, CaseIterable, Identifiable {
+    case off, daily, weekly
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .off: "Off"
+        case .daily: "Every Day"
+        case .weekly: "Every Week"
+        }
+    }
+
+    var interval: TimeInterval? {
+        switch self {
+        case .off: nil
+        case .daily: 86_400
+        case .weekly: 7 * 86_400
+        }
+    }
+
+    static let storageKey = "autoBackupFrequency"
+    static let keepKey = "autoBackupKeep"
+    static let lastKey = "lastAutoBackupAt"
+}
+
+extension LibraryBackup {
+    /// `Documents/InkPad Automatic Backups/`, outside the library.
+    static var automaticBackupsURL: URL {
+        LibraryStore.defaultRootURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("InkPad Automatic Backups", isDirectory: true)
+    }
+
+    /// Newest first.
+    static func automaticBackups() -> [SafetyCopy] {
+        archives(in: automaticBackupsURL)
+    }
+
+    static func pruneAutomaticBackups(keeping count: Int) {
+        for copy in automaticBackups().dropFirst(max(count, 1)) {
+            try? FileManager.default.removeItem(at: copy.url)
+        }
+    }
+
+    /// One saved version of a note, in a backup kept on the iPad.
+    struct NoteVersion: Identifiable {
+        var id: URL { archive }
+        let archive: URL
+        let backupDate: Date
+        let note: NoteSummary
+    }
+
+    /// The versions of a note found in the automatic backups and safety
+    /// copies on this iPad, newest first, one per change.
+    static func versions(of id: UUID) -> [NoteVersion] {
+        let archives = (automaticBackups() + safetyCopies()).sorted { $0.date > $1.date }
+        var seen: Set<Date> = []
+        return archives.compactMap { copy -> NoteVersion? in
+            guard let contents = try? readContents(at: copy.url),
+                  let note = contents.notes.first(where: { $0.id == id }),
+                  seen.insert(note.modifiedAt).inserted
+            else { return nil }
+            return NoteVersion(archive: copy.url, backupDate: contents.manifest.createdAt, note: note)
+        }
+    }
+}
+
+extension LibraryStore {
+    /// Writes an automatic backup if one is due; returns true when it did.
+    @discardableResult
+    func makeAutomaticBackupIfDue() async -> Bool {
+        let defaults = UserDefaults.standard
+        let frequency = AutoBackupFrequency(rawValue: defaults.string(forKey: AutoBackupFrequency.storageKey) ?? "") ?? .weekly
+        guard let interval = frequency.interval, !isReadOnly, !notes.isEmpty else { return false }
+        let last = defaults.double(forKey: AutoBackupFrequency.lastKey)
+        guard Date().timeIntervalSince1970 - last >= interval else { return false }
+        let keep = defaults.object(forKey: AutoBackupFrequency.keepKey) as? Int ?? 5
+        let root = rootURL
+        let folder = LibraryBackup.automaticBackupsURL
+        let target = folder.appendingPathComponent(LibraryBackup.fileName("InkPad Backup"))
+        let done: Bool = await withCheckedContinuation { continuation in
+            writeQueue.async {
+                do {
+                    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                    try LibraryBackup.writeArchive(of: root, to: target)
+                    LibraryBackup.pruneAutomaticBackups(keeping: keep)
+                    continuation.resume(returning: true)
+                } catch {
+                    continuation.resume(returning: false)
+                }
+            }
+        }
+        if done { defaults.set(Date().timeIntervalSince1970, forKey: AutoBackupFrequency.lastKey) }
+        return done
     }
 }

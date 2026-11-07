@@ -19,6 +19,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     /// Think: the selected writing (read with Vision) or PDF text, to turn
     /// into concepts, flashcards, questions or an explanation.
     var onThink: ((String, CGRect) -> Void)?
+    /// Remind Me: the selected writing as text, for a new reminder.
+    var onRemind: ((String) -> Void)?
 
     private let overlay: SelectionOverlayView
     private(set) lazy var pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
@@ -290,6 +292,9 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
             actions += [
                 UIAction(title: "Style", image: UIImage(systemName: "paintpalette")) { [weak self] _ in self?.showStylePanel() },
                 UIAction(title: "Think", image: UIImage(systemName: "lightbulb")) { [weak self] _ in self?.thinkAboutInk() },
+                UIAction(title: "Remind Me", image: UIImage(systemName: "bell")) { [weak self] _ in
+                    self?.readSelectedInk { text in self?.onRemind?(text) }
+                },
                 UIAction(title: "Copy as Text", image: UIImage(systemName: "text.viewfinder")) { [weak self] _ in self?.copyInkAsText() },
                 UIAction(title: "Duplicate", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in self?.duplicateSelection() },
                 UIAction(title: "Cut", image: UIImage(systemName: "scissors")) { [weak self] _ in self?.cutSelection() },

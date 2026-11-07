@@ -34,7 +34,7 @@ struct LibraryView: View {
     /// Opens a note from anywhere, leaving workspace pages for the notes area.
     private func open(_ id: UUID) {
         switch scope {
-        case .planner?, .expenses?, .mindMaps?, .slides?, .study?, .flowmodoro?:
+        case .planner?, .expenses?, .mindMaps?, .slides?, .study?, .flowmodoro?, .reminders?:
             // Changing the scope clears the path; the note opens once the
             // notes section is up (see `switchSection`).
             noteAfterSwitch = id
@@ -53,6 +53,7 @@ struct LibraryView: View {
         case .slides: "slides"
         case .study: "study"
         case .flowmodoro: "flowmodoro"
+        case .reminders: "reminders"
         default: "notes"
         }
     }
@@ -72,6 +73,8 @@ struct LibraryView: View {
             StudyView()
         case .flowmodoro:
             NavigationStack { FlowmodoroView() }
+        case .reminders:
+            NavigationStack { RemindersView() }
         default:
             NavigationStack(path: $path) {
                 Group {

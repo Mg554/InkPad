@@ -39,6 +39,11 @@ enum InkPadLink {
         URL(string: "\(scheme)://note/\(encode(title))")
     }
 
+    /// A link to one note by its id (stored in reminders made from notes).
+    static func noteID(_ id: UUID) -> URL? {
+        URL(string: "\(scheme)://id/\(id.uuidString)")
+    }
+
     static func tag(_ tag: String) -> URL? {
         URL(string: "\(scheme)://tag/\(encode(tag))")
     }
@@ -49,6 +54,9 @@ enum InkPadLink {
         switch url.host {
         case "note": navigation.openTitle(value)
         case "tag": navigation.openTag(value)
+        case "id":
+            guard let id = UUID(uuidString: value) else { return .discarded }
+            navigation.openNote(id)
         default: return .discarded
         }
         return .handled
