@@ -23,6 +23,7 @@ struct PlannerView: View {
             case .calendar: calendar
             }
         }
+        .themedBackground()
         .navigationTitle("Planner")
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -279,7 +280,7 @@ private struct TaskSummary: View {
                         .font(.caption)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.15), in: Capsule())
+                        .background(Color.inkAccent.opacity(0.15), in: Capsule())
                 }
             }
         }

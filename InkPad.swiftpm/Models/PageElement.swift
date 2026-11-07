@@ -25,7 +25,7 @@ enum TextBoxStyle {
 
     static var defaultAttributes: [NSAttributedString.Key: Any] {
         [
-            .font: UIFont.systemFont(ofSize: defaultFontSize),
+            .font: ThemeSettings.current.typingUIFont(),
             .foregroundColor: UIColor.black,
         ]
     }

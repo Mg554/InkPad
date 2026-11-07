@@ -62,7 +62,7 @@ struct NotesGridView: View {
                     .padding(.top, 40)
                     .frame(maxWidth: .infinity)
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 24)], spacing: 28) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: ThemeSettings.current.cardSize.range.min, maximum: ThemeSettings.current.cardSize.range.max), spacing: 24)], spacing: 28) {
                     ForEach(visibleNotes) { note in
                         Button {
                             openNote(note.id)
@@ -76,6 +76,7 @@ struct NotesGridView: View {
                 .padding(24)
             }
         }
+        .themedBackground()
         .navigationTitle(title)
         .searchable(text: $searchText, prompt: "Search titles, text, handwriting and #tags")
         .toolbar {
@@ -112,7 +113,11 @@ struct NotesGridView: View {
             }
         }
         .sheet(isPresented: $isShowingTemplates) {
-            TemplateGallery(title: "New Note", applyTitle: "Create") { template, paper in
+            TemplateGallery(
+                title: "New Note",
+                applyTitle: "Create",
+                paper: ThemeSettings.current.paperForNewNotes ? ThemeSettings.current.paper : .white
+            ) { template, paper in
                 if let note = store.createNote(in: targetFolderID, template: template, paper: paper) {
                     openNote(note.id)
                 }
@@ -277,7 +282,8 @@ struct NotesGridView: View {
     }
 
     private func createNote(_ template: PageTemplate) {
-        if let note = store.createNote(in: targetFolderID, template: template) {
+        let theme = ThemeSettings.current
+        if let note = store.createNote(in: targetFolderID, template: template, paper: theme.paperForNewNotes ? theme.paper : .white) {
             openNote(note.id)
         }
     }

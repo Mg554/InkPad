@@ -59,7 +59,7 @@ carefully for Swift pitfalls that have bitten before:
 
 ```
 InkPad.swiftpm/
-  App/        entry point (appearance, Scribble gate install)
+  App/        entry point (appearance, theme, Scribble gate, automatic backups)
   Models/     notes, pages, workspace data (planner, decks, study, Flowmodoro)
   Storage/    LibraryStore, WorkspaceStore, backups (ZIP): the only code that touches files
   Canvas/     PencilKit host, tools, lasso, laser, text boxes, keyboard support
@@ -67,7 +67,8 @@ InkPad.swiftpm/
   Audio/      recording and playback synced with ink
   Slides/     reading notes (Vision) and writing slide decks
   AI/         AI providers (Anthropic, OpenAI-compatible, Apple), study prompts
-  Views/      SwiftUI screens
+  Reminders/  Apple Reminders through EventKit
+  Views/      SwiftUI screens (Views/Theme: themes and the Theme Mixer)
 ```
 
 ## Open threads
@@ -82,3 +83,5 @@ InkPad.swiftpm/
   done; test them on the iPad. Every path that sends note text to AI must
   go through `NoteTexts.sources` or check `LibraryStore.isHiddenFromAI`
   (the AI Firewall).
+- Colors: use `Color.inkAccent` (the theme's accent), not
+  `Color.accentColor`, and `.themedBackground()` on new screens.

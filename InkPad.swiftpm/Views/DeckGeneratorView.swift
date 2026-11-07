@@ -180,11 +180,11 @@ struct DeckGeneratorView: View {
                     }
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.25), lineWidth: isSelected ? 3 : 1)
+                            .stroke(isSelected ? Color.inkAccent : Color.secondary.opacity(0.25), lineWidth: isSelected ? 3 : 1)
                     )
                 Text(theme.title)
                     .font(.caption)
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                    .foregroundStyle(isSelected ? Color.inkAccent : Color.primary)
             }
         }
         .buttonStyle(.plain)
@@ -263,7 +263,7 @@ struct NotePicker: View {
                         Spacer()
                         if selection.contains(note.id) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(Color.inkAccent)
                         }
                     }
                 }

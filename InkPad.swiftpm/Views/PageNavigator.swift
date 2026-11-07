@@ -101,7 +101,7 @@ struct PageSidebar: View {
             PageThumbnail(index: index, content: content, background: background, revision: revision)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(isCurrent ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: isCurrent ? 3 : 1)
+                        .stroke(isCurrent ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: isCurrent ? 3 : 1)
                 )
                 .overlay(alignment: .bottomLeading) {
                     Menu {
@@ -161,7 +161,7 @@ struct PageSidebar: View {
                 }
             Text("\(index + 1)")
                 .font(.caption.monospacedDigit())
-                .foregroundStyle(isCurrent ? Color.accentColor : Color.secondary)
+                .foregroundStyle(isCurrent ? Color.inkAccent : Color.secondary)
         }
     }
 }

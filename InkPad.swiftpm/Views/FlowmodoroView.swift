@@ -66,6 +66,7 @@ struct FlowmodoroView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .themedBackground()
         .navigationTitle("Flowmodoro")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {

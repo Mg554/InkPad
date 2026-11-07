@@ -310,8 +310,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
             }
             .padding(.horizontal, isVertical ? 0 : 10)
             .frame(minWidth: 38, minHeight: 32)
-            .foregroundStyle(isOn ? Color.accentColor : Color.primary)
-            .background(isOn ? Color.accentColor.opacity(0.15) : Color.clear, in: Capsule())
+            .foregroundStyle(isOn ? Color.inkAccent : Color.primary)
+            .background(isOn ? Color.inkAccent.opacity(0.15) : Color.clear, in: Capsule())
         }
         .accessibilityLabel("Laser Tail")
         .accessibilityAddTraits(isOn ? .isSelected : [])
@@ -332,8 +332,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
             }
             .padding(.horizontal, isVertical ? 0 : 10)
             .frame(minWidth: 38, minHeight: 32)
-            .foregroundStyle(isOn ? Color.accentColor : Color.primary)
-            .background(isOn ? Color.accentColor.opacity(0.15) : Color.clear, in: Capsule())
+            .foregroundStyle(isOn ? Color.inkAccent : Color.primary)
+            .background(isOn ? Color.inkAccent.opacity(0.15) : Color.clear, in: Capsule())
         }
         .accessibilityLabel("Switch Back to the Last Tool After Erasing")
         .accessibilityAddTraits(isOn ? .isSelected : [])
@@ -356,7 +356,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     .offset(tool.isInking ? penSink(isSelected: isSelected) : .zero)
                 // Notability's mark under (or beside) the selected tool.
                 Capsule()
-                    .fill(isSelected ? Color.accentColor : Color.clear)
+                    .fill(isSelected ? Color.inkAccent : Color.clear)
                     .frame(width: isVertical ? 3 : 18, height: isVertical ? 18 : 3)
             }
             .frame(width: isVertical ? 44 : 34, height: isVertical ? 32 : 44)
@@ -379,7 +379,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             Image(systemName: tool.systemImage)
                 .font(.title3)
                 .symbolVariant(isSelected ? .fill : .none)
-                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                .foregroundStyle(isSelected ? Color.inkAccent : Color.primary)
         }
     }
 
@@ -439,8 +439,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
                         .fill(Color.primary)
                         .frame(width: diameter, height: diameter)
                         .frame(width: 30, height: 30)
-                        .background(index == style.widthIndex ? Color.accentColor.opacity(0.2) : Color.clear, in: Circle())
-                        .overlay(Circle().stroke(index == style.widthIndex ? Color.accentColor : Color.clear, lineWidth: 1.5))
+                        .background(index == style.widthIndex ? Color.inkAccent.opacity(0.2) : Color.clear, in: Circle())
+                        .overlay(Circle().stroke(index == style.widthIndex ? Color.inkAccent : Color.clear, lineWidth: 1.5))
                 }
                 .accessibilityLabel(["Thin", "Medium", "Thick"][min(index, 2)])
             }
@@ -579,7 +579,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 .frame(width: size, height: size)
                 .overlay(Circle().stroke(Color.primary.opacity(0.15), lineWidth: 1))
                 .padding(3)
-                .overlay(Circle().stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2.5))
+                .overlay(Circle().stroke(isSelected ? Color.inkAccent : Color.clear, lineWidth: 2.5))
         }
         .accessibilityLabel("Color")
     }
@@ -600,7 +600,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             .padding(.horizontal, isVertical ? 0 : 10)
             .frame(minWidth: 38, minHeight: 32)
             .foregroundStyle(.white)
-            .background(Color.accentColor, in: Capsule())
+            .background(Color.inkAccent, in: Capsule())
         }
         .accessibilityLabel("Show Keyboard")
         .alert(
@@ -629,7 +629,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             }
             .padding(.horizontal, isVertical ? 0 : 10)
             .frame(minWidth: 38, minHeight: 32)
-            .background(Color.accentColor.opacity(0.12), in: Capsule())
+            .background(Color.inkAccent.opacity(0.12), in: Capsule())
         }
         .accessibilityLabel(mode.switchLabel)
     }
@@ -638,8 +638,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .frame(width: 34, height: 32)
-                .foregroundStyle(isOn ? Color.accentColor : Color.primary)
-                .background(isOn ? Color.accentColor.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                .foregroundStyle(isOn ? Color.inkAccent : Color.primary)
+                .background(isOn ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
         }
         .accessibilityLabel(label)
     }
@@ -659,8 +659,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
             isOn.wrappedValue.toggle()
         } label: {
             icon(systemImage)
-                .foregroundStyle(isOn.wrappedValue ? Color.accentColor : Color.primary)
-                .background(isOn.wrappedValue ? Color.accentColor.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+                .foregroundStyle(isOn.wrappedValue ? Color.inkAccent : Color.primary)
+                .background(isOn.wrappedValue ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
         }
         .accessibilityLabel(title)
     }

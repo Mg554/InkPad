@@ -61,6 +61,7 @@ struct ExpensesView: View {
                 .padding(.top, 200)
             }
         }
+        .themedBackground()
         .navigationTitle("Expenses")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
@@ -223,7 +224,7 @@ struct ExpensesView: View {
                         .fontWeight(selected == item.0 ? .bold : .regular)
                         .padding(.vertical, 4)
                         .padding(.horizontal, 8)
-                        .background(selected == item.0 ? Color.accentColor.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                        .background(selected == item.0 ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
                     }
                     .buttonStyle(PressableStyle())
                 }

@@ -28,7 +28,7 @@ struct SelectionStylePanel: View {
                         StrokeStyleSample(style: style)
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .background(Color.secondary.opacity(selection.dash == style ? 0.15 : 0.07), in: Capsule())
-                            .overlay(Capsule().stroke(selection.dash == style ? Color.accentColor : Color.clear, lineWidth: 2))
+                            .overlay(Capsule().stroke(selection.dash == style ? Color.inkAccent : Color.clear, lineWidth: 2))
                     }
                     .buttonStyle(PressableStyle())
                     .accessibilityLabel(style.rawValue.capitalized)

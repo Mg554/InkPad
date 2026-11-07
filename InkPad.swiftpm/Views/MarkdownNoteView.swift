@@ -281,7 +281,7 @@ struct MarkdownTextView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
-        textView.font = .systemFont(ofSize: 17)
+        textView.font = ThemeSettings.current.typingUIFont()
         textView.textContainerInset = UIEdgeInsets(top: 20, left: 20, bottom: 40, right: 20)
         textView.autocorrectionType = .default
         textView.smartDashesType = .no
@@ -326,14 +326,15 @@ struct MarkdownTextView: UIViewRepresentable {
             let full = NSRange(location: 0, length: storage.length)
             let string = storage.string
             storage.beginEditing()
-            storage.setAttributes([.font: UIFont.systemFont(ofSize: 17), .foregroundColor: UIColor.label], range: full)
+            storage.setAttributes([.font: ThemeSettings.current.typingUIFont(), .foregroundColor: UIColor.label], range: full)
             for match in headingPattern.matches(in: string, range: full) {
                 let level = match.range(at: 1).length
-                let size: CGFloat = [30, 25, 21, 19, 18, 17][min(level - 1, 5)]
-                storage.addAttribute(.font, value: UIFont.systemFont(ofSize: size, weight: .bold), range: match.range)
+                // Heading sizes grow with the theme's typing size.
+                let size = [30, 25, 21, 19, 18, 17][min(level - 1, 5)] * CGFloat(ThemeSettings.current.typingSize) / 17
+                storage.addAttribute(.font, value: ThemeSettings.current.typingUIFont(size: size, weight: .bold), range: match.range)
             }
             for match in boldPattern.matches(in: string, range: full) {
-                storage.addAttribute(.font, value: UIFont.boldSystemFont(ofSize: 17), range: match.range)
+                storage.addAttribute(.font, value: ThemeSettings.current.typingUIFont(weight: .bold), range: match.range)
             }
             for match in linkPattern.matches(in: string, range: full) {
                 storage.addAttribute(.foregroundColor, value: UIColor.systemPurple, range: match.range)
@@ -342,7 +343,7 @@ struct MarkdownTextView: UIViewRepresentable {
                 storage.addAttribute(.foregroundColor, value: UIColor.systemTeal, range: match.range)
             }
             storage.endEditing()
-            textView.typingAttributes = [.font: UIFont.systemFont(ofSize: 17), .foregroundColor: UIColor.label]
+            textView.typingAttributes = [.font: ThemeSettings.current.typingUIFont(), .foregroundColor: UIColor.label]
         }
     }
 }

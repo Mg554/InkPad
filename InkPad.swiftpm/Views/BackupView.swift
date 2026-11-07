@@ -58,7 +58,7 @@ struct BackupView: View {
                     } icon: {
                         Image(systemName: "externaldrive.badge.icloud")
                             .font(.title2)
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Color.inkAccent)
                     }
                     .padding(.vertical, 4)
                 }

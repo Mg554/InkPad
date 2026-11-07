@@ -38,6 +38,7 @@ struct MindMapsView: View {
                     )
                 }
             }
+            .themedBackground()
             .navigationTitle("Mind Maps")
             .toolbar {
                 Button {
@@ -119,7 +120,7 @@ private struct MindMapPreview: View {
                 let center = point(node)
                 let radius: CGFloat = node.parentID == nil ? 6 : 4
                 context.fill(Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)),
-                             with: .color(node.color?.color ?? .accentColor))
+                             with: .color(node.color?.color ?? .inkAccent))
             }
         }
     }

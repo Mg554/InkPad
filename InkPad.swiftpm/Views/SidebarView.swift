@@ -10,6 +10,9 @@ struct SidebarView: View {
     @State private var collapsed: Set<UUID> = []
     @State private var showsBackup = false
     @State private var showsRecentlyDeleted = false
+    @State private var showsThemes = false
+    /// Applied once the Themes sheet has closed (applying rebuilds the app).
+    @State private var themeToApply: ThemeRecipe?
     @AppStorage(BackupView.lastBackupKey) private var lastBackupAt: Double = 0
     @AppStorage(AutoBackupFrequency.lastKey) private var lastAutomaticAt: Double = 0
 
@@ -107,6 +110,7 @@ struct SidebarView: View {
                 }
             }
         }
+        .themedBackground(sidebar: true)
         .navigationTitle("InkPad")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -114,7 +118,14 @@ struct SidebarView: View {
                     showsBackup = true
                 } label: {
                     Label("Backup", systemImage: backupIsOverdue ? "externaldrive.badge.exclamationmark" : "externaldrive.badge.icloud")
-                        .foregroundStyle(backupIsOverdue ? Color.orange : Color.accentColor)
+                        .foregroundStyle(backupIsOverdue ? Color.orange : Color.inkAccent)
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showsThemes = true
+                } label: {
+                    Label("Themes", systemImage: "paintbrush")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -123,6 +134,14 @@ struct SidebarView: View {
         }
         .sheet(isPresented: $showsBackup) {
             BackupView()
+        }
+        .sheet(isPresented: $showsThemes, onDismiss: {
+            if let themeToApply {
+                self.themeToApply = nil
+                DispatchQueue.main.async { ThemeSettings.shared.apply(themeToApply) }
+            }
+        }) {
+            ThemeView { themeToApply = $0 }
         }
         .sheet(isPresented: $showsRecentlyDeleted) {
             RecentlyDeletedView()

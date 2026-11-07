@@ -112,6 +112,20 @@ Done:
   keyboard is connected
 - Appearance: Match iPad, Light or Dark (the circle button at the top of
   the sidebar); pages keep their paper color
+- Themes (the brush button at the top of the sidebar): nine themes
+  (Classic, Paper, Midnight, Ocean, Forest, Sepia, Rose, Nord, Sunset) for
+  backgrounds, sidebar and accent color, in light and dark. The Theme
+  Mixer takes each part from any theme: colors, accent, plain or glass
+  background (soft blended colors), glass colors and paper; mixes can be
+  saved. Hybrid paper: new notes start on the theme's paper and each note
+  can still change its own. Also the app font (Standard, Rounded, Serif,
+  Mono), the typing font and size for text typed with the keyboard, and
+  note card size
+- Reminders (sidebar): Apple Reminders inside InkPad, with Today,
+  Scheduled, All, Priority and Completed, your lists, dates, times and
+  alerts (sent by the Reminders app), priorities and notes. Link a
+  reminder to a note; "Remind Me…" in a note's menu, or circle writing
+  with the lasso and tap Remind Me
 - Flowmodoro (from the Pythonation/flowmodoro-wep-app web app): a task
   list; tap a task to start the work stopwatch, stop when your focus fades
   and you earn a break of 5% of the work time (at least a minute; 10, 15
@@ -148,7 +162,11 @@ Done:
   backup; nothing is removed), Choose Notes… (browse the backup and bring
   back only the notes you pick; ones you still have come back as copies),
   or Replace Library. Before any restore the library is kept on the iPad
-  (the last three copies) so it can be undone. AI keys stay in the keychain and are never in a backup
+  (the last three copies) so it can be undone. Automatic backups (every
+  day or week, keeping the last few) are made on the iPad when InkPad
+  opens; the backup button turns orange after two weeks without any
+  backup. "Earlier Versions…" in a note's menu brings back an older
+  version of that note from these backups, as a copy. AI keys stay in the keychain and are never in a backup
 
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 

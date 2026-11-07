@@ -32,6 +32,7 @@ struct RemindersView: View {
                 )
             }
         }
+        .themedBackground()
         .navigationTitle("Reminders")
         .task { await center.refresh() }
         .alert("Reminders", isPresented: Binding(get: { center.errorMessage != nil }, set: { if !$0 { center.errorMessage = nil } })) {
@@ -108,7 +109,6 @@ struct RemindersView: View {
             .frame(maxWidth: 820)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
         .namePrompt($newListName)
         .confirmationDialog(
             "Delete the list \"\(listToDelete?.title ?? "")\" and its reminders?",
@@ -216,6 +216,7 @@ struct ReminderListView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .themedBackground()
         .navigationTitle(title)
         .toolbar {
             if canAdd {

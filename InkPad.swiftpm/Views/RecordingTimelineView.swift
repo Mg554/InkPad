@@ -122,11 +122,11 @@ struct RecordingTimelineView: View {
                                     .frame(width: 56, alignment: .leading)
                                 Text(chapter.title)
                                     .font(.body.weight(chapter == playing ? .bold : .regular))
-                                    .foregroundStyle(chapter == playing ? Color.accentColor : Color.primary)
+                                    .foregroundStyle(chapter == playing ? Color.inkAccent : Color.primary)
                                 Spacer()
                                 if chapter == playing {
                                     Image(systemName: "speaker.wave.2.fill")
-                                        .foregroundStyle(Color.accentColor)
+                                        .foregroundStyle(Color.inkAccent)
                                 }
                             }
                         }

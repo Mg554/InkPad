@@ -27,5 +27,5 @@ extension FolderColor {
 
 extension Optional where Wrapped == FolderColor {
     /// Folder tint, with the app accent color as the default.
-    var tint: Color { self?.color ?? .accentColor }
+    var tint: Color { self?.color ?? .inkAccent }
 }

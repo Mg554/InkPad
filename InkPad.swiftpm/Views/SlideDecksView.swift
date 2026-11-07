@@ -42,6 +42,7 @@ struct SlideDecksView: View {
                     }
                 }
             }
+            .themedBackground()
             .navigationTitle("Slides")
             .toolbar {
                 Button {

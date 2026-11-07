@@ -182,7 +182,7 @@ private struct BackupNotePicker: View {
                 HStack(spacing: 12) {
                     Image(systemName: selection.contains(note.id) ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
-                        .foregroundStyle(selection.contains(note.id) ? Color.accentColor : Color.secondary)
+                        .foregroundStyle(selection.contains(note.id) ? Color.inkAccent : Color.secondary)
                     Image(systemName: note.isText ? "doc.text" : "pencil.and.scribble")
                         .foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 2) {

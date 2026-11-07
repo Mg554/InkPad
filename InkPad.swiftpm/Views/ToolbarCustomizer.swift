@@ -51,7 +51,7 @@ struct ToolbarCustomizer: View {
             } label: {
                 Image(systemName: isShown ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(isShown ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isShown ? Color.inkAccent : Color.secondary)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(isShown ? "Hide \(tool.title)" : "Show \(tool.title)")

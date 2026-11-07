@@ -246,7 +246,7 @@ extension EKReminder {
         return hasDueTime ? dueDate < Date() : dueDate < Calendar.current.startOfDay(for: Date())
     }
 
-    var listColor: Color { calendar.map { Color(cgColor: $0.cgColor) } ?? .accentColor }
+    var listColor: Color { calendar.map { Color(cgColor: $0.cgColor) } ?? .inkAccent }
 
     /// "!!!" for high, "!!" medium, "!" low, as in Reminders.
     var priorityMarks: String {

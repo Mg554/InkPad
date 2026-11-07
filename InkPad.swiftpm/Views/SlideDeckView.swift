@@ -102,11 +102,11 @@ struct SlideDeckView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.25), lineWidth: isSelected ? 3 : 1)
+                                    .stroke(isSelected ? Color.inkAccent : Color.secondary.opacity(0.25), lineWidth: isSelected ? 3 : 1)
                             )
                             Text("\(item.offset + 1)")
                                 .font(.caption.monospacedDigit())
-                                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                                .foregroundStyle(isSelected ? Color.inkAccent : Color.secondary)
                         }
                     }
                     .buttonStyle(.plain)

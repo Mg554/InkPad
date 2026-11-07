@@ -75,6 +75,7 @@ struct StudyView: View {
                 .frame(maxWidth: 760)
                 .frame(maxWidth: .infinity)
             }
+            .themedBackground()
             .navigationTitle("Study")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {

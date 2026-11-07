@@ -36,7 +36,7 @@ struct WidthLevelBar: View {
                 HStack(spacing: 3) {
                     ForEach(1...levels, id: \.self) { step in
                         Capsule()
-                            .fill(step <= currentLevel ? Color.accentColor : Color.secondary.opacity(0.3))
+                            .fill(step <= currentLevel ? Color.inkAccent : Color.secondary.opacity(0.3))
                             .frame(height: 5 + CGFloat(step) * 0.6)
                             .frame(maxWidth: .infinity)
                     }
@@ -46,7 +46,7 @@ struct WidthLevelBar: View {
                     .font(.caption.bold().monospacedDigit())
                     .frame(width: 34, height: 34)
                     .background(.background, in: Circle())
-                    .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
+                    .overlay(Circle().stroke(Color.inkAccent, lineWidth: 2))
                     .shadow(color: .accentColor.opacity(0.5), radius: 6)
                     .offset(x: position * (barWidth - 34))
             }

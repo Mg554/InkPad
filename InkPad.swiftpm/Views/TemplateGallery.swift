@@ -71,7 +71,7 @@ struct TemplateGallery: View {
                             .frame(width: 40, height: 40)
                             .overlay(Circle().stroke(Color.primary.opacity(0.2)))
                             .padding(4)
-                            .overlay(Circle().stroke(paper == color ? Color.accentColor : Color.clear, lineWidth: 3))
+                            .overlay(Circle().stroke(paper == color ? Color.inkAccent : Color.clear, lineWidth: 3))
                     }
                     .accessibilityLabel(color.title)
                 }
@@ -87,7 +87,7 @@ struct TemplateGallery: View {
                 TemplatePreview(template: item, paper: paper)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .stroke(template == item ? Color.accentColor : Color.secondary.opacity(0.3),
+                            .stroke(template == item ? Color.inkAccent : Color.secondary.opacity(0.3),
                                     lineWidth: template == item ? 3 : 1)
                     )
                     .overlay(alignment: .topLeading) {
@@ -96,7 +96,7 @@ struct TemplateGallery: View {
                                 .font(.caption2.bold())
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 3)
-                                .background(Color.accentColor, in: Capsule())
+                                .background(Color.inkAccent, in: Capsule())
                                 .foregroundStyle(.white)
                                 .padding(8)
                         }

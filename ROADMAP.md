@@ -36,6 +36,9 @@
    - Voice → Timeline: on-device transcripts, chapters and word search
      for recordings — done (needs on-device testing; the simulator has no
      speech models)
+   - Restore options (add, choose notes, replace), automatic backups,
+     note history, Reminders (Apple Reminders) and Themes with the Theme
+     Mixer — done (needs on-device testing)
    - Next ideas, in order: Command Anywhere (⌘K),
      Living Notes; then Focus Mode and Knowledge GPS; later Knowledge
      Versioning, Replay, Spatial Knowledge Graph and Ink → Structure
