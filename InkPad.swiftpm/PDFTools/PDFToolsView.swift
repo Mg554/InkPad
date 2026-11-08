@@ -60,6 +60,7 @@ enum PDFTool: String, CaseIterable, Identifiable {
 struct PDFToolsView: View {
     @State private var tool: PDFTool?
     @State private var extra: PDFExtraTool?
+    @State private var isComparing = false
 
     var body: some View {
         ScrollView {
@@ -70,6 +71,7 @@ struct PDFToolsView: View {
                 section("Organize", tools: PDFTool.allCases)
                 extraSection("Convert", tools: PDFExtraTool.convert)
                 extraSection("Protect & Edit", tools: PDFExtraTool.protect)
+                compareSection
                 VStack(alignment: .leading, spacing: 6) {
                     Label("Inside a PDF note", systemImage: "book")
                         .font(.headline)
@@ -91,6 +93,23 @@ struct PDFToolsView: View {
         }
         .sheet(item: $extra) { tool in
             PDFExtraToolSheet(tool: tool)
+        }
+        .fullScreenCover(isPresented: $isComparing) {
+            CompareEditionsView()
+        }
+    }
+
+    private var compareSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Study").font(.title3.bold())
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+                Button {
+                    isComparing = true
+                } label: {
+                    card(title: "Compare Editions", detail: "What changed between two editions of a book, chapter by chapter.", systemImage: "arrow.left.arrow.right", tint: .teal)
+                }
+                .buttonStyle(PressableStyle())
+            }
         }
     }
 

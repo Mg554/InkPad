@@ -53,7 +53,7 @@ struct NoteCard: View {
         }
         .contentShape(Rectangle())
         .task(id: note.modifiedAt) {
-            if !note.isText { thumbnail = store.thumbnail(for: note.id) }
+            if !note.isText { thumbnail = await store.cardThumbnail(for: note.id, modifiedAt: note.modifiedAt) }
         }
     }
 }

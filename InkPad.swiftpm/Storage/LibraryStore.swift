@@ -101,9 +101,42 @@ final class LibraryStore: ObservableObject {
     init(rootURL: URL? = nil) {
         self.rootURL = rootURL ?? Self.defaultRootURL
         loadIndex()
-        loadTextIndex()
-        loadRecognizedText()
         removeExpiredTrash()
+        // The text of every note is read after the library shows, so
+        // InkPad opens quickly however many notes there are.
+        loadTextsInBackground()
+    }
+
+    /// Reads text notes and the recognized text of handwritten notes off
+    /// the main thread, then adds what wasn't saved meanwhile.
+    private func loadTextsInBackground() {
+        let items: [(UUID, Bool, URL)] = notes.map { ($0.id, $0.isText, noteDirectory($0.id)) }
+        Task {
+            let read = await Task.detached(priority: .userInitiated) { Self.readTexts(items) }.value
+            var texts = textIndex
+            for (id, info) in read.texts where texts[id] == nil { texts[id] = info }
+            var recognized = recognizedText
+            for (id, text) in read.recognized where recognized[id] == nil { recognized[id] = text }
+            textIndex = texts
+            recognizedText = recognized
+        }
+    }
+
+    private nonisolated static func readTexts(_ items: [(UUID, Bool, URL)]) -> (texts: [UUID: TextNoteInfo], recognized: [UUID: String]) {
+        var texts: [UUID: TextNoteInfo] = [:]
+        var recognized: [UUID: String] = [:]
+        for (id, isText, directory) in items {
+            if isText {
+                let url = directory.appendingPathComponent(NoteFiles.markdownFile)
+                if let text = try? String(contentsOf: url, encoding: .utf8) { texts[id] = TextNoteInfo(text: text) }
+            } else {
+                let url = directory.appendingPathComponent(NoteFiles.textFile)
+                if let data = try? Data(contentsOf: url), let saved = try? JSONDecoder().decode(RecognizedText.self, from: data) {
+                    recognized[id] = saved.text
+                }
+            }
+        }
+        return (texts, recognized)
     }
 
     nonisolated static var defaultRootURL: URL {
@@ -203,6 +236,29 @@ final class LibraryStore: ObservableObject {
     func thumbnail(for id: UUID) -> UIImage? {
         UIImage(contentsOfFile: noteDirectory(id).appendingPathComponent(NoteFiles.thumbnailFile).path)
     }
+
+    /// The note's thumbnail, read and decoded off the main thread at card
+    /// size and kept in memory, so the library scrolls smoothly.
+    func cardThumbnail(for id: UUID, modifiedAt: Date) async -> UIImage? {
+        let key = "\(id.uuidString)-\(modifiedAt.timeIntervalSince1970)" as NSString
+        if let cached = Self.thumbnailCache.object(forKey: key) { return cached }
+        let url = noteDirectory(id).appendingPathComponent(NoteFiles.thumbnailFile)
+        let image: UIImage? = await Task.detached(priority: .userInitiated) {
+            guard let full = UIImage(contentsOfFile: url.path) else { return nil }
+            let width: CGFloat = 420
+            guard full.size.width > width else { return full.preparingForDisplay() ?? full }
+            let size = CGSize(width: width, height: full.size.height * width / full.size.width)
+            return full.preparingThumbnail(of: size) ?? full
+        }.value
+        if let image { Self.thumbnailCache.setObject(image, forKey: key) }
+        return image
+    }
+
+    private static let thumbnailCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 300
+        return cache
+    }()
 
     // MARK: AI Firewall
 

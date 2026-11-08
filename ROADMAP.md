@@ -89,7 +89,10 @@
      scan with OCR, web page → PDF, PDF → images, extract images) and
      Protect & Edit (compress, password, unlock, redact, watermark, page
      numbers, sign). Camera scan and signing need the real iPad.
-     Next: compare editions, side-by-side notebook.
+   - Done (batch 5, needs iPad testing): Compare Editions (chapters
+     matched by title and text, word-level page diff with colors, AI
+     explanation, report note, bookmarks moved to the new edition).
+     Next: side-by-side notebook.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from

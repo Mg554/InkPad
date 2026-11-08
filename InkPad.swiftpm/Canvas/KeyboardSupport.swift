@@ -80,6 +80,41 @@ final class KeyboardWatcher: NSObject {
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
         center.addObserver(self, selector: #selector(keyboardWillHide(_:)), name: UIResponder.keyboardWillHideNotification, object: nil)
+        center.addObserver(self, selector: #selector(editingBegan(_:)), name: UITextField.textDidBeginEditingNotification, object: nil)
+        center.addObserver(self, selector: #selector(editingBegan(_:)), name: UITextView.textDidBeginEditingNotification, object: nil)
+    }
+
+    // MARK: Missing keyboard
+
+    private static let muteKey = "keyboardNoticeMuted"
+    private var hasWarned = false
+
+    /// When typing starts but no on-screen keyboard comes, says why once,
+    /// usually a keyboard (or a Bluetooth stylus that acts like one) that
+    /// iPadOS thinks is connected.
+    @objc private func editingBegan(_ notification: Notification) {
+        guard !hasWarned, !UserDefaults.standard.bool(forKey: Self.muteKey) else { return }
+        guard let view = notification.object as? UIView else { return }
+        // Text boxes in handwriting mode hide the keyboard on purpose.
+        if let textView = view as? UITextView, textView.inputView != nil { return }
+        if let field = view as? UITextField, field.inputView != nil { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self, weak view] in
+            guard let self, let view, view.isFirstResponder, !self.isKeyboardVisible, !self.hasWarned else { return }
+            guard !UIScribbleInteraction.isPencilInputExpected else { return }
+            self.hasWarned = true
+            self.presentNotice(from: view)
+        }
+    }
+
+    private func presentNotice(from view: UIView) {
+        guard var controller = view.window?.rootViewController else { return }
+        while let presented = controller.presentedViewController { controller = presented }
+        let alert = UIAlertController(title: "No On-Screen Keyboard", message: KeyboardHelp.missingKeyboardReason, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: "Don't Show Again", style: .cancel) { _ in
+            UserDefaults.standard.set(true, forKey: Self.muteKey)
+        })
+        controller.present(alert, animated: true)
     }
 
     @objc private func keyboardWillShow(_ notification: Notification) {
@@ -97,6 +132,21 @@ final class KeyboardWatcher: NSObject {
 enum KeyboardHelp {
     static var hasHardwareKeyboard: Bool {
         GCKeyboard.coalesced != nil
+    }
+
+    /// Why typing started without the on-screen keyboard.
+    static var missingKeyboardReason: String {
+        if let keyboard = GCKeyboard.coalesced {
+            let name = keyboard.vendorName ?? "a keyboard"
+            return [
+                "iPadOS thinks a keyboard is connected (\(name)), so it hides the on-screen keyboard in every app.",
+                "Many Bluetooth styluses connect as a keyboard so their buttons work. Turn that device's Bluetooth off, or disconnect or forget it in Settings › Bluetooth, and the on-screen keyboard comes back.",
+            ].joined(separator: "\n\n")
+        }
+        return [
+            "iPadOS didn't open the on-screen keyboard, and no keyboard seems connected.",
+            "Look in Settings › Bluetooth for a connected keyboard or stylus and disconnect it, and check that the keyboard opens in another app such as Notes.",
+        ].joined(separator: "\n\n")
     }
 
     /// Checks shortly after asking for the keyboard; calls `report` with the

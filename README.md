@@ -70,6 +70,11 @@ Done:
   Files), unlock a locked PDF, redact words or drawn areas (redacted
   pages become pictures, so the text is really gone), watermark, page
   numbers, and sign (write a signature, choose page and place).
+  Compare Editions: two editions of a book matched chapter by chapter
+  (new, removed, changed with how much, same), the pages side by side
+  with added words in green and removed words in red, the changed
+  sentences, an AI explanation of what changed (AI Firewall), a report
+  saved as a note, and bookmarks moved to the new edition.
   Results are new notes; originals never change
 - PDF books: the book button opens Chapters & Bookmarks with the book's
   own outline (chapters and sections), colored bookmarks, reading

@@ -40,7 +40,7 @@ struct SceneryView: View {
 
     var body: some View {
         if animated && !reduceMotion {
-            TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
+            TimelineView(.animation(minimumInterval: 1 / 20)) { timeline in
                 canvas(time: timeline.date.timeIntervalSinceReferenceDate)
             }
         } else {
@@ -49,7 +49,8 @@ struct SceneryView: View {
     }
 
     private func canvas(time: TimeInterval?) -> some View {
-        Canvas { context, size in
+        // Drawn off the main thread, so the screen stays responsive.
+        Canvas(rendersAsynchronously: true) { context, size in
             let painter = SceneryPainter(season: season, size: size, isDark: colorScheme == .dark, isSidebar: isSidebar)
             painter.drawGround(in: &context)
             painter.drawParticles(in: &context, time: time)

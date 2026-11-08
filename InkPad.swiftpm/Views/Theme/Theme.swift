@@ -301,9 +301,12 @@ struct GlassBlend: View {
     var blur: Double = 30
 
     var body: some View {
+        // Flattened into one picture, so the blur isn't worked out again
+        // whenever something above it moves.
         blend
             .hueRotation(.degrees(hue))
             .blur(radius: blur)
+            .drawingGroup()
     }
 
     @ViewBuilder

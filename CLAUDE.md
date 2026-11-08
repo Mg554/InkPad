@@ -91,9 +91,14 @@ InkPad.swiftpm/
 
 ## Open threads
 
-- Keyboard after Apple Pencil taps: iPadOS (Scribble) hides it; finger taps
-  show it. Check in the Xcode-installed app whether it behaves the same as
-  in Swift Playgrounds.
+- Keyboard: the owner sees no on-screen keyboard anywhere, even with
+  finger taps, and uses a third-party stylus (not Apple Pencil). Likely a
+  Bluetooth device iPadOS treats as a hardware keyboard. KeyboardWatcher
+  now explains it once (with the device name from GCKeyboard) when typing
+  starts without a keyboard; confirm on the iPad what it reports.
+- Performance: Swift Playgrounds runs unoptimized builds; keep heavy work
+  off the main thread (thumbnails load async and downsampled, note texts
+  load in the background, scenery draws asynchronously at 20 fps).
 - Bring back Flowmodoro's break-end notification for the installed app
   (it was removed because it crashes inside Playgrounds).
 - Library backup/restore, Recently Deleted, page reorder, the AI Firewall

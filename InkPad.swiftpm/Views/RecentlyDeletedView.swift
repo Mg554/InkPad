@@ -139,7 +139,7 @@ private struct DeletedNoteThumbnail: View {
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
         .task(id: note.id) {
-            if !note.isText { thumbnail = store.thumbnail(for: note.id) }
+            if !note.isText { thumbnail = await store.cardThumbnail(for: note.id, modifiedAt: note.modifiedAt) }
         }
     }
 }
