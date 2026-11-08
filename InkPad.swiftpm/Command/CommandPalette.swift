@@ -350,15 +350,15 @@ enum CommandButtonSettings {
 }
 
 /// A small floating ⌘ button that opens the palette; drag it anywhere.
+/// Inside a note it keeps a place of its own, apart from the library's.
 struct FloatingCommandButton: View {
     @AppStorage(CommandButtonSettings.showsKey) private var shows = true
-    @AppStorage(CommandButtonSettings.xKey) private var x = 0.96
-    @AppStorage(CommandButtonSettings.yKey) private var y = 0.82
-    @State private var drag: CGSize = .zero
+    @ObservedObject private var center = CommandCenter.shared
 
     var body: some View {
-        GeometryReader { geometry in
-            if shows {
+        if shows {
+            let inNote = center.noteCommands != nil
+            FloatingPlacement(key: inNote ? "commandButton.note" : "commandButton.library", x: 0.96, y: inNote ? 0.78 : 0.82) {
                 Image(systemName: "command")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.white)
@@ -367,23 +367,13 @@ struct FloatingCommandButton: View {
                     .overlay(Circle().stroke(.white.opacity(0.5), lineWidth: 1))
                     .shadow(color: Color.inkAccent.opacity(0.5), radius: 10)
                     .opacity(0.9)
-                    .position(
-                        x: x * geometry.size.width + drag.width,
-                        y: y * geometry.size.height + drag.height
-                    )
-                    .gesture(
-                        DragGesture(minimumDistance: 4)
-                            .onChanged { drag = $0.translation }
-                            .onEnded { value in
-                                x = min(max((x * geometry.size.width + value.translation.width) / geometry.size.width, 0.04), 0.96)
-                                y = min(max((y * geometry.size.height + value.translation.height) / geometry.size.height, 0.06), 0.96)
-                                drag = .zero
-                            }
-                    )
+                    .contentShape(Circle())
                     .onTapGesture { CommandCenter.shared.show() }
                     .accessibilityLabel("Command Anywhere")
+                    .accessibilityHint("Drag to move it")
                     .accessibilityAddTraits(.isButton)
             }
+            .id(inNote)
         }
     }
 }

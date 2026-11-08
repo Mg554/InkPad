@@ -170,12 +170,13 @@ struct NoteEditorView: View {
                 reminderRequest = NoteReminderRequest(noteID: noteID, title: title.isEmpty ? self.title : title)
             }
         }
-        .overlay(alignment: .bottomLeading) {
+        .overlay {
+            FloatingPlacement(key: "livingBubble", x: 0.05, y: 0.92) {
             LivingBubble(noteID: noteID, isText: false) { tab in
                 livingTab = tab
                 isShowingLiving = true
             }
-            .padding(20)
+            }
         }
         .inspector(isPresented: $isShowingLiving) {
             LivingPanel(noteID: noteID, tab: $livingTab)

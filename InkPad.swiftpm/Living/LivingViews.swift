@@ -42,10 +42,7 @@ struct LivingBubble: View {
         let isOn = living.settings.isOn(for: noteID)
         let related = isOn ? living.related(to: noteID, liveText: liveText, store: store) : []
         let fresh = isOn ? living.newSinceLastVisit(noteID, store: store) : []
-        Button {
-            isShowingMenu = true
-        } label: {
-            ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .topTrailing) {
                 Image(systemName: isOn ? "leaf.circle.fill" : "leaf.circle")
                     .font(.system(size: 26, weight: .semibold))
                     .foregroundStyle(.white, isOn ? Color.green.gradient : Color.gray.gradient)
@@ -62,10 +59,13 @@ struct LivingBubble: View {
                         .offset(x: 4, y: -2)
                         .contentTransition(.numericText())
                 }
-            }
         }
-        .buttonStyle(PressableStyle())
+        // A tap, not a button, so dragging the bubble doesn't open it.
+        .contentShape(Circle())
+        .onTapGesture { isShowingMenu = true }
         .accessibilityLabel("Living Notes, \(related.count) related")
+        .accessibilityHint("Drag to move it")
+        .accessibilityAddTraits(.isButton)
         .onChange(of: related.count) {
             withAnimation(.easeInOut(duration: 0.6).repeatCount(3, autoreverses: true)) { pulse.toggle() }
         }

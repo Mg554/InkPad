@@ -151,12 +151,13 @@ struct MarkdownNoteView: View {
                 .environmentObject(workspace)
         }
         .environment(\.openURL, OpenURLAction { InkPadLink.handle($0, with: navigation) })
-        .overlay(alignment: .bottomLeading) {
+        .overlay {
+            FloatingPlacement(key: "livingBubble", x: 0.05, y: 0.92) {
             LivingBubble(noteID: noteID, liveText: text, isText: true) { tab in
                 livingTab = tab
                 isShowingLiving = true
             }
-            .padding(20)
+            }
         }
         .inspector(isPresented: $isShowingLiving) {
             LivingPanel(noteID: noteID, liveText: text, tab: $livingTab)
