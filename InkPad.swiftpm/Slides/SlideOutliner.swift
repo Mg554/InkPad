@@ -270,7 +270,8 @@ enum SlideOutliner {
         var pieces: [Section] = []
         for section in sections {
             if section.bullets.isEmpty, section.sentences.count > perSlide * 2 {
-                let parts = Int((Double(section.sentences.count) / Double(perSlide * 2)).rounded(.up))
+                let ratio: Double = Double(section.sentences.count) / Double(perSlide * 2)
+                let parts = Int(ratio.rounded(.up))
                 pieces += split(section, into: min(parts, budget), frequencies: frequencies)
             } else {
                 pieces.append(section)
@@ -294,7 +295,8 @@ enum SlideOutliner {
     /// by its key words.
     private static func split(_ section: Section, into parts: Int, frequencies: [String: Int]) -> [Section] {
         let lines = section.sentences
-        let size = Int((Double(lines.count) / Double(max(parts, 1))).rounded(.up))
+        let ratio: Double = Double(lines.count) / Double(max(parts, 1))
+        let size = Int(ratio.rounded(.up))
         guard size > 0 else { return [section] }
         return stride(from: 0, to: lines.count, by: size).map { start -> Section in
             let chunk = Array(lines[start..<min(start + size, lines.count)])

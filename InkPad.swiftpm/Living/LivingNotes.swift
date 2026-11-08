@@ -138,7 +138,11 @@ final class LivingNotes: ObservableObject {
             inputs[note.id] = text
             stamps[note.id] = note.modifiedAt
         }
-        let changed = inputs.filter { builtFor[$0.key] != stamps[$0.key] || texts[$0.key] != $0.value }
+        let changed: [UUID: String] = inputs.filter { (item: (key: UUID, value: String)) -> Bool in
+            let stampChanged: Bool = builtFor[item.key] != stamps[item.key]
+            let textChanged: Bool = texts[item.key] != item.value
+            return stampChanged || textChanged
+        }
         let removed = Set(texts.keys).subtracting(inputs.keys)
         guard !changed.isEmpty || !removed.isEmpty else { return }
         rebuildTask?.cancel()
@@ -170,11 +174,17 @@ final class LivingNotes: ObservableObject {
 
     private func idf(_ key: String) -> Double {
         let total = Double(max(vectors.count, 1))
-        return log((total + 1) / Double((documentCount[key] ?? 0) + 1)) + 1
+        let count: Int = documentCount[key] ?? 0
+        let ratio: Double = (total + 1) / Double(count + 1)
+        return log(ratio) + 1
     }
 
     private func weighted(_ vector: [String: Double]) -> [String: Double] {
-        vector.reduce(into: [:]) { result, item in result[item.key] = item.value * idf(item.key) }
+        var result: [String: Double] = [:]
+        for (key, value) in vector {
+            result[key] = value * idf(key)
+        }
+        return result
     }
 
     // MARK: Questions
@@ -198,11 +208,20 @@ final class LivingNotes: ObservableObject {
             let b = weighted(vector)
             var score = Self.cosine(a, b)
             if let e1 = myEmbedding, let e2 = embeddings[other] {
-                score = score * 0.65 + max(Self.cosine(e1, e2), 0) * 0.35
+                let meaning: Double = max(Self.cosine(e1, e2), 0)
+                score = score * 0.65 + meaning * 0.35
             }
             // Only concepts in more than one note count as shared.
-            let shared = a.keys.filter { b[$0] != nil && (documentCount[$0] ?? 0) >= 2 }
-                .sorted { (a[$0] ?? 0) * (b[$0] ?? 0) > (a[$1] ?? 0) * (b[$1] ?? 0) }
+            let common: [String] = a.keys.filter { (key: String) -> Bool in
+                let inMore: Bool = (documentCount[key] ?? 0) >= 2
+                return b[key] != nil && inMore
+            }
+            func strength(_ key: String) -> Double {
+                let mineWeight: Double = a[key] ?? 0
+                let otherWeight: Double = b[key] ?? 0
+                return mineWeight * otherWeight
+            }
+            let shared: [String] = common.sorted { strength($0) > strength($1) }
             guard score > 0.08, !shared.isEmpty else { continue }
             let names = shared.prefix(5).map { displays[$0] ?? $0 }
             results.append(Related(
@@ -216,13 +235,19 @@ final class LivingNotes: ObservableObject {
 
     /// Strong matches not yet linked, to suggest.
     func suggestedLinks(for id: UUID, store: LibraryStore) -> [Related] {
-        related(to: id, store: store).filter { !$0.isLinked && $0.score >= 0.14 && !dismissedLinks.contains(Self.pair(id, $0.id)) }
+        related(to: id, store: store).filter { (item: Related) -> Bool in
+            let dismissed: Bool = dismissedLinks.contains(Self.pair(id, item.id))
+            return !item.isLinked && item.score >= 0.14 && !dismissed
+        }
     }
 
     /// Related notes changed since this note was last opened.
     func newSinceLastVisit(_ id: UUID, store: LibraryStore) -> [Related] {
         guard let seen = lastSeen(id) else { return [] }
-        return related(to: id, store: store).filter { (store.note($0.id)?.modifiedAt ?? .distantPast) > seen }
+        return related(to: id, store: store).filter { (item: Related) -> Bool in
+            let modified: Date = store.note(item.id)?.modifiedAt ?? .distantPast
+            return modified > seen
+        }
     }
 
     /// Concepts in this note that other notes also mention.
@@ -230,11 +255,18 @@ final class LivingNotes: ObservableObject {
         let mine = liveText.map { LivingAnalyzer.analyze($0).terms } ?? vectors[id] ?? [:]
         return mine.keys
             .compactMap { key -> Concept? in
-                let others = (documentCount[key] ?? 0) - (vectors[id]?[key] != nil ? 1 : 0)
+                let total: Int = documentCount[key] ?? 0
+                let inThisNote: Bool = vectors[id]?[key] != nil
+                let others: Int = inThisNote ? total - 1 : total
                 guard others >= 1 else { return nil }
                 return Concept(key: key, display: displays[key] ?? key, otherNotes: others)
             }
-            .sorted { ($0.otherNotes, mine[$0.key] ?? 0) > ($1.otherNotes, mine[$1.key] ?? 0) }
+            .sorted { (a: Concept, b: Concept) -> Bool in
+                if a.otherNotes != b.otherNotes { return a.otherNotes > b.otherNotes }
+                let weightA: Double = mine[a.key] ?? 0
+                let weightB: Double = mine[b.key] ?? 0
+                return weightA > weightB
+            }
     }
 
     /// Concepts from `text` (for example handwriting just written) that other notes mention.
@@ -286,13 +318,24 @@ final class LivingNotes: ObservableObject {
         }
         let start = flat.index(range.lowerBound, offsetBy: -length / 3, limitedBy: flat.startIndex) ?? flat.startIndex
         let end = flat.index(range.upperBound, offsetBy: length * 2 / 3, limitedBy: flat.endIndex) ?? flat.endIndex
-        return (start > flat.startIndex ? "…" : "") + flat[start..<end] + (end < flat.endIndex ? "…" : "")
+        let before: String = start > flat.startIndex ? "…" : ""
+        let after: String = end < flat.endIndex ? "…" : ""
+        return before + String(flat[start..<end]) + after
     }
 
     static func cosine(_ a: [String: Double], _ b: [String: Double]) -> Double {
-        let dot = a.reduce(0.0) { $0 + $1.value * (b[$1.key] ?? 0) }
-        let na = sqrt(a.values.reduce(0) { $0 + $1 * $1 })
-        let nb = sqrt(b.values.reduce(0) { $0 + $1 * $1 })
+        var dot: Double = 0
+        var sumA: Double = 0
+        var sumB: Double = 0
+        for (key, value) in a {
+            dot += value * (b[key] ?? 0)
+            sumA += value * value
+        }
+        for value in b.values {
+            sumB += value * value
+        }
+        let na: Double = sqrt(sumA)
+        let nb: Double = sqrt(sumB)
         return na > 0 && nb > 0 ? dot / (na * nb) : 0
     }
 
@@ -368,7 +411,9 @@ enum LivingAnalyzer {
             previousEnd = range.upperBound
             let isNoun = tag == .noun || tag == .otherWord
             let isAdjective = tag == .adjective
-            let isArabic = word.unicodeScalars.contains { (0x0600...0x06FF).contains($0.value) }
+            let isArabic: Bool = word.unicodeScalars.contains { (scalar: Unicode.Scalar) -> Bool in
+                scalar.value >= 0x0600 && scalar.value <= 0x06FF
+            }
             if isArabic {
                 // Arabic tagging is limited: longer words carry the meaning.
                 if word.count >= 4 { add(word, weight: 1) }
@@ -387,7 +432,9 @@ enum LivingAnalyzer {
         // Words seen once in a long text say little.
         let wordCount = Double(max(text.split(whereSeparator: \.isWhitespace).count, 1))
         if wordCount > 120 {
-            terms = terms.filter { $0.value >= 2 || $0.key.contains(" ") }
+            terms = terms.filter { (item: (key: String, value: Double)) -> Bool in
+                item.value >= 2 || item.key.contains(" ")
+            }
         }
         return Result(terms: terms, displays: displays, embedding: embedding(of: text))
     }

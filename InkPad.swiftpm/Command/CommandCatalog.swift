@@ -205,7 +205,10 @@ struct CommandCatalog {
         }
         let start = text.index(range.lowerBound, offsetBy: -30, limitedBy: text.startIndex) ?? text.startIndex
         let end = text.index(range.upperBound, offsetBy: 50, limitedBy: text.endIndex) ?? text.endIndex
-        return (start > text.startIndex ? "…" : "") + text[start..<end].replacingOccurrences(of: "\n", with: " ") + (end < text.endIndex ? "…" : "")
+        let before: String = start > text.startIndex ? "…" : ""
+        let after: String = end < text.endIndex ? "…" : ""
+        let middle: String = text[start..<end].replacingOccurrences(of: "\n", with: " ")
+        return before + middle + after
     }
 
     /// Higher is a better match: whole title, start of a word, or inside.

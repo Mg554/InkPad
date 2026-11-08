@@ -49,6 +49,15 @@ carefully for Swift pitfalls that have bitten before:
   `delete()`), and a property and method sharing a base name.
 - `first { }` trailing closures followed by `??`; prefer `first(where:)`.
 - Long `+` chains of string literals ("unable to type-check"); join arrays.
+- Swift Playgrounds type-checks more slowly than Xcode: an expression Xcode
+  accepts can fail there with "unable to type-check this expression in
+  reasonable time". Keep expressions short with explicit types (no long
+  `|`/`<<`/`+` chains, String + Substring mixes, tuple compares in
+  `sorted`, `??` inside arithmetic), and split long SwiftUI modifier
+  chains into separate computed properties. Check with
+  `OTHER_SWIFT_FLAGS="-Xfrontend -warn-long-expression-type-checking=100"`.
+- This Mac has 16 GB: run only one of Simulator, Swift Playground or
+  xcodebuild at a time, and quit it when done.
 - `foregroundStyle(cond ? .a : .b)`: write `Color.a`.
 - Notification center (`UNUserNotificationCenter`) crashes apps run inside
   Swift Playgrounds; it works in the installed app.

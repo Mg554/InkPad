@@ -248,7 +248,8 @@ struct GraphView: View {
                     }
                 }
             case .bubble:
-                let size = node.isTag ? 44 : min(56 + grow * 2, 110)
+                let bubble: CGFloat = min(56 + grow * 2, 110)
+                let size: CGFloat = node.isTag ? 44 : bubble
                 Text(look.showsLabels ? node.title : "")
                     .font(.caption2.weight(.semibold))
                     .multilineTextAlignment(.center)

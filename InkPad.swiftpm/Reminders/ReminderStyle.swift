@@ -237,11 +237,7 @@ struct ReminderListEditor: View {
                 Section("Color") {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
                         ForEach(Self.colors, id: \.self) { option in
-                            Circle()
-                                .fill(option)
-                                .frame(width: 32, height: 32)
-                                .overlay(Circle().stroke(Color.primary.opacity(UIColor(option) == UIColor(color) ? 0.7 : 0), lineWidth: 3).padding(-4))
-                                .onTapGesture { color = option }
+                            colorDot(option)
                         }
                         ColorPicker("", selection: $color, supportsOpacity: false)
                             .labelsHidden()
@@ -293,6 +289,18 @@ struct ReminderListEditor: View {
                 icon = store.look.icon(for: list)
             }
         }
+    }
+}
+
+extension ReminderListEditor {
+    private func colorDot(_ option: Color) -> some View {
+        let isChosen: Bool = UIColor(option) == UIColor(color)
+        let ring = Circle().stroke(Color.primary.opacity(isChosen ? 0.7 : 0), lineWidth: 3).padding(-4)
+        return Circle()
+            .fill(option)
+            .frame(width: 32, height: 32)
+            .overlay(ring)
+            .onTapGesture { color = option }
     }
 }
 

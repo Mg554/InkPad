@@ -56,8 +56,17 @@ struct ZipFileWriter {
         FileManager.default.createFile(atPath: url.path, contents: nil)
         handle = try FileHandle(forWritingTo: url)
         let parts = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-        dosTime = UInt16((parts.hour ?? 0) << 11 | (parts.minute ?? 0) << 5 | (parts.second ?? 0) / 2)
-        dosDate = UInt16(max(0, (parts.year ?? 1980) - 1980) << 9 | (parts.month ?? 1) << 5 | (parts.day ?? 1))
+        // Small steps: one long expression is too slow for Swift Playgrounds to type-check.
+        let hour: Int = parts.hour ?? 0
+        let minute: Int = parts.minute ?? 0
+        let second: Int = parts.second ?? 0
+        let time: Int = (hour << 11) | (minute << 5) | (second / 2)
+        dosTime = UInt16(time)
+        let year: Int = max(0, (parts.year ?? 1980) - 1980)
+        let month: Int = parts.month ?? 1
+        let day: Int = parts.day ?? 1
+        let date: Int = (year << 9) | (month << 5) | day
+        dosDate = UInt16(date)
     }
 
     /// Adds a file from disk under `path` (forward slashes, no leading slash).
@@ -263,12 +272,17 @@ private extension Data {
 
     func le16(at offset: Int) -> UInt16 {
         let start = startIndex + offset
-        return UInt16(self[start]) | UInt16(self[start + 1]) << 8
+        let low = UInt16(self[start])
+        let high = UInt16(self[start + 1]) << 8
+        return low | high
     }
 
     func le32(at offset: Int) -> UInt32 {
         let start = startIndex + offset
-        return UInt32(self[start]) | UInt32(self[start + 1]) << 8
-            | UInt32(self[start + 2]) << 16 | UInt32(self[start + 3]) << 24
+        let byte0 = UInt32(self[start])
+        let byte1 = UInt32(self[start + 1]) << 8
+        let byte2 = UInt32(self[start + 2]) << 16
+        let byte3 = UInt32(self[start + 3]) << 24
+        return byte0 | byte1 | byte2 | byte3
     }
 }

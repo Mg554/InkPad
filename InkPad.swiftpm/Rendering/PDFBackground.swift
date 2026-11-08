@@ -119,7 +119,9 @@ final class PDFBackground {
         else { return nil }
         let lines = selection.selectionsByLine().map { line in
             box(corners(line.bounds(for: page)).map(canvasPoint))
-        }.filter { !$0.isNull && $0.width > 1 && $0.height > 1 }
+        }.filter { (rect: CGRect) -> Bool in
+            !rect.isNull && rect.width > 1 && rect.height > 1
+        }
         return PDFTextHit(text: text, lines: lines)
     }
 

@@ -125,7 +125,43 @@ struct LibraryView: View {
         path = [id]
     }
 
+    // The body is split into parts, each type-checked on its own: one long
+    // modifier chain is too slow for Swift Playgrounds on the iPad.
     var body: some View {
+        withLiving
+            .onChange(of: scope) {
+                switchSection()
+            }
+            .onChange(of: store.libraryGeneration) {
+                // A restored backup replaced the library: close what was open.
+                path = []
+                scope = .allNotes
+            }
+            .onChange(of: path) {
+                // Give the editor the whole screen; bring the sidebar back in the library.
+                columnVisibility = path.isEmpty ? .automatic : .detailOnly
+            }
+            .alert("InkPad", isPresented: storeErrorShown) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(store.errorMessage ?? "")
+            }
+            .alert("InkPad", isPresented: workspaceErrorShown) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(workspace.errorMessage ?? "")
+            }
+    }
+
+    private var storeErrorShown: Binding<Bool> {
+        Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })
+    }
+
+    private var workspaceErrorShown: Binding<Bool> {
+        Binding(get: { workspace.errorMessage != nil }, set: { if !$0 { workspace.errorMessage = nil } })
+    }
+
+    private var splitView: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(scope: $scope)
         } detail: {
@@ -133,87 +169,73 @@ struct LibraryView: View {
             // navigation stack afresh instead of reusing another section's
             // (their paths hold different types, which crashes). Between two
             // sections an empty view stands in for one update.
-            Group {
-                if isSwitchingSection {
-                    Color.clear
-                } else {
-                    detail
-                }
-            }
-            .id(isSwitchingSection ? "switching" : section(of: shownScope))
+            detailColumn
         }
         .environment(\.noteNavigation, navigation)
-        // Command Anywhere: ⌘K, the floating button, three fingers down.
-        .background {
-            ThreeFingerSwipe()
-            CommandShortcuts()
-        }
-        .overlay { FloatingCommandButton().opacity(commands.isPresented ? 0 : 1) }
-        .overlay(alignment: .bottom) { CommandToast() }
-        .overlay {
-            if commands.isPresented {
-                CommandPalette()
+    }
+
+    private var detailColumn: some View {
+        let identity: String = isSwitchingSection ? "switching" : section(of: shownScope)
+        return Group {
+            if isSwitchingSection {
+                Color.clear
+            } else {
+                detail
             }
         }
-        .onAppear {
-            commands.navigate = { scope = $0 }
-            commands.openNote = { navigation.openNote($0) }
-        }
-        .sheet(item: $commands.sheet, onDismiss: {
-            if let themeToApply {
-                self.themeToApply = nil
-                DispatchQueue.main.async { ThemeSettings.shared.apply(themeToApply) }
+        .id(identity)
+    }
+
+    /// Command Anywhere: ⌘K, the floating button, three fingers down.
+    private var withCommands: some View {
+        splitView
+            .background {
+                ThreeFingerSwipe()
+                CommandShortcuts()
             }
-        }) { sheet in
-            switch sheet {
-            case .themes:
-                ThemeView { themeToApply = $0 }
-            case let .history(note):
-                NoteHistoryView(note: note)
-            case let .reminder(draft):
-                ReminderEditor(draft: draft)
-            case let .concept(key):
-                ConceptCardView(key: key)
+            .overlay { FloatingCommandButton().opacity(commands.isPresented ? 0 : 1) }
+            .overlay(alignment: .bottom) { CommandToast() }
+            .overlay {
+                if commands.isPresented {
+                    CommandPalette()
+                }
             }
+            .onAppear {
+                commands.navigate = { scope = $0 }
+                commands.openNote = { navigation.openNote($0) }
+            }
+            .sheet(item: $commands.sheet, onDismiss: applyPendingTheme) { sheet in
+                commandSheet(sheet)
+            }
+    }
+
+    private func applyPendingTheme() {
+        if let themeToApply {
+            self.themeToApply = nil
+            DispatchQueue.main.async { ThemeSettings.shared.apply(themeToApply) }
         }
-        // Living Notes keeps its index of concepts up to date.
-        .task { LivingNotes.shared.refresh(store: store) }
-        .onChange(of: store.notes) { LivingNotes.shared.refresh(store: store) }
-        .onChange(of: store.textIndex) { LivingNotes.shared.refresh(store: store) }
-        .onChange(of: store.recognizedText) { LivingNotes.shared.refresh(store: store) }
-        .onChange(of: scope) {
-            switchSection()
+    }
+
+    @ViewBuilder
+    private func commandSheet(_ sheet: CommandSheet) -> some View {
+        switch sheet {
+        case .themes:
+            ThemeView { themeToApply = $0 }
+        case let .history(note):
+            NoteHistoryView(note: note)
+        case let .reminder(draft):
+            ReminderEditor(draft: draft)
+        case let .concept(key):
+            ConceptCardView(key: key)
         }
-        .onChange(of: store.libraryGeneration) {
-            // A restored backup replaced the library: close what was open.
-            path = []
-            scope = .allNotes
-        }
-        .onChange(of: path) {
-            // Give the editor the whole screen; bring the sidebar back in the library.
-            columnVisibility = path.isEmpty ? .automatic : .detailOnly
-        }
-        .alert(
-            "InkPad",
-            isPresented: Binding(
-                get: { store.errorMessage != nil },
-                set: { if !$0 { store.errorMessage = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(store.errorMessage ?? "")
-        }
-        .alert(
-            "InkPad",
-            isPresented: Binding(
-                get: { workspace.errorMessage != nil },
-                set: { if !$0 { workspace.errorMessage = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(workspace.errorMessage ?? "")
-        }
+    }
+
+    /// Living Notes keeps its index of concepts up to date.
+    private var withLiving: some View {
+        withCommands
+            .task { LivingNotes.shared.refresh(store: store) }
+            .onChange(of: store.notes) { LivingNotes.shared.refresh(store: store) }
+            .onChange(of: store.textIndex) { LivingNotes.shared.refresh(store: store) }
+            .onChange(of: store.recognizedText) { LivingNotes.shared.refresh(store: store) }
     }
 }

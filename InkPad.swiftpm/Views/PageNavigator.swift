@@ -54,6 +54,11 @@ struct PageSidebar: View {
     let movePage: (Int, Int) -> Void
 
     @State private var pageToDelete: Int?
+
+    private var deleteTitle: String {
+        let number: Int = (pageToDelete ?? 0) + 1
+        return "Delete page \(number)?"
+    }
     /// The page being dragged to a new place.
     @State private var draggedPage: Int?
 
@@ -84,7 +89,7 @@ struct PageSidebar: View {
         .frame(width: 210)
         .background(.regularMaterial)
         .confirmationDialog(
-            "Delete page \((pageToDelete ?? 0) + 1)?",
+            deleteTitle,
             isPresented: Binding(get: { pageToDelete != nil }, set: { if !$0 { pageToDelete = nil } }),
             titleVisibility: .visible,
             presenting: pageToDelete
