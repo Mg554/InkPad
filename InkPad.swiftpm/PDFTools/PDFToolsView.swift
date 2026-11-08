@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 /// The PDF tools, PDF24-style: pick a tool, pick PDFs (from the library or
 /// Files), and the result becomes a new note. Originals are never changed.
 enum PDFTool: String, CaseIterable, Identifiable {
-    case merge, split, extract, remove, rotate
+    case merge, split, extract, remove, rotate, ocr
 
     var id: Self { self }
 
@@ -16,6 +16,7 @@ enum PDFTool: String, CaseIterable, Identifiable {
         case .extract: "Pages to a New Note"
         case .remove: "Remove Pages"
         case .rotate: "Rotate Pages"
+        case .ocr: "Make Searchable (OCR)"
         }
     }
 
@@ -26,6 +27,7 @@ enum PDFTool: String, CaseIterable, Identifiable {
         case .extract: "Take some pages out to study them deeply on their own."
         case .remove: "A copy without the pages you don't need."
         case .rotate: "Turn pages that are sideways or upside down."
+        case .ocr: "Read scanned pages (English and Arabic) so they can be searched and copied."
         }
     }
 
@@ -36,6 +38,7 @@ enum PDFTool: String, CaseIterable, Identifiable {
         case .extract: "doc.badge.plus"
         case .remove: "trash"
         case .rotate: "rotate.right"
+        case .ocr: "text.viewfinder"
         }
     }
 
@@ -46,6 +49,7 @@ enum PDFTool: String, CaseIterable, Identifiable {
         case .extract: .green
         case .remove: .red
         case .rotate: .purple
+        case .ocr: .teal
         }
     }
 
@@ -229,7 +233,7 @@ struct PDFToolSheet: View {
         guard !sources.isEmpty else { return false }
         switch tool {
         case .merge: return sources.count >= 2
-        case .split: return document != nil
+        case .split, .ocr: return document != nil
         case .extract, .remove, .rotate: return !selection.isEmpty
         }
     }
@@ -400,6 +404,18 @@ struct PDFToolSheet: View {
                 case .rotate:
                     guard let document, let source = sources.first else { return }
                     try await save(PDFToolKit.rotating(selection, by: degrees, in: document), title: "\(source.title) (rotated)", folder: nil)
+                case .ocr:
+                    guard let document, let source = sources.first else { return }
+                    let title = "\(source.title) (searchable)"
+                    let url = PDFToolKit.temporaryURL(named: title)
+                    let flag = CancelFlag()
+                    let read = try await Task.detached(priority: .userInitiated) {
+                        try BookOCR.searchable(document, to: url, progress: { progress in
+                            Task { @MainActor in working = "Reading page \(progress.done) of \(progress.total)…" }
+                        }, isCancelled: { flag.isCancelled })
+                    }.value
+                    guard store.importPDF(from: url, into: nil) != nil else { throw PDFToolError.cannotWrite }
+                    made.append("\(title): \(read) pages read")
                 }
                 CommandCenter.shared.say(made.count == 1 ? "“\(made[0])” is in the library" : "\(made.count) new notes are in the library")
             } catch {

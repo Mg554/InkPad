@@ -78,8 +78,11 @@
      (chapters / every N / ranges), pages to a new note, remove, rotate;
      book panel with outline, bookmarks and progress; chapter mind maps
      (on-device or AI) and concept graphs; insert pages from another PDF;
-     send pages to a new note. Next: convert, protect, compare, OCR,
-     side-by-side notebook, full-book search, AI with books.
+     send pages to a new note.
+   - Done (batch 2, needs iPad testing): OCR text layer (Make Searchable,
+     English and Arabic, background), full-book search, Text from Area
+     with tables and AI clean-up, Make Searchable in PDF Tools.
+     Next: AI with books, convert, protect, compare, side-by-side notebook.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from

@@ -71,6 +71,14 @@ Done:
   pages that mention it), or a note of its own. In More: Insert Pages from
   Another PDF (into the open note, after the current page) and Send Pages
   to a New Note
+- OCR for scanned books (on the iPad, English and Arabic): the book
+  panel notices pages without text and Make Searchable gives them an
+  invisible text layer, in the background, keeping your writing in
+  place; then the whole book can be searched (Search tab), selected,
+  highlighted and exported as a searchable PDF. PDF Tools › Make
+  Searchable does the same for any PDF. Lasso any area (even a scan or a
+  picture) › Text from Area reads it as text or as a table, to copy, put
+  on the page, save as a text note, or Clean Up with AI (AI Firewall)
 - Refine Handwriting (the wand in the drawing toolbar): smooths strokes
   when the pencil lifts, levels a slanted line and evens out word sizes
   after a pause; each can be turned on or off. Lasso › Refine does it for

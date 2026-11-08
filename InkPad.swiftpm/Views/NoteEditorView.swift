@@ -42,6 +42,7 @@ struct NoteEditorView: View {
     @State private var bookResult: BookResult?
     @State private var isInsertingPages = false
     @State private var isSendingPages = false
+    @State private var areaRequest: AreaRequest?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -169,6 +170,7 @@ struct NoteEditorView: View {
             session.load(noteID: noteID, store: store)
             canvas.onThink = { text, rect in thinkRequest = ThinkRequest(text: text, anchor: rect) }
             canvas.livingNoteID = noteID
+            canvas.onReadArea = { image, rect in areaRequest = AreaRequest(image: image, rect: rect) }
             canvas.onConcept = { CommandCenter.shared.sheet = .concept($0) }
             canvas.onRemind = { text in
                 let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -195,7 +197,8 @@ struct NoteEditorView: View {
             title: title,
             bookResult: $bookResult,
             isInsertingPages: $isInsertingPages,
-            isSendingPages: $isSendingPages
+            isSendingPages: $isSendingPages,
+            areaRequest: $areaRequest
         ))
         .onDisappear {
             LivingNotes.shared.markSeen(noteID)
@@ -676,9 +679,16 @@ private struct BookSheets: ViewModifier {
     @Binding var bookResult: BookResult?
     @Binding var isInsertingPages: Bool
     @Binding var isSendingPages: Bool
+    @Binding var areaRequest: AreaRequest?
 
     func body(content: Content) -> some View {
         content
+            .sheet(item: $areaRequest) { request in
+                AreaTextSheet(request: request, noteID: noteID) { text, rect in
+                    canvas.placeText(text, below: rect)
+                }
+                .environmentObject(store)
+            }
             .fullScreenCover(item: $bookResult) { result in
                 resultView(result)
                     .environmentObject(store)

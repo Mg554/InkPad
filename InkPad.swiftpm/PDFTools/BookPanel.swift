@@ -21,6 +21,7 @@ struct BookPanel: View {
     @EnvironmentObject private var store: LibraryStore
     @EnvironmentObject private var workspace: WorkspaceStore
     @ObservedObject private var ai = AISettings.shared
+    @ObservedObject private var ocr = OCRCenter.shared
     @ObservedObject var session: EditorSession
     @ObservedObject var canvas: CanvasController
     let noteID: UUID
@@ -32,6 +33,16 @@ struct BookPanel: View {
     @State private var message: String?
     @State private var bookmarkPrompt: NamePrompt?
     @State private var rangeText = ""
+    @State private var scanCount: Int?
+    @State private var query = ""
+    @State private var results: [SearchHit] = []
+    @State private var isSearching = false
+
+    struct SearchHit: Identifiable {
+        let id = UUID()
+        let page: Int
+        let snippet: String
+    }
 
     private var document: PDFDocument? { session.snapshot?.pdf?.pdfDocument }
     private var pages: [PageSource] {
@@ -42,9 +53,11 @@ struct BookPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             progressHeader
+            ocrBanner
             Picker("Show", selection: $tab) {
                 Text("Chapters").tag(0)
                 Text("Bookmarks").tag(1)
+                Text("Search").tag(2)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
@@ -59,19 +72,131 @@ struct BookPanel: View {
                     .padding(.horizontal)
                     .onTapGesture { self.message = nil }
             }
-            if tab == 0 { chapterList } else { bookmarkList }
+            switch tab {
+            case 0: chapterList
+            case 1: bookmarkList
+            default: searchList
+            }
         }
         .background(Color(uiColor: .systemGroupedBackground))
         .namePrompt($bookmarkPrompt)
         .task {
+            OCRCenter.shared.session = session
             guard chapters.isEmpty, let document else { return }
             let found = await Task.detached(priority: .userInitiated) {
                 PDFToolKit.chapters(of: document)
             }.value
             chapters = found
+            scanCount = await Task.detached(priority: .utility) { BookOCR.scanCount(in: document) }.value
+        }
+        .onChange(of: session.snapshot?.pdf?.fileURL) {
+            // A searchable copy replaced the PDF: count again.
+            guard let document else { return }
+            Task {
+                scanCount = await Task.detached(priority: .utility) { BookOCR.scanCount(in: document) }.value
+            }
         }
         .onChange(of: canvas.currentPage) {
             session.noteReadingPage(canvas.currentPage)
+        }
+    }
+
+    // MARK: OCR
+
+    @ViewBuilder
+    private var ocrBanner: some View {
+        if let job = ocr.job, job.noteID == noteID {
+            let total = max(job.progress.total, 1)
+            let fraction: Double = Double(job.progress.done) / Double(total)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Label("Reading pages… \(job.progress.done) of \(job.progress.total)", systemImage: "text.viewfinder")
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                    Button("Stop") { ocr.cancel() }.font(.caption)
+                }
+                ProgressView(value: fraction)
+                Text("You can keep reading; it goes on in the background.").font(.caption2).foregroundStyle(.secondary)
+            }
+            .padding(10)
+            .background(Color.inkAccent.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        } else if let scanCount, scanCount > 0 {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("\(scanCount) scanned pages have no text", systemImage: "doc.text.magnifyingglass")
+                    .font(.caption.weight(.semibold))
+                Text("Make Searchable reads them on this iPad (English and Arabic) and adds hidden text, so you can search, select, highlight and copy it. Your writing stays in place.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Button {
+                    ocr.start(noteID: noteID, store: store)
+                } label: {
+                    Label("Make Searchable (OCR)", systemImage: "text.viewfinder")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(ocr.job != nil)
+            }
+            .padding(10)
+            .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+    }
+
+    // MARK: Search
+
+    private var searchList: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Search the whole book", text: $query)
+                    .submitLabel(.search)
+                    .onSubmit(search)
+                if isSearching { ProgressView() }
+            }
+            .padding(10)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal)
+            List(results) { hit in
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Page \(hit.page + 1)").font(.caption.weight(.semibold)).foregroundStyle(Color.inkAccent)
+                    Text(hit.snippet).font(.callout).lineLimit(3)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { go(toPDFPage: hit.page) }
+            }
+            .listStyle(.plain)
+            .overlay {
+                if results.isEmpty && !query.isEmpty && !isSearching {
+                    Text((scanCount ?? 0) > 0 ? "Nothing found. Scanned pages are found after Make Searchable." : "Nothing found.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .padding()
+                }
+            }
+        }
+    }
+
+    private func search() {
+        guard let document, query.trimmingCharacters(in: .whitespaces).count >= 2 else { return }
+        let text = query
+        isSearching = true
+        Task {
+            let found: [SearchHit] = await Task.detached(priority: .userInitiated) {
+                let selections = document.findString(text, withOptions: [.caseInsensitive, .diacriticInsensitive])
+                return selections.prefix(300).compactMap { selection -> SearchHit? in
+                    guard let page = selection.pages.first else { return nil }
+                    let index = document.index(for: page)
+                    let line = selection.copy() as? PDFSelection
+                    line?.extendForLineBoundaries()
+                    let snippet = (line?.string ?? selection.string ?? "").replacingOccurrences(of: "\n", with: " ")
+                    return SearchHit(page: index, snippet: snippet)
+                }
+            }.value
+            results = found
+            isSearching = false
         }
     }
 

@@ -570,6 +570,20 @@ final class LibraryStore: ObservableObject {
         )
     }
 
+    /// Points a closed note at another PDF file in its folder with the same
+    /// pages (a searchable copy), and removes the old file.
+    func replacePDF(of id: UUID, with url: URL) throws {
+        let content = try loadContent(for: id)
+        let pdf = try PDFBackground(url: url)
+        guard pdf.pageCount == content.pdf?.pageCount else { throw PDFToolError.unreadable }
+        var metadata = content.metadata
+        let old = content.pdf?.fileURL
+        metadata.pdfFile = url.lastPathComponent
+        let updated = NoteContent(metadata: metadata, drawing: content.drawing, pdf: pdf, directory: content.directory)
+        try Self.write(updated, thumbnail: false)
+        if let old, old != url { try? fileManager.removeItem(at: old) }
+    }
+
     /// Writes the note off the main thread. Returns `false` when nothing was
     /// written, so the caller keeps its unsaved changes.
     func saveContent(_ content: NoteContent, for id: UUID, thumbnail: Bool) async -> Bool {

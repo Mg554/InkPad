@@ -182,6 +182,23 @@ final class EditorSession: ObservableObject {
         scrollAfterLayout(to: after + 1)
     }
 
+    /// Uses another PDF file with the same pages (for example the same book
+    /// with a text layer). Ink and pages stay where they are.
+    func replacePDF(with url: URL) throws {
+        guard let content = baseContent else { return }
+        let pdf = try PDFBackground(url: url)
+        guard pdf.pageCount == content.pdf?.pageCount else { throw PDFToolError.unreadable }
+        var metadata = content.metadata
+        metadata.pdfFile = url.lastPathComponent
+        let updated = NoteContent(metadata: metadata, drawing: currentContent()?.drawing ?? content.drawing, pdf: pdf, directory: content.directory)
+        if let old = content.pdf?.fileURL { replacedFiles.append(old) }
+        baseContent = updated
+        self.metadata = metadata
+        background = updated.makeBackground()
+        markEdited()
+        snapshot = currentContent()
+    }
+
     /// Keeps the page being read, and how far the reader got.
     func noteReadingPage(_ page: Int) {
         guard var content = baseContent else { return }

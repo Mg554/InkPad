@@ -69,6 +69,29 @@ final class NoteCanvasHostView: UIView {
         fatalError("init(coder:) is not supported")
     }
 
+    /// A picture of part of the canvas as it looks: page (PDF or paper) and ink.
+    func image(of rect: CGRect, scale: CGFloat = 2.5) -> UIImage? {
+        guard let background, rect.width > 1, rect.height > 1 else { return nil }
+        let drawing = canvas.drawing
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: rect.size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: rect.size))
+            let cg = context.cgContext
+            cg.translateBy(x: -rect.minX, y: -rect.minY)
+            for (index, pageRect) in background.layout.pageRects.enumerated() where pageRect.intersects(rect) {
+                background.drawPage(at: index, in: cg)
+            }
+            var ink = UIImage()
+            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+                ink = drawing.image(from: rect, scale: scale)
+            }
+            ink.draw(in: rect)
+        }
+    }
+
     /// PDF text under `rect`, in canvas coordinates.
     func pdfText(in rect: CGRect) -> PDFTextHit? {
         background?.pdfText(in: rect)

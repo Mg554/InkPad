@@ -29,6 +29,8 @@ final class CanvasController: NSObject, ObservableObject {
     var onThink: ((String, CGRect) -> Void)?
     /// Lasso › Remind Me: the selected writing as text.
     var onRemind: ((String) -> Void)?
+    /// Lasso › Text from Area: a picture of the area and where it is.
+    var onReadArea: ((UIImage, CGRect) -> Void)?
 
     private weak var host: NoteCanvasHostView?
     private weak var palette: ToolPalette?
@@ -68,6 +70,7 @@ final class CanvasController: NSObject, ObservableObject {
         host.lasso.onChange = { [weak self] in self?.contentDidChange() }
         host.lasso.onThink = { [weak self] text, rect in self?.onThink?(text, rect) }
         host.lasso.onRemind = { [weak self] text in self?.onRemind?(text) }
+        host.lasso.onReadArea = { [weak self] image, rect in self?.onReadArea?(image, rect) }
         host.elementLayer.onTextStateChange = { [weak self] in
             self?.formattingRevision += 1
         }

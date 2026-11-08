@@ -21,6 +21,10 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     var onThink: ((String, CGRect) -> Void)?
     /// Remind Me: the selected writing as text, for a new reminder.
     var onRemind: ((String) -> Void)?
+    /// Text from Area: a picture of the lassoed area (page and ink), and where it is.
+    var onReadArea: ((UIImage, CGRect) -> Void)?
+    /// A lassoed area with no ink or PDF text in it (for example a scan).
+    private var area: CGRect?
 
     private let overlay: SelectionOverlayView
     private(set) lazy var pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
@@ -139,7 +143,16 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         }
         let hit = host.pdfText(in: polygon.bounds)
         lassoPoints = []
-        guard !inside.isEmpty || hit != nil else { return }
+        guard !inside.isEmpty || hit != nil else {
+            // Nothing to select: offer to read the area itself (scans, pictures).
+            let bounds = polygon.bounds
+            guard bounds.width > 24, bounds.height > 12 else { return }
+            area = bounds
+            overlay.showSelection(bounds)
+            presentMenu(at: CGPoint(x: bounds.midX, y: bounds.minY))
+            return
+        }
+        area = nil
         selected = inside
         others = outside
         textHit = hit
@@ -149,6 +162,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     }
 
     func clearSelection() {
+        area = nil
         selected = []
         others = []
         textHit = nil
@@ -267,6 +281,14 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         presentMenu()
     }
 
+    /// Reads the lassoed area as it looks (page and ink) with Vision.
+    private func readArea(_ rect: CGRect) {
+        guard let host, let image = host.image(of: rect) else { return }
+        let target = rect
+        clearSelection()
+        onReadArea?(image, target)
+    }
+
     func setDash(_ style: DashStyle) {
         edit { dash = style }
     }
@@ -288,6 +310,12 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
 
     func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration, suggestedActions: [UIMenuElement]) -> UIMenu? {
         var actions: [UIMenuElement] = []
+        let readable = area ?? (hasSelection || hasTextSelection ? selectionBounds : nil)
+        if let readable {
+            actions.append(UIAction(title: "Text from Area", image: UIImage(systemName: "text.viewfinder")) { [weak self] _ in
+                self?.readArea(readable)
+            })
+        }
         if hasTextSelection {
             actions += [
                 UIAction(title: "Copy Text", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in self?.copyPDFText() },
