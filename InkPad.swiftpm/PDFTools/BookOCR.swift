@@ -179,7 +179,7 @@ enum BookOCR {
 
     /// Writes each line as invisible text over where it appears (PDF
     /// coordinates, y up), stretched to the line's width.
-    private static func drawInvisible(_ lines: [OCRLine], pageSize: CGSize, in context: CGContext) {
+    static func drawInvisible(_ lines: [OCRLine], pageSize: CGSize, in context: CGContext) {
         context.saveGState()
         context.setTextDrawingMode(.invisible)
         for line in lines {

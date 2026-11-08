@@ -59,14 +59,17 @@ enum PDFTool: String, CaseIterable, Identifiable {
 
 struct PDFToolsView: View {
     @State private var tool: PDFTool?
+    @State private var extra: PDFExtraTool?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Free and private: everything happens on this iPad, without the internet. Results are saved as new notes; your PDFs are never changed.")
+                Text("Free and private: everything happens on this iPad, without the internet (only Web Page to PDF loads the page). Results are saved as new notes; your PDFs are never changed.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 section("Organize", tools: PDFTool.allCases)
+                extraSection("Convert", tools: PDFExtraTool.convert)
+                extraSection("Protect & Edit", tools: PDFExtraTool.protect)
                 VStack(alignment: .leading, spacing: 6) {
                     Label("Inside a PDF note", systemImage: "book")
                         .font(.headline)
@@ -85,6 +88,25 @@ struct PDFToolsView: View {
         .navigationTitle("PDF Tools")
         .sheet(item: $tool) { tool in
             PDFToolSheet(tool: tool)
+        }
+        .sheet(item: $extra) { tool in
+            PDFExtraToolSheet(tool: tool)
+        }
+    }
+
+    private func extraSection(_ title: String, tools: [PDFExtraTool]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(.title3.bold())
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+                ForEach(tools) { item in
+                    Button {
+                        extra = item
+                    } label: {
+                        card(title: item.title, detail: item.detail, systemImage: item.systemImage, tint: item.tint)
+                    }
+                    .buttonStyle(PressableStyle())
+                }
+            }
         }
     }
 
@@ -105,18 +127,22 @@ struct PDFToolsView: View {
     }
 
     private func toolCard(_ item: PDFTool) -> some View {
+        card(title: item.title, detail: item.detail, systemImage: item.systemImage, tint: item.tint)
+    }
+
+    private func card(title: String, detail: String, systemImage: String, tint: Color) -> some View {
         VStack(spacing: 10) {
-            Image(systemName: item.systemImage)
+            Image(systemName: systemImage)
                 .font(.system(size: 30, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 60, height: 60)
-                .background(item.tint.gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .shadow(color: item.tint.opacity(0.4), radius: 8)
-            Text(item.title)
+                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: tint.opacity(0.4), radius: 8)
+            Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color(uiColor: .label))
                 .multilineTextAlignment(.center)
-            Text(item.detail)
+            Text(detail)
                 .font(.caption)
                 .foregroundStyle(Color(uiColor: .secondaryLabel))
                 .multilineTextAlignment(.center)

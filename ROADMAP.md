@@ -85,7 +85,11 @@
    - Done (batch 3, needs iPad testing with an AI key): Ask the Book with
      page citations, chapter summary notes, flashcards, exam questions
      and glossary.
-     Next: convert, protect, compare, side-by-side notebook.
+   - Done (batch 4, needs iPad testing): Convert (images → PDF, camera
+     scan with OCR, web page → PDF, PDF → images, extract images) and
+     Protect & Edit (compress, password, unlock, redact, watermark, page
+     numbers, sign). Camera scan and signing need the real iPad.
+     Next: compare editions, side-by-side notebook.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from

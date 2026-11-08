@@ -10,7 +10,7 @@ enum PDFOpenError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unreadable: "The file is not a readable PDF."
-        case .passwordProtected: "Password-protected PDFs are not supported yet."
+        case .passwordProtected: "This PDF is locked with a password. Open it with PDF Tools › Unlock PDF first."
         case .empty: "The PDF has no pages."
         }
     }

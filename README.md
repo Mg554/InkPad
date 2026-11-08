@@ -62,6 +62,14 @@ Done:
 - PDF Tools (sidebar, PDF24-style, all offline): merge PDFs, split a PDF
   by its chapters, every N pages or typed ranges, take pages out to a new
   note, remove pages, rotate pages; from the library or from Files.
+  Convert: images to PDF (Photos or Files), scan with the camera into a
+  searchable note, web page to PDF (the one tool that uses the
+  internet), PDF to images, extract the pictures stored in a PDF.
+  Protect & Edit: compress (with sizes before and after, optionally
+  keeping text searchable), protect with a password (shared or saved to
+  Files), unlock a locked PDF, redact words or drawn areas (redacted
+  pages become pictures, so the text is really gone), watermark, page
+  numbers, and sign (write a signature, choose page and place).
   Results are new notes; originals never change
 - PDF books: the book button opens Chapters & Bookmarks with the book's
   own outline (chapters and sections), colored bookmarks, reading

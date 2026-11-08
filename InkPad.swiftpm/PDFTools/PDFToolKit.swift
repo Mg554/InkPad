@@ -27,7 +27,7 @@ enum PDFToolError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unreadable: "The PDF couldn't be read."
-        case .locked: "The PDF is locked with a password."
+        case .locked: "The PDF is locked with a password. Use Unlock PDF in PDF Tools first."
         case .noPages: "Choose at least one page."
         case .cannotWrite: "The new PDF couldn't be written."
         }
