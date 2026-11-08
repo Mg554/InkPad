@@ -76,6 +76,15 @@ enum PaperColor: String, Codable, CaseIterable, Identifiable {
     var isDark: Bool { self == .charcoal || self == .black }
 }
 
+/// A colored bookmark on a page of a note (a book).
+struct NoteBookmark: Codable, Equatable, Identifiable {
+    var id = UUID()
+    /// Layout page, zero-based.
+    var page: Int
+    var title: String
+    var color: FolderColor
+}
+
 /// What one page shows underneath the ink.
 enum PageSource: Codable, Equatable {
     /// A page of the note's PDF (zero-based).
@@ -107,6 +116,11 @@ struct NoteMetadata: Codable, Equatable {
     var pages: [PageSource]?
     /// Audio recorded with the note, oldest first.
     var recordings: [AudioRecording]?
+    /// Bookmarks on pages (books).
+    var bookmarks: [NoteBookmark]?
+    /// The page last read, and the furthest page reached (layout pages).
+    var readingPage: Int?
+    var furthestPage: Int?
 
     func resolvedPages(pdfPageCount: Int) -> [PageSource] {
         pages ?? (0..<pdfPageCount).map { PageSource.pdf($0) } + Array(repeating: .paper, count: max(pageCount, 0))

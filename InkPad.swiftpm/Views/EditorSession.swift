@@ -1,3 +1,4 @@
+import PDFKit
 import PencilKit
 import SwiftUI
 
@@ -40,6 +41,8 @@ final class EditorSession: ObservableObject {
     private var isSaving = false
     private var pendingSave: Bool?
     private var autosaveTask: Task<Void, Never>?
+    /// Old PDF files to remove once the note has been saved without them.
+    private var replacedFiles: [URL] = []
 
     func load(noteID: UUID, store: LibraryStore) {
         guard self.store == nil else { return }
@@ -133,6 +136,67 @@ final class EditorSession: ObservableObject {
         }
         setPages(order.map { pages[$0] })
         scrollAfterLayout(to: destination)
+    }
+
+    /// Puts pages of another PDF into this note after layout page `index`,
+    /// moving later ink and elements down. The note gets a new PDF file
+    /// with its old pages followed by the new ones.
+    func insertPDFPages(_ newPages: [Int], from source: PDFDocument, after index: Int) throws {
+        guard let content = baseContent, let rects = background?.layout.pageRects, !newPages.isEmpty else { return }
+        let after = min(max(index, -1), rects.count - 1)
+        let existing: PDFDocument? = content.pdf?.pdfDocument
+        let oldCount: Int = content.pdf?.pageCount ?? 0
+        let combined: PDFDocument = existing.map { PDFToolKit.document(with: Array(0..<oldCount), from: $0) } ?? PDFDocument()
+        for page in newPages {
+            guard let copy = source.page(at: page)?.copy() as? PDFPage else { continue }
+            combined.insert(copy, at: combined.pageCount)
+        }
+        let fileName = "document-\(UUID().uuidString.prefix(8)).pdf"
+        let url = content.directory.appendingPathComponent(fileName)
+        guard combined.write(to: url) else { throw PDFToolError.cannotWrite }
+        let pdf = try PDFBackground(url: url)
+
+        var pages = content.metadata.resolvedPages(pdfPageCount: oldCount)
+        let inserted: [PageSource] = (0..<newPages.count).map { PageSource.pdf(oldCount + $0) }
+        pages.insert(contentsOf: inserted, at: after + 1)
+        var metadata = content.metadata
+        metadata.pdfFile = fileName
+        metadata.pages = pages
+        metadata.pageCount = pages.filter { $0 == .paper }.count
+        let updated = NoteContent(metadata: metadata, drawing: content.drawing, pdf: pdf, directory: content.directory)
+        let newRects = updated.makeBackground().layout.pageRects
+
+        // Move what was written on later pages down by the room the new pages take.
+        let firstLater = after + 1
+        if firstLater < rects.count, firstLater + inserted.count < newRects.count {
+            let shift: CGFloat = newRects[firstLater + inserted.count].minY - rects[firstLater].minY
+            let below: CGFloat = after >= 0 ? rects[after].maxY + PageLayout.pageGap / 2 : rects[0].minY - PageLayout.pageGap / 2
+            canvas.shiftContent(below: below, by: shift, removing: nil)
+        }
+        if let old = content.pdf?.fileURL { replacedFiles.append(old) }
+        baseContent = updated
+        self.metadata = metadata
+        background = updated.makeBackground()
+        markEdited()
+        snapshot = currentContent()
+        scrollAfterLayout(to: after + 1)
+    }
+
+    /// Keeps the page being read, and how far the reader got.
+    func noteReadingPage(_ page: Int) {
+        guard var content = baseContent else { return }
+        let furthest = max(content.metadata.furthestPage ?? 0, page)
+        guard content.metadata.readingPage != page || content.metadata.furthestPage != furthest else { return }
+        // Only the reading place changes: no need to rebuild the pages.
+        content.metadata.readingPage = page
+        content.metadata.furthestPage = furthest
+        baseContent = content
+        metadata = content.metadata
+        markEdited()
+    }
+
+    func setBookmarks(_ bookmarks: [NoteBookmark]) {
+        updateMetadata { $0.bookmarks = bookmarks }
     }
 
     private func setPages(_ pages: [PageSource]) {
@@ -238,6 +302,10 @@ final class EditorSession: ObservableObject {
             let saved = await store.saveContent(content, for: noteID, thumbnail: needsThumbnail)
             isSaving = false
             if saved {
+                for file in replacedFiles where file != content.pdf?.fileURL {
+                    try? FileManager.default.removeItem(at: file)
+                }
+                replacedFiles = []
                 snapshot = content
                 savedGeneration = max(savedGeneration, generation)
                 if needsThumbnail { thumbnailGeneration = generation }

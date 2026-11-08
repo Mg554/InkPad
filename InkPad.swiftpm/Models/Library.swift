@@ -235,6 +235,8 @@ enum LibraryScope: Hashable {
     case tag(String)
     /// The graph of notes and their links.
     case graph
+    /// PDF tools (merge, split, pages to a note...).
+    case pdfTools
 }
 
 /// A folder positioned in the folder tree, for sidebars and menus.

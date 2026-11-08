@@ -72,6 +72,8 @@ struct SidebarView: View {
                     .tag(LibraryScope.mindMaps)
                 Label("Slides", systemImage: "rectangle.on.rectangle.angled")
                     .tag(LibraryScope.slides)
+                Label("PDF Tools", systemImage: "doc.on.doc")
+                    .tag(LibraryScope.pdfTools)
                 HStack {
                     Label("Flowmodoro", systemImage: "timer")
                     Spacer()

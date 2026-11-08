@@ -367,6 +367,17 @@ enum LivingAnalyzer {
         "note", "notes", "untitled", "page", "thing", "things", "today", "time", "inside", "app", "backup",
         "هذا", "هذه", "ذلك", "التي", "الذي", "الذين", "على", "الى", "إلى", "عن", "من", "في", "مع", "كان", "كانت", "يكون",
         "لكن", "بعد", "قبل", "عند", "كل", "بين", "حتى", "اذا", "إذا", "ايضا", "أيضا", "هناك", "هنا", "لان", "لأن", "ملاحظه",
+        "minus", "plus", "increase", "increases", "decrease", "decreases", "reduce", "reduces", "include", "includes",
+        "equal", "equals", "lead", "leads", "guide", "guides", "help", "helps", "keep", "keeps", "make", "makes",
+        "show", "shows", "use", "uses", "set", "sets", "reach", "appear", "appears", "rise", "rises", "deliver", "delivers",
+    ]
+
+    /// Words that make a two-word phrase a fragment of a sentence, not a concept.
+    private static let phraseBreakers: Set<String> = [
+        "minus", "plus", "increase", "increases", "decrease", "decreases", "reduce", "reduces", "include", "includes",
+        "equal", "equals", "lead", "leads", "guide", "guides", "help", "helps", "keep", "keeps", "make", "makes",
+        "show", "shows", "use", "uses", "set", "sets", "reach", "appear", "appears", "rise", "rises", "deliver", "delivers",
+        "may", "can", "will", "is", "are", "was", "were", "be", "been", "the", "and", "or", "of", "to", "in", "with",
     ]
 
     /// The matching key of a word or phrase.
@@ -384,6 +395,10 @@ enum LivingAnalyzer {
         func add(_ display: String, weight: Double) {
             let cleaned = display.trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
             let k = key(for: cleaned)
+            if cleaned.contains(" ") {
+                let words = cleaned.lowercased().split(separator: " ").map(String.init)
+                if words.contains(where: { phraseBreakers.contains($0) }) { return }
+            }
             guard k.count >= 3, !stopwords.contains(k), !stopwords.contains(cleaned.lowercased()), !k.allSatisfy(\.isNumber) else { return }
             terms[k, default: 0] += weight
             if displays[k] == nil { displays[k] = cleaned }

@@ -37,6 +37,11 @@ struct NoteEditorView: View {
     @State private var reminderRequest: NoteReminderRequest?
     @State private var isShowingLiving = false
     @State private var livingTab = LivingTab.related
+    /// What the side panel shows: Living Notes or the book's chapters.
+    @State private var showsBookPanel = false
+    @State private var bookResult: BookResult?
+    @State private var isInsertingPages = false
+    @State private var isSendingPages = false
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -174,14 +179,24 @@ struct NoteEditorView: View {
             FloatingPlacement(key: "livingBubble", x: 0.05, y: 0.92) {
             LivingBubble(noteID: noteID, isText: false) { tab in
                 livingTab = tab
+                showsBookPanel = false
                 isShowingLiving = true
             }
             }
         }
         .inspector(isPresented: $isShowingLiving) {
-            LivingPanel(noteID: noteID, tab: $livingTab)
+            sidePanel
                 .inspectorColumnWidth(min: 300, ideal: 360, max: 440)
         }
+        .modifier(BookSheets(
+            noteID: noteID,
+            session: session,
+            canvas: canvas,
+            title: title,
+            bookResult: $bookResult,
+            isInsertingPages: $isInsertingPages,
+            isSendingPages: $isSendingPages
+        ))
         .onDisappear {
             LivingNotes.shared.markSeen(noteID)
             // Stopping a recording stores it in the note before the save.
@@ -314,9 +329,37 @@ struct NoteEditorView: View {
         .accessibilityLabel("Show Toolbar")
     }
 
+    @ViewBuilder
+    private var sidePanel: some View {
+        if showsBookPanel {
+            BookPanel(session: session, canvas: canvas, noteID: noteID) { result in
+                bookResult = result
+            }
+        } else {
+            LivingPanel(noteID: noteID, tab: $livingTab)
+        }
+    }
+
+    private func openBookPanel() {
+        showsBookPanel = true
+        isShowingLiving = true
+    }
+
     /// This note's commands in Command Anywhere (⌘K).
     private var paletteCommands: [PaletteItem] {
         [
+            PaletteItem(id: "ink-chapters", title: "Chapters & Bookmarks", subtitle: "Outline, bookmarks, reading progress, chapter mind maps",
+                        systemImage: "book", tint: .brown, section: .thisNote, keywords: ["book", "outline", "فصول", "كتاب", "فهرس"]) {
+                openBookPanel()
+            },
+            PaletteItem(id: "ink-insert-pages", title: "Insert Pages from Another PDF…", systemImage: "doc.on.doc", section: .thisNote,
+                        keywords: ["pdf", "pages", "صفحات", "ادراج"]) {
+                isInsertingPages = true
+            },
+            PaletteItem(id: "ink-send-pages", title: "Send Pages to a New Note…", systemImage: "doc.badge.plus", section: .thisNote,
+                        keywords: ["extract", "pages", "قص", "صفحات"]) {
+                isSendingPages = true
+            },
             PaletteItem(id: "ink-study", title: "Study This with AI…", subtitle: "Flashcards, quizzes, summary, chat", systemImage: "graduationcap",
                         tint: .blue, section: .thisNote, keywords: ["flashcards", "quiz", "summary", "بطاقات", "اختبار", "لخص"]) {
                 session.save(thumbnail: false)
@@ -458,6 +501,23 @@ struct NoteEditorView: View {
                 }
                 Section {
                     Button {
+                        openBookPanel()
+                    } label: {
+                        Label("Chapters & Bookmarks", systemImage: "book")
+                    }
+                    Button {
+                        isInsertingPages = true
+                    } label: {
+                        Label("Insert Pages from Another PDF…", systemImage: "doc.on.doc")
+                    }
+                    Button {
+                        isSendingPages = true
+                    } label: {
+                        Label("Send Pages to a New Note…", systemImage: "doc.badge.plus")
+                    }
+                }
+                Section {
+                    Button {
                         setToolbarHidden(!isToolbarHidden)
                     } label: {
                         Label(isToolbarHidden ? "Show Toolbar" : "Hide Toolbar", systemImage: isToolbarHidden ? "eye" : "eye.slash")
@@ -504,6 +564,14 @@ struct NoteEditorView: View {
                 Label("More", systemImage: "ellipsis.circle")
             }
             .disabled(session.metadata == nil)
+
+            if session.metadata?.pdfFile != nil {
+                Button {
+                    openBookPanel()
+                } label: {
+                    Label("Chapters & Bookmarks", systemImage: "book")
+                }
+            }
 
             Button {
                 isShowingPages.toggle()
@@ -593,5 +661,71 @@ private struct UndoRedoButtons: View {
             Label("Redo", systemImage: "arrow.uturn.forward")
         }
         .disabled(!canvas.canRedo)
+    }
+}
+
+/// The sheets of the book tools in a note: chapter mind maps and concept
+/// graphs, inserting pages from another PDF, and sending pages to a new note.
+private struct BookSheets: ViewModifier {
+    @EnvironmentObject private var store: LibraryStore
+    @EnvironmentObject private var workspace: WorkspaceStore
+    let noteID: UUID
+    @ObservedObject var session: EditorSession
+    @ObservedObject var canvas: CanvasController
+    let title: String
+    @Binding var bookResult: BookResult?
+    @Binding var isInsertingPages: Bool
+    @Binding var isSendingPages: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .fullScreenCover(item: $bookResult) { result in
+                resultView(result)
+                    .environmentObject(store)
+                    .environmentObject(workspace)
+            }
+            .sheet(isPresented: $isInsertingPages) {
+                InsertPagesSheet(afterPage: canvas.currentPage) { pages, document in
+                    try session.insertPDFPages(pages, from: document, after: canvas.currentPage)
+                }
+                .environmentObject(store)
+            }
+            .sheet(isPresented: $isSendingPages) {
+                if let current = session.currentContent() {
+                    SendPagesSheet(content: current, title: title, folderID: store.note(noteID)?.folderID, currentPage: canvas.currentPage)
+                        .environmentObject(store)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private func resultView(_ result: BookResult) -> some View {
+        switch result {
+        case let .mindMap(id):
+            NavigationStack {
+                MindMapEditor(mapID: id)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { bookResult = nil }
+                        }
+                    }
+            }
+        case let .conceptGraph(title, graph, first, last):
+            ConceptGraphView(title: title, graph: graph) { concept in
+                pages(mentioning: concept, from: first, to: last)
+            } goToPage: { page in
+                let pages = session.snapshot?.metadata.resolvedPages(pdfPageCount: session.snapshot?.pdf?.pageCount ?? 0) ?? []
+                if let index = PDFToolKit.layoutIndex(ofPDFPage: page, in: pages) {
+                    canvas.scrollToPage(index)
+                }
+            }
+        }
+    }
+
+    private func pages(mentioning concept: String, from first: Int, to last: Int) -> [Int] {
+        guard let document = session.snapshot?.pdf?.pdfDocument else { return [] }
+        return (first...last).filter { index in
+            document.page(at: index)?.string?.localizedCaseInsensitiveContains(concept) ?? false
+        }
     }
 }

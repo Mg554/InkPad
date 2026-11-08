@@ -74,6 +74,12 @@
      into notes, linked to the page); split a book by chapters into
      notebooks; fast full-book search (also from ⌘K). Top priority:
      make a mind map or graph from a chosen chapter or text.
+   - Done (batch 1, needs iPad testing): PDF Tools hub with merge, split
+     (chapters / every N / ranges), pages to a new note, remove, rotate;
+     book panel with outline, bookmarks and progress; chapter mind maps
+     (on-device or AI) and concept graphs; insert pages from another PDF;
+     send pages to a new note. Next: convert, protect, compare, OCR,
+     side-by-side notebook, full-book search, AI with books.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from

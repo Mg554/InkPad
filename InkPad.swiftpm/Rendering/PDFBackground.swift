@@ -30,6 +30,11 @@ final class PDFBackground {
     /// PDFKit's copy, opened when text is first needed.
     private lazy var textDocument: PDFDocument? = PDFDocument(url: url)
     let pageCount: Int
+    /// The file this PDF was opened from.
+    var fileURL: URL { url }
+
+    /// PDFKit's document, for outline, text and page tools.
+    var pdfDocument: PDFDocument? { textDocument }
 
     init(url: URL) throws {
         self.url = url

@@ -59,6 +59,18 @@ Done:
   tomorrow at 9", "ذكرني بالمحاضرة غداً الساعة 9" or "coffee 15" are
   understood on the iPad; "Ask AI" sends only that sentence when it
   isn't. Shortcuts: ⌘N, ⌘⇧N, ⌘⇧R, ⌘⇧T, ⌘⇧E, ⌘⇧M, ⌘⇧B, ⌘⇧D, ⌘1–⌘8
+- PDF Tools (sidebar, PDF24-style, all offline): merge PDFs, split a PDF
+  by its chapters, every N pages or typed ranges, take pages out to a new
+  note, remove pages, rotate pages; from the library or from Files.
+  Results are new notes; originals never change
+- PDF books: the book button opens Chapters & Bookmarks with the book's
+  own outline (chapters and sections), colored bookmarks, reading
+  progress and the current chapter. Any chapter becomes a mind map (its
+  sections and key concepts, made on the iPad, or by AI when allowed by
+  the AI Firewall), a concept graph (tap a concept to see and jump to the
+  pages that mention it), or a note of its own. In More: Insert Pages from
+  Another PDF (into the open note, after the current page) and Send Pages
+  to a New Note
 - Refine Handwriting (the wand in the drawing toolbar): smooths strokes
   when the pencil lifts, levels a slanted line and evens out word sizes
   after a pause; each can be turned on or off. Lasso › Refine does it for

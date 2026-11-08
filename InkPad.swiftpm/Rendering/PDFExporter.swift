@@ -6,6 +6,8 @@ struct PDFExportOptions {
     var addMargins = false
     /// Zero-based, inclusive. `nil` exports every page.
     var pageRange: ClosedRange<Int>?
+    /// Only these pages (zero-based layout pages); wins over `pageRange`.
+    var pageSet: Set<Int>?
     /// Empty means no password.
     var password = ""
 }
@@ -36,7 +38,10 @@ enum PDFExporter {
             format: format
         )
 
-        let pages = background.layout.pageRects.indices.filter { options.pageRange?.contains($0) ?? true }
+        let pages = background.layout.pageRects.indices.filter { (index: Int) -> Bool in
+            if let set = options.pageSet { return set.contains(index) }
+            return options.pageRange?.contains(index) ?? true
+        }
 
         try renderer.writePDF(to: url) { context in
             for index in pages {

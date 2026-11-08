@@ -98,6 +98,7 @@ struct CommandCatalog {
             ("go-flow", "Flowmodoro", "timer", .flowmodoro, "⌘8", ["focus", "pomodoro", "تركيز", "مؤقت"]),
             ("go-slides", "Slides", "rectangle.on.rectangle.angled", .slides, nil, ["presentation", "شرائح", "عرض"]),
             ("go-unfiled", "Unfiled", "tray", .unfiled, nil, ["غير مصنفة"]),
+            ("go-pdf", "PDF Tools", "doc.on.doc", .pdfTools, nil, ["merge", "split", "pdf24", "دمج", "تقسيم", "ادوات"]),
         ]
         var items = sections.map { id, title, image, scope, shortcut, keywords in
             PaletteItem(id: id, title: title, systemImage: image, shortcut: shortcut, section: .goTo, keywords: keywords) { [center] in
