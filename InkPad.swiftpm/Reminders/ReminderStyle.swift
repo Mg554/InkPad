@@ -312,11 +312,13 @@ struct CelebrationBurst: View {
     var body: some View {
         ZStack {
             ForEach(0..<12, id: \.self) { index in
-                let angle = Double(index) / 12 * 2 * .pi
+                let angle: Double = Double(index) / 12 * 2 * Double.pi
+                let dx: CGFloat = CGFloat(Math.cosine(angle)) * 30
+                let dy: CGFloat = CGFloat(Math.sine(angle)) * 30
                 Circle()
                     .fill(index.isMultiple(of: 3) ? Color.yellow : index.isMultiple(of: 2) ? color : .pink)
                     .frame(width: 6, height: 6)
-                    .offset(x: flying ? cos(angle) * 30 : 0, y: flying ? sin(angle) * 30 : 0)
+                    .offset(x: flying ? dx : 0, y: flying ? dy : 0)
                     .opacity(flying ? 0 : 1)
             }
         }

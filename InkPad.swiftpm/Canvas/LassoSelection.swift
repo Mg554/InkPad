@@ -501,7 +501,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         var travelled: CGFloat = 0
         var previous = points[0].location
         for point in points {
-            travelled += hypot(point.location.x - previous.x, point.location.y - previous.y)
+            travelled += Math.distance(point.location.x - previous.x, point.location.y - previous.y)
             previous = point.location
             let phase = travelled.truncatingRemainder(dividingBy: on + off)
             if phase <= on {

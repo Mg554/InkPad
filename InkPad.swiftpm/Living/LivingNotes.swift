@@ -176,7 +176,7 @@ final class LivingNotes: ObservableObject {
         let total = Double(max(vectors.count, 1))
         let count: Int = documentCount[key] ?? 0
         let ratio: Double = (total + 1) / Double(count + 1)
-        return log(ratio) + 1
+        return Math.logarithm(ratio) + 1
     }
 
     private func weighted(_ vector: [String: Double]) -> [String: Double] {
@@ -334,8 +334,8 @@ final class LivingNotes: ObservableObject {
         for value in b.values {
             sumB += value * value
         }
-        let na: Double = sqrt(sumA)
-        let nb: Double = sqrt(sumB)
+        let na: Double = Math.root(sumA)
+        let nb: Double = Math.root(sumB)
         return na > 0 && nb > 0 ? dot / (na * nb) : 0
     }
 
@@ -347,7 +347,8 @@ final class LivingNotes: ObservableObject {
             na += a[index] * a[index]
             nb += b[index] * b[index]
         }
-        return na > 0 && nb > 0 ? dot / (sqrt(na) * sqrt(nb)) : 0
+        guard na > 0, nb > 0 else { return 0 }
+        return dot / (Math.root(na) * Math.root(nb))
     }
 }
 

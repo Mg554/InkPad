@@ -108,8 +108,9 @@ struct OldPaperView: View {
 }
 
 private func paperNoise(_ seed: Double) -> CGFloat {
-    let value = sin(seed * 91.345 + 47.853) * 24_634.6345
-    return CGFloat(value - floor(value))
+    let wave: Double = Math.sine(seed * 91.345 + 47.853)
+    let value: Double = wave * 24_634.6345
+    return CGFloat(value - Math.roundDown(value))
 }
 
 extension View {

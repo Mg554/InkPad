@@ -273,8 +273,13 @@ extension MindMap {
                 // Rings get a little tighter further out; crowded ideas
                 // step in and out so their labels don't overlap.
                 let crowded = depth > 0 && kids.count > 2 && !order.isMultiple(of: 2)
-                let radius = step * spacing * (Double(depth) + 1) * (depth == 0 ? 1.1 : 0.95) + (crowded ? 70 * spacing : 0)
-                positions[kid.id] = CGPoint(x: cos(middle) * radius, y: sin(middle) * radius)
+                let ring: Double = step * spacing * (Double(depth) + 1)
+                let tighten: Double = depth == 0 ? 1.1 : 0.95
+                let stagger: Double = crowded ? 70 * spacing : 0
+                let radius: Double = ring * tighten + stagger
+                let x: Double = Math.cosine(middle) * radius
+                let y: Double = Math.sine(middle) * radius
+                positions[kid.id] = CGPoint(x: x, y: y)
                 place(kid.id, depth: depth + 1, from: angle, to: angle + share)
                 angle += share
             }

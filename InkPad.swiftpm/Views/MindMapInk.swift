@@ -366,7 +366,7 @@ enum MindSketchReader {
     private static func isOutline(_ points: [CGPoint], around ideas: [Idea]) -> Bool {
         guard let first = points.first, let last = points.last, points.count > 8 else { return false }
         let box = points.reduce(CGRect.null) { $0.union(CGRect(origin: $1, size: .zero)) }
-        let closed = hypot(first.x - last.x, first.y - last.y) < max(box.width, box.height) * 0.3
+        let closed = Math.distance(first.x - last.x, first.y - last.y) < max(box.width, box.height) * 0.3
         return closed && ideas.contains { box.insetBy(dx: -10, dy: -10).contains($0.rect.insetBy(dx: $0.rect.width * 0.2, dy: $0.rect.height * 0.2)) }
     }
 
@@ -379,7 +379,7 @@ enum MindSketchReader {
     private static func distance(_ point: CGPoint, to rect: CGRect) -> CGFloat {
         let dx = max(rect.minX - point.x, 0, point.x - rect.maxX)
         let dy = max(rect.minY - point.y, 0, point.y - rect.maxY)
-        return sqrt(dx * dx + dy * dy)
+        return Math.distance(dx, dy)
     }
 
     private static func center(_ rect: CGRect) -> CGPoint { CGPoint(x: rect.midX, y: rect.midY) }
@@ -415,7 +415,7 @@ enum MindSketchReader {
                 for parent in placed {
                     let a = center(ideas[idea].rect)
                     let b = center(ideas[parent].rect)
-                    let d = hypot(a.x - b.x, a.y - b.y)
+                    let d = Math.distance(a.x - b.x, a.y - b.y)
                     if best == nil || d < best!.distance { best = (idea, parent, d) }
                 }
             }

@@ -59,8 +59,9 @@ struct SceneryView: View {
 
 /// Repeatable "random" numbers, so the scenery looks the same every time.
 private func noise(_ seed: Double) -> Double {
-    let value = sin(seed * 12.9898 + 78.233) * 43_758.5453
-    return value - floor(value)
+    let wave: Double = Math.sine(seed * 12.9898 + 78.233)
+    let value: Double = wave * 43_758.5453
+    return value - Math.roundDown(value)
 }
 
 private struct SceneryPainter {
@@ -119,8 +120,8 @@ private struct SceneryPainter {
             )
             let radius = (4 + CGFloat(noise(seed + 0.9)) * 3) * scale
             for petal in 0..<5 {
-                let angle = Double(petal) / 5 * 2 * .pi
-                let spot = CGPoint(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius)
+                let angle: Double = Double(petal) / 5 * 2 * Double.pi
+                let spot = CGPoint(x: center.x + CGFloat(Math.cosine(angle)) * radius, y: center.y + CGFloat(Math.sine(angle)) * radius)
                 context.fill(Path(ellipseIn: CGRect(x: spot.x - radius * 0.7, y: spot.y - radius * 0.7, width: radius * 1.4, height: radius * 1.4)),
                              with: .color(petals[index % petals.count].opacity(0.9)))
             }
@@ -223,7 +224,9 @@ private struct SceneryPainter {
             let rising = season == .summer
             var y = (noise(seed + 0.2) * height + speed * t).truncatingRemainder(dividingBy: height) - 30
             if rising { y = height - y - 60 }
-            let sway = sin(t * (0.6 + noise(seed + 0.4)) + noise(seed) * 6) * (14 + noise(seed + 0.5) * 20)
+            let swayAngle: Double = t * (0.6 + noise(seed + 0.4)) + noise(seed) * 6
+            let swayWidth: Double = 14 + noise(seed + 0.5) * 20
+            let sway: Double = Math.sine(swayAngle) * swayWidth
             let x = noise(seed + 0.6) * Double(size.width) + sway
             let point = CGPoint(x: x, y: y)
             let color = colors[index % colors.count]

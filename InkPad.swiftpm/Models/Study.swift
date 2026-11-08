@@ -65,7 +65,7 @@ extension Flashcard {
         let interval = max(Self.intervals[box], 0.5) * 86_400
         let reviewed = lastReviewed ?? due.addingTimeInterval(-interval)
         let elapsed = max(0, now.timeIntervalSince(reviewed))
-        return pow(0.9, elapsed / interval)
+        return Math.power(0.9, elapsed / interval)
     }
 }
 

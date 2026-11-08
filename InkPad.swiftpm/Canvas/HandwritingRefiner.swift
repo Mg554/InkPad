@@ -114,8 +114,8 @@ enum HandwritingRefiner {
         let centers = strokes.map { CGPoint(x: $0.renderBounds.midX, y: $0.renderBounds.midY) }
         // Average the slope through the bottoms and through the centers.
         guard let slopeA = slope(of: bottoms), let slopeB = slope(of: centers) else { return strokes }
-        let angle = atan((slopeA + slopeB) / 2)
-        let degrees = abs(angle * 180 / .pi)
+        let angle = CGFloat(Math.arcTangent(Double((slopeA + slopeB) / 2)))
+        let degrees: CGFloat = abs(angle * 180 / CGFloat.pi)
         guard degrees > 1.5, degrees < 20 else { return strokes }
         let bounds = strokes.reduce(CGRect.null) { $0.union($1.renderBounds) }
         let pivot = CGPoint(x: bounds.midX, y: bounds.midY)

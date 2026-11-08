@@ -86,13 +86,16 @@ struct WidthLevelBar: View {
         guard range.lowerBound > 0, range.upperBound > range.lowerBound else {
             return range.lowerBound + (range.upperBound - range.lowerBound) * fraction
         }
-        return range.lowerBound * pow(range.upperBound / range.lowerBound, fraction)
+        let ratio = Double(range.upperBound / range.lowerBound)
+        return range.lowerBound * CGFloat(Math.power(ratio, Double(fraction)))
     }
 
     static func position(forWidth width: CGFloat, in range: ClosedRange<CGFloat>) -> CGFloat {
         let fraction: CGFloat
         if range.lowerBound > 0, range.upperBound > range.lowerBound {
-            fraction = log(max(width, range.lowerBound) / range.lowerBound) / log(range.upperBound / range.lowerBound)
+            let part = Math.logarithm(Double(max(width, range.lowerBound) / range.lowerBound))
+            let whole = Math.logarithm(Double(range.upperBound / range.lowerBound))
+            fraction = CGFloat(part / whole)
         } else {
             fraction = (width - range.lowerBound) / max(range.upperBound - range.lowerBound, 0.001)
         }

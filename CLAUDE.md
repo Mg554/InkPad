@@ -56,6 +56,12 @@ carefully for Swift pitfalls that have bitten before:
   `sorted`, `??` inside arithmetic), and split long SwiftUI modifier
   chains into separate computed properties. Check with
   `OTHER_SWIFT_FLAGS="-Xfrontend -warn-long-expression-type-checking=100"`.
+- Never call bare `cos`, `sin`, `sqrt`, `hypot`, `pow`, `log`, `atan`,
+  `floor` or `ceil`: on the iPad, Swift Playgrounds reports "ambiguous use
+  of 'cos'" when a call could be the Double or the CGFloat version (Xcode
+  and Playgrounds on the Mac accept it). Use `Math.cosine`, `Math.sine`,
+  `Math.root`, `Math.distance`, `Math.power`... (Models/MathHelpers.swift),
+  which take Double, and convert with `CGFloat(...)`.
 - This Mac has 16 GB: run only one of Simulator, Swift Playground or
   xcodebuild at a time, and quit it when done.
 - `foregroundStyle(cond ? .a : .b)`: write `Color.a`.

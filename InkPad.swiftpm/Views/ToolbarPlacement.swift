@@ -57,7 +57,7 @@ struct ToolbarPlacement: Equatable {
         in size: CGSize
     ) -> ToolbarPlacement {
         // A nudge leaves it where it is.
-        guard hypot(translation.width, translation.height) > 24 else { return current }
+        guard Math.distance(translation.width, translation.height) > 24 else { return current }
 
         func distance(to edge: ToolbarEdge) -> CGFloat {
             let raw: CGFloat

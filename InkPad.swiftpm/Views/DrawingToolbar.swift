@@ -495,7 +495,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                         for piece in 0..<pieces {
                             let start = Double(piece) / Double(pieces)
                             let middle = start + 0.5 / Double(pieces)
-                            let factor = 0.45 + 0.55 * sin(Double.pi * middle)
+                            let factor: Double = 0.45 + 0.55 * Math.sine(Double.pi * middle)
                             layer.stroke(
                                 wave.trimmedPath(from: start, to: start + 1 / Double(pieces) + 0.004),
                                 with: .color(previewColor),

@@ -150,9 +150,12 @@ extension NoteGraph {
 
     private func spiral(_ count: Int, around center: CGPoint, spacing: CGFloat = 34) -> [CGPoint] {
         (0..<count).map { index in
-            let angle = Double(index) * 2.399963
-            let radius = index == 0 ? 0 : spacing * sqrt(Double(index)) + 18
-            return CGPoint(x: center.x + radius * cos(angle), y: center.y + radius * sin(angle))
+            let angle: Double = Double(index) * 2.399963
+            let away: CGFloat = spacing * CGFloat(Math.root(Double(index))) + 18
+            let radius: CGFloat = index == 0 ? 0 : away
+            let x: CGFloat = center.x + radius * CGFloat(Math.cosine(angle))
+            let y: CGFloat = center.y + radius * CGFloat(Math.sine(angle))
+            return CGPoint(x: x, y: y)
         }
     }
 
@@ -173,11 +176,12 @@ extension NoteGraph {
         var result = GraphArrangement()
         let ringRadius: CGFloat = groups.count <= 1 ? 0 : CGFloat(160 + groups.count * 40)
         for (offset, group) in groups.enumerated() {
-            let angle = Double(offset) / Double(max(groups.count, 1)) * 2 * .pi - .pi / 2
-            let center = CGPoint(x: ringRadius * cos(angle), y: ringRadius * sin(angle))
+            let turn: Double = Double(offset) / Double(max(groups.count, 1))
+            let angle: Double = turn * 2 * Double.pi - Double.pi / 2
+            let center = CGPoint(x: ringRadius * CGFloat(Math.cosine(angle)), y: ringRadius * CGFloat(Math.sine(angle)))
             let points = spiral(group.ids.count, around: center)
             for (id, point) in zip(group.ids, points) { result.positions[id] = point }
-            let radius = 34 * sqrt(CGFloat(max(group.ids.count - 1, 0))) + 60
+            let radius: CGFloat = 34 * CGFloat(Math.root(Double(max(group.ids.count - 1, 0)))) + 60
             result.guides.append(GraphGuide(kind: .island(radius: radius), center: center, title: group.title, colorIndex: offset))
         }
         return result
@@ -241,8 +245,9 @@ extension NoteGraph {
             }
             let radius = CGFloat(level) * step
             for (offset, id) in ids.sorted().enumerated() {
-                let angle = Double(offset) / Double(ids.count) * 2 * .pi - .pi / 2 + Double(level) * 0.4
-                result.positions[id] = CGPoint(x: radius * cos(angle), y: radius * sin(angle))
+                let turn: Double = Double(offset) / Double(ids.count)
+                let angle: Double = turn * 2 * Double.pi - Double.pi / 2 + Double(level) * 0.4
+                result.positions[id] = CGPoint(x: radius * CGFloat(Math.cosine(angle)), y: radius * CGFloat(Math.sine(angle)))
             }
             let title = level > maxLevel ? "Not linked" : level == 1 ? "1 link away" : "\(level) links away"
             result.guides.append(GraphGuide(kind: .ring(radius: radius), center: .zero, title: title, colorIndex: level))
@@ -286,8 +291,9 @@ extension NoteGraph {
     private func grid() -> GraphArrangement {
         var result = GraphArrangement()
         let sorted = nodes.sorted { ($0.isTag ? 1 : 0, $0.title.lowercased()) < ($1.isTag ? 1 : 0, $1.title.lowercased()) }
-        let columns = max(Int(ceil(sqrt(Double(sorted.count)) * 1.4)), 1)
-        let rows = Int(ceil(Double(sorted.count) / Double(columns)))
+        let wide: Double = Math.root(Double(sorted.count)) * 1.4
+        let columns: Int = max(Int(Math.roundUp(wide)), 1)
+        let rows: Int = Int(Math.roundUp(Double(sorted.count) / Double(columns)))
         let spacingX: CGFloat = 150
         let spacingY: CGFloat = 110
         for (offset, node) in sorted.enumerated() {

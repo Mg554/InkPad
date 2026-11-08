@@ -22,7 +22,7 @@ struct CloudShape: Shape {
             // Push the control point outward for a bump.
             let dx = middle.x - center.x
             let dy = middle.y - center.y
-            let length = max(sqrt(dx * dx + dy * dy), 1)
+            let length: CGFloat = max(Math.distance(dx, dy), 1)
             let bulge: CGFloat = 16
             path.addQuadCurve(to: next, control: CGPoint(x: middle.x + dx / length * bulge, y: middle.y + dy / length * bulge))
         }
@@ -228,7 +228,7 @@ enum MindBranchPainter {
             let behind = point(max(t - 0.01, 0))
             var dx = ahead.x - behind.x
             var dy = ahead.y - behind.y
-            let length = max(sqrt(dx * dx + dy * dy), 0.0001)
+            let length: CGFloat = max(Math.distance(dx, dy), 0.0001)
             dx /= length
             dy /= length
             let half = (startWidth + (endWidth - startWidth) * t) / 2

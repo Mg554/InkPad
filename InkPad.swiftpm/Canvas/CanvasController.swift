@@ -204,7 +204,7 @@ final class CanvasController: NSObject, ObservableObject {
         let shape: ShapeRecognizer.Shape
         if palette.tool == .highlighter {
             // Highlighting follows lines of text, so the highlighter always snaps straight.
-            guard hypot(last.x - first.x, last.y - first.y) > 8 else { return }
+            guard Math.distance(last.x - first.x, last.y - first.y) > 8 else { return }
             shape = .polyline([first, last], closed: false)
         } else {
             guard let recognized = ShapeRecognizer.recognize(points) else { return }

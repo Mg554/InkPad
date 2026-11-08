@@ -142,7 +142,7 @@ enum TemplateRenderer {
     /// Pointy-top honeycomb clipped to the page.
     private static func hexagons(in rect: CGRect, radius: CGFloat, context: CGContext) {
         context.clip(to: rect)
-        let width = sqrt(3) * radius
+        let width: CGFloat = CGFloat(Math.root(3)) * radius
         let rowStep = radius * 1.5
         var row = 0
         var centerY = rect.minY
@@ -151,7 +151,9 @@ enum TemplateRenderer {
             while centerX < rect.maxX + width {
                 for corner in 0..<6 {
                     let angle = CGFloat.pi / 3 * CGFloat(corner) - CGFloat.pi / 2
-                    let point = CGPoint(x: centerX + radius * cos(angle), y: centerY + radius * sin(angle))
+                    let c = CGFloat(Math.cosine(Double(angle)))
+                    let s = CGFloat(Math.sine(Double(angle)))
+                    let point = CGPoint(x: centerX + radius * c, y: centerY + radius * s)
                     if corner == 0 { context.move(to: point) } else { context.addLine(to: point) }
                 }
                 context.closePath()

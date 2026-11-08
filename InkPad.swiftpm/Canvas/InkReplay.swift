@@ -105,7 +105,7 @@ final class InkReplay {
             else { continue }
             for sample in stroke.path.interpolatedPoints(by: .distance(6)) {
                 let location = sample.location.applying(stroke.transform)
-                let distance = hypot(location.x - point.x, location.y - point.y)
+                let distance = Math.distance(location.x - point.x, location.y - point.y)
                 if distance < bestDistance {
                     bestDistance = distance
                     bestDate = created

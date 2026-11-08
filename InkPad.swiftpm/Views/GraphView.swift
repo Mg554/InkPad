@@ -215,7 +215,8 @@ struct GraphView: View {
         case .age:
             // New notes warm, old notes cool.
             let days = max(Date().timeIntervalSince(node.date) / 86_400, 0)
-            let warmth = max(0, 1 - log10(days + 1) / 3)
+            let fade: Double = Math.logarithm10(days + 1) / 3
+            let warmth: Double = max(0, 1 - fade)
             return Color(hue: 0.62 - warmth * 0.55, saturation: 0.75, brightness: 0.95)
         }
     }
@@ -462,9 +463,11 @@ struct NoteGraph {
         guard !nodes.isEmpty else { return [:] }
         var positions: [CGPoint] = nodes.enumerated().map { index, id in
             if let point = start[id] { return point }
-            let angle = Double(index) * 2.399963 // golden angle spreads new nodes evenly
-            let radius = 30 * sqrt(Double(index + 1))
-            return CGPoint(x: radius * cos(angle), y: radius * sin(angle))
+            let angle: Double = Double(index) * 2.399963 // golden angle spreads new nodes evenly
+            let radius: Double = 30 * Math.root(Double(index + 1))
+            let x: Double = radius * Math.cosine(angle)
+            let y: Double = radius * Math.sine(angle)
+            return CGPoint(x: x, y: y)
         }
         let index = Dictionary(uniqueKeysWithValues: nodes.enumerated().map { ($0.element, $0.offset) })
         let links = edges.compactMap { edge -> (Int, Int)? in
@@ -490,7 +493,7 @@ struct NoteGraph {
             for (a, b) in links {
                 let dx = positions[b].x - positions[a].x
                 let dy = positions[b].y - positions[a].y
-                let distance = max(sqrt(dx * dx + dy * dy), 1)
+                let distance: CGFloat = max(Math.distance(dx, dy), 1)
                 let pull = distance / ideal
                 forces[a].x += dx * pull * 0.5; forces[a].y += dy * pull * 0.5
                 forces[b].x -= dx * pull * 0.5; forces[b].y -= dy * pull * 0.5
@@ -498,7 +501,7 @@ struct NoteGraph {
             for i in positions.indices {
                 forces[i].x -= positions[i].x * 0.02
                 forces[i].y -= positions[i].y * 0.02
-                let length = max(sqrt(forces[i].x * forces[i].x + forces[i].y * forces[i].y), 0.001)
+                let length: CGFloat = max(Math.distance(forces[i].x, forces[i].y), 0.001)
                 let step = min(length, temperature)
                 positions[i].x += forces[i].x / length * step
                 positions[i].y += forces[i].y / length * step

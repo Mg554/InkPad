@@ -15,7 +15,7 @@ enum ShapeRecognizer {
     static func recognize(_ points: [CGPoint]) -> Shape? {
         guard points.count >= 2, let first = points.first, let last = points.last else { return nil }
         let bounds = boundingBox(points)
-        let diagonal = hypot(bounds.width, bounds.height)
+        let diagonal = Math.distance(bounds.width, bounds.height)
         guard diagonal > 16 else { return nil }
 
         // Straight line: no point strays far from the start-to-end chord.
@@ -67,7 +67,9 @@ enum ShapeRecognizer {
             let steps = 72
             for step in 0...steps {
                 let angle = CGFloat(step) / CGFloat(steps) * 2 * .pi
-                locations.append(CGPoint(x: rect.midX + rect.width / 2 * cos(angle), y: rect.midY + rect.height / 2 * sin(angle)))
+                let c = CGFloat(Math.cosine(Double(angle)))
+                let s = CGFloat(Math.sine(Double(angle)))
+                locations.append(CGPoint(x: rect.midX + rect.width / 2 * c, y: rect.midY + rect.height / 2 * s))
             }
         }
         let size = CGSize(width: width, height: width)
@@ -121,7 +123,8 @@ enum ShapeRecognizer {
         let errors = points.map { point -> CGFloat in
             let dx = (point.x - center.x) / radiusX
             let dy = (point.y - center.y) / radiusY
-            return abs(sqrt(dx * dx + dy * dy) - 1)
+            let length: CGFloat = Math.distance(dx, dy)
+            return abs(length - 1)
         }
         let meanError = errors.reduce(0, +) / CGFloat(errors.count)
         guard meanError < 0.09 else { return nil }
@@ -140,7 +143,7 @@ enum ShapeRecognizer {
             CGPoint(x: bounds.minX, y: bounds.minY), CGPoint(x: bounds.maxX, y: bounds.minY),
             CGPoint(x: bounds.maxX, y: bounds.maxY), CGPoint(x: bounds.minX, y: bounds.maxY),
         ]
-        let tolerance = hypot(bounds.width, bounds.height) * 0.12
+        let tolerance = Math.distance(bounds.width, bounds.height) * 0.12
         let nearBox = corners.allSatisfy { corner in boxCorners.contains { distance($0, corner) < tolerance } }
         guard nearBox else { return corners }
         // Keep the drawing direction: start from the box corner nearest the first point.
@@ -183,7 +186,7 @@ enum ShapeRecognizer {
     }
 
     private static func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat {
-        hypot(a.x - b.x, a.y - b.y)
+        Math.distance(a.x - b.x, a.y - b.y)
     }
 
     private static func cross(_ a: CGPoint, _ b: CGPoint, _ c: CGPoint) -> CGFloat {
@@ -247,7 +250,7 @@ final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate 
             points.append(sample.location(in: coordinateView))
         }
         let location = touch.location(in: coordinateView)
-        if hypot(location.x - lastMoveLocation.x, location.y - lastMoveLocation.y) > Self.stillDistance {
+        if Math.distance(location.x - lastMoveLocation.x, location.y - lastMoveLocation.y) > Self.stillDistance {
             lastMoveLocation = location
             restartHoldTimer()
         }

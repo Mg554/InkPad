@@ -168,7 +168,7 @@ final class LaserOverlayView: UIView {
 
     private func add(_ point: CGPoint, to stroke: Stroke) {
         // Skip tiny moves: they only add jitter.
-        if let last = stroke.points.last, hypot(point.x - last.x, point.y - last.y) < 1.2 { return }
+        if let last = stroke.points.last, Math.distance(point.x - last.x, point.y - last.y) < 1.2 { return }
         stroke.points.append(point)
         stroke.times.append(CACurrentMediaTime())
         redraw(stroke)
