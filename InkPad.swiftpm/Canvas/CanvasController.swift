@@ -50,6 +50,12 @@ final class CanvasController: NSObject, ObservableObject {
     /// The first stroke not yet leveled by Refine Handwriting.
     private var refineStart: Int?
     private var refineTask: Task<Void, Never>?
+    /// Living Notes: the open note, and strokes not yet read for concepts.
+    var livingNoteID: UUID?
+    /// Called with a concept key when a Living Notes bubble is tapped.
+    var onConcept: ((String) -> Void)?
+    private var livingStart: Int?
+    private var livingTask: Task<Void, Never>?
 
     var drawing: PKDrawing? { host?.canvas.drawing ?? lastDrawing }
     var elements: [PageElement]? { host?.elementLayer.elements ?? lastElements }
@@ -73,6 +79,7 @@ final class CanvasController: NSObject, ObservableObject {
         holdTracker.onTouchBegan = { [weak self, weak host] in
             self?.drawingAtTouch = host?.canvas.drawing
             self?.refineTask?.cancel()
+            self?.livingTask?.cancel()
             self?.expectsNewStroke = false
             self?.didEraseDuringTouch = false
             self?.awaitsEraseAfterTouch = false
@@ -88,6 +95,7 @@ final class CanvasController: NSObject, ObservableObject {
         }
         host.canvas.addGestureRecognizer(holdTracker)
         host.onInkTapped = { [weak self] date in self?.onInkTapped?(date) }
+        host.livingOverlay.onTap = { [weak self] key in self?.onConcept?(key) }
         if replayInterval != nil {
             host.setReplay(replayInterval, now: replayNow)
         }
@@ -235,6 +243,7 @@ final class CanvasController: NSObject, ObservableObject {
         let smooths = settings.smooths && palette.tool != .highlighter
         if palette.tool != .highlighter {
             noteStrokeForRefining(at: host.canvas.drawing.strokes.count - 1, settings: settings)
+            noteStrokeForLiving(at: host.canvas.drawing.strokes.count - 1)
         }
         guard flattens || smooths else { return true }
         var replacement = stroke
@@ -264,6 +273,36 @@ final class CanvasController: NSObject, ObservableObject {
             guard !Task.isCancelled else { return }
             self?.refinePendingLines()
         }
+    }
+
+    // MARK: Living Notes
+
+    /// After a pause, reads the new writing and shows bubbles for concepts
+    /// other notes also talk about.
+    private func noteStrokeForLiving(at index: Int) {
+        let living = LivingNotes.shared
+        guard let noteID = livingNoteID, living.settings.isOn(for: noteID), living.settings.inkBubbles else { return }
+        if livingStart == nil || livingStart! > index { livingStart = index }
+        livingTask?.cancel()
+        livingTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.8))
+            guard !Task.isCancelled else { return }
+            await self?.readForLiving(noteID: noteID)
+        }
+    }
+
+    private func readForLiving(noteID: UUID) async {
+        guard let host, let start = livingStart, start < host.canvas.drawing.strokes.count else { return }
+        livingStart = nil
+        let strokes = Array(host.canvas.drawing.strokes[start...])
+        let bounds = strokes.reduce(CGRect.null) { $0.union($1.renderBounds) }
+        let text = await Task.detached(priority: .utility) {
+            MindSketchReader.readText(PKDrawing(strokes: strokes))
+        }.value
+        guard !text.isEmpty, !Task.isCancelled else { return }
+        let concepts = LivingNotes.shared.knownConcepts(in: text, excluding: noteID).prefix(2)
+        guard !concepts.isEmpty else { return }
+        host.livingOverlay.show(concepts.map { ($0.key, $0.display, $0.otherNotes) }, at: CGPoint(x: bounds.maxX + 10, y: bounds.minY))
     }
 
     private func refinePendingLines() {

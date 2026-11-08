@@ -39,12 +39,15 @@ enum CommandSheet: Identifiable {
     case themes
     case history(NoteSummary)
     case reminder(ReminderDraft)
+    /// Living Notes: everything written about a concept.
+    case concept(String)
 
     var id: String {
         switch self {
         case .themes: "themes"
         case let .history(note): "history-\(note.id)"
         case let .reminder(draft): "reminder-\(draft.id)"
+        case let .concept(key): "concept-\(key)"
         }
     }
 }
@@ -78,6 +81,8 @@ final class CommandCenter: ObservableObject {
     }
 
     func hide() {
+        // Let go of the keyboard before the field goes away.
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { isPresented = false }
     }
 

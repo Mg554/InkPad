@@ -35,6 +35,8 @@ struct NoteEditorView: View {
     /// Lasso › Think (Write → Think → Build).
     @State private var thinkRequest: ThinkRequest?
     @State private var reminderRequest: NoteReminderRequest?
+    @State private var isShowingLiving = false
+    @State private var livingTab = LivingTab.related
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -161,12 +163,26 @@ struct NoteEditorView: View {
         .task {
             session.load(noteID: noteID, store: store)
             canvas.onThink = { text, rect in thinkRequest = ThinkRequest(text: text, anchor: rect) }
+            canvas.livingNoteID = noteID
+            canvas.onConcept = { CommandCenter.shared.sheet = .concept($0) }
             canvas.onRemind = { text in
                 let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 reminderRequest = NoteReminderRequest(noteID: noteID, title: title.isEmpty ? self.title : title)
             }
         }
+        .overlay(alignment: .bottomLeading) {
+            LivingBubble(noteID: noteID, isText: false) { tab in
+                livingTab = tab
+                isShowingLiving = true
+            }
+            .padding(20)
+        }
+        .inspector(isPresented: $isShowingLiving) {
+            LivingPanel(noteID: noteID, tab: $livingTab)
+                .inspectorColumnWidth(min: 300, ideal: 360, max: 440)
+        }
         .onDisappear {
+            LivingNotes.shared.markSeen(noteID)
             // Stopping a recording stores it in the note before the save.
             session.audio.stopAll()
             session.save(thumbnail: true)

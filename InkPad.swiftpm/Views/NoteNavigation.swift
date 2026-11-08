@@ -8,15 +8,19 @@ struct NoteNavigation {
     /// (like following an unresolved link in Obsidian).
     var openTitle: (String) -> Void
     var openTag: (String) -> Void
+    /// Living Notes: a concept's card.
+    var openConcept: (String) -> Void
 
     init(
         openNote: @escaping (UUID) -> Void = { _ in },
         openTitle: @escaping (String) -> Void = { _ in },
-        openTag: @escaping (String) -> Void = { _ in }
+        openTag: @escaping (String) -> Void = { _ in },
+        openConcept: @escaping (String) -> Void = { _ in }
     ) {
         self.openNote = openNote
         self.openTitle = openTitle
         self.openTag = openTag
+        self.openConcept = openConcept
     }
 }
 
@@ -44,6 +48,10 @@ enum InkPadLink {
         URL(string: "\(scheme)://id/\(id.uuidString)")
     }
 
+    static func concept(_ key: String) -> URL? {
+        URL(string: "\(scheme)://concept/\(encode(key))")
+    }
+
     static func tag(_ tag: String) -> URL? {
         URL(string: "\(scheme)://tag/\(encode(tag))")
     }
@@ -54,6 +62,7 @@ enum InkPadLink {
         switch url.host {
         case "note": navigation.openTitle(value)
         case "tag": navigation.openTag(value)
+        case "concept": navigation.openConcept(value)
         case "id":
             guard let id = UUID(uuidString: value) else { return .discarded }
             navigation.openNote(id)

@@ -421,6 +421,11 @@ struct NoteGraph {
                 }
             }
         }
+        // Links accepted from Living Notes.
+        for (a, b) in LivingNotes.shared.linkPairs where store.note(a) != nil && store.note(b) != nil {
+            let ends = [a.uuidString, b.uuidString].sorted()
+            edges.insert(Edge(from: ends[0], to: ends[1], isTag: false))
+        }
         let connected = Set(edges.flatMap { [$0.from, $0.to] })
         var nodes = store.notes
             .filter { showsOrphans || connected.contains($0.id.uuidString) }

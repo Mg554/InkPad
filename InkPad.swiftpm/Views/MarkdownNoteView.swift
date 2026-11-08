@@ -29,6 +29,11 @@ struct MarkdownNoteView: View {
     @State private var isCreatingSlides = false
     @State private var isStudying = false
     @State private var isOrganizing = false
+    @State private var isShowingLiving = false
+    @State private var livingTab = LivingTab.related
+    @ObservedObject private var living = LivingNotes.shared
+    /// Bumped when the concepts change, to redraw the preview.
+    @State private var conceptVersion = 0
 
     var body: some View {
         Group {
@@ -146,6 +151,19 @@ struct MarkdownNoteView: View {
                 .environmentObject(workspace)
         }
         .environment(\.openURL, OpenURLAction { InkPadLink.handle($0, with: navigation) })
+        .overlay(alignment: .bottomLeading) {
+            LivingBubble(noteID: noteID, liveText: text, isText: true) { tab in
+                livingTab = tab
+                isShowingLiving = true
+            }
+            .padding(20)
+        }
+        .inspector(isPresented: $isShowingLiving) {
+            LivingPanel(noteID: noteID, liveText: text, tab: $livingTab)
+                .inspectorColumnWidth(min: 300, ideal: 360, max: 440)
+        }
+        .onChange(of: living.revision, initial: true) { updateConcepts() }
+        .onChange(of: living.settings) { updateConcepts() }
         .task { load() }
         .onChange(of: text) {
             guard loaded else { return }
@@ -157,7 +175,12 @@ struct MarkdownNoteView: View {
                 save()
             }
         }
-        .onDisappear { save() }
+        .onDisappear {
+            save()
+            LivingNotes.shared.markSeen(noteID)
+            MarkdownTextView.concepts = []
+            MarkdownPreview.concepts = [:]
+        }
         .onChange(of: scenePhase) {
             if scenePhase != .active { save() }
         }
@@ -182,6 +205,7 @@ struct MarkdownNoteView: View {
                     TagChips(tags: tags) { navigation.openTag($0) }
                 }
                 MarkdownPreview(text: text) { line in toggleCheckbox(onLine: line) }
+                    .id(conceptVersion)
                 BacklinksSection(backlinks: store.backlinks(to: noteID)) { navigation.openNote($0) }
             }
             .padding(24)
@@ -224,6 +248,16 @@ struct MarkdownNoteView: View {
     }
 
     // MARK: Actions
+
+    /// Living Notes: the concepts to underline, for the editor and preview.
+    private func updateConcepts() {
+        let on = living.settings.isOn(for: noteID) && living.settings.highlightsConcepts
+        let concepts = on ? living.concepts(in: noteID).prefix(40).map { ($0.display, $0.key) } : []
+        MarkdownTextView.concepts = concepts.map(\.0)
+        MarkdownPreview.concepts = Dictionary(concepts.map { ($0.0, $0.1) }, uniquingKeysWith: { first, _ in first })
+        if let textView = editor.textView { MarkdownTextView.Coordinator.highlight(textView) }
+        conceptVersion += 1
+    }
 
     private func load() {
         guard !loaded else { return }
@@ -303,6 +337,9 @@ final class MarkdownEditorController: ObservableObject {
 
 /// A UITextView that highlights Markdown headings, [[links]] and #tags as you type.
 struct MarkdownTextView: UIViewRepresentable {
+    /// Living Notes concepts underlined in the open text note.
+    @MainActor static var concepts: [String] = []
+
     @Binding var text: String
     let controller: MarkdownEditorController
 
@@ -371,6 +408,17 @@ struct MarkdownTextView: UIViewRepresentable {
             for match in tagPattern.matches(in: string, range: full) {
                 storage.addAttribute(.foregroundColor, value: UIColor.systemTeal, range: match.range)
             }
+            // Living Notes: concepts other notes also talk about.
+            for concept in MarkdownTextView.concepts {
+                let escaped = NSRegularExpression.escapedPattern(for: concept)
+                guard let pattern = try? NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}])" + escaped + "(?![\\p{L}\\p{N}])", options: .caseInsensitive) else { continue }
+                for match in pattern.matches(in: string, range: full) {
+                    storage.addAttributes([
+                        .underlineStyle: NSUnderlineStyle.single.rawValue | NSUnderlineStyle.patternDot.rawValue,
+                        .underlineColor: UIColor.systemGreen,
+                    ], range: match.range)
+                }
+            }
             storage.endEditing()
             textView.typingAttributes = [.font: ThemeSettings.current.typingUIFont(), .foregroundColor: UIColor.label]
         }
@@ -382,6 +430,8 @@ struct MarkdownTextView: UIViewRepresentable {
 /// Renders Markdown blocks (headings, lists, checklists, quotes, dividers)
 /// with working [[links]] and #tags.
 struct MarkdownPreview: View {
+    /// Living Notes concepts (shown text → key), tappable in the preview.
+    @MainActor static var concepts: [String: String] = [:]
     let text: String
     let toggleCheckbox: (Int) -> Void
 
@@ -461,10 +511,34 @@ struct MarkdownPreview: View {
     private static let tagPattern = try! NSRegularExpression(pattern: #"(?<![\p{L}\p{N}_&/#\[])#([\p{L}_][\p{L}\p{N}_/-]*)"#)
     private static let highlightPattern = try! NSRegularExpression(pattern: #"==([^=\n]+)=="#)
 
+    /// Living Notes: the first mention of each concept becomes a link to its
+    /// card, outside [[links]], #tags and existing links.
+    @MainActor
+    private static func conceptLinks(in line: String) -> String {
+        guard !concepts.isEmpty else { return line }
+        var result = line
+        for (shown, key) in concepts {
+            let ns = result as NSString
+            let escaped = NSRegularExpression.escapedPattern(for: shown)
+            guard let pattern = try? NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}#\\[])" + escaped + "(?![\\p{L}\\p{N}\\]])", options: .caseInsensitive),
+                  let match = pattern.firstMatch(in: result, range: NSRange(location: 0, length: ns.length)),
+                  let url = InkPadLink.concept(key)
+            else { continue }
+            // Skip words inside [[links]] or markdown links.
+            let protected = (linkPattern.matches(in: result, range: NSRange(location: 0, length: ns.length)).map(\.range))
+                + ((try? NSRegularExpression(pattern: #"\[[^\]]*\]\([^)]*\)"#))?.matches(in: result, range: NSRange(location: 0, length: ns.length)).map(\.range) ?? [])
+            guard !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
+            let word = ns.substring(with: match.range)
+            result = ns.replacingCharacters(in: match.range, with: "[\(word)](\(url.absoluteString))")
+        }
+        return result
+    }
+
     /// Inline Markdown with [[links]] and #tags turned into tappable links.
+    @MainActor
     static func inline(_ line: String) -> AttributedString {
-        var markdown = line as NSString
-        for match in linkPattern.matches(in: line, range: NSRange(location: 0, length: markdown.length)).reversed() {
+        var markdown = conceptLinks(in: line) as NSString
+        for match in linkPattern.matches(in: markdown as String, range: NSRange(location: 0, length: markdown.length)).reversed() {
             let title = markdown.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
             let shown = match.range(at: 2).location != NSNotFound ? markdown.substring(with: match.range(at: 2)) : title
             guard let url = InkPadLink.note(title) else { continue }

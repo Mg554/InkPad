@@ -29,7 +29,8 @@ struct LibraryView: View {
                     open(created.id)
                 }
             },
-            openTag: { tag in scope = .tag(tag) }
+            openTag: { tag in scope = .tag(tag) },
+            openConcept: { CommandCenter.shared.sheet = .concept($0) }
         )
     }
 
@@ -171,8 +172,15 @@ struct LibraryView: View {
                 NoteHistoryView(note: note)
             case let .reminder(draft):
                 ReminderEditor(draft: draft)
+            case let .concept(key):
+                ConceptCardView(key: key)
             }
         }
+        // Living Notes keeps its index of concepts up to date.
+        .task { LivingNotes.shared.refresh(store: store) }
+        .onChange(of: store.notes) { LivingNotes.shared.refresh(store: store) }
+        .onChange(of: store.textIndex) { LivingNotes.shared.refresh(store: store) }
+        .onChange(of: store.recognizedText) { LivingNotes.shared.refresh(store: store) }
         .onChange(of: scope) {
             switchSection()
         }

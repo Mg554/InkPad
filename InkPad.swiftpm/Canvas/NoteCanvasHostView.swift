@@ -14,6 +14,8 @@ final class NoteCanvasHostView: UIView {
     let elementLayer = ElementLayerView()
     /// Above the ink: the lasso line and selection box.
     let selectionOverlay = SelectionOverlayView()
+    /// Living Notes bubbles next to handwriting.
+    let livingOverlay = LivingInkOverlay()
     private(set) var lasso: LassoSelection!
     /// Above everything, in screen coordinates: the laser pointer's trail.
     private let laserOverlay = LaserOverlayView()
@@ -55,6 +57,7 @@ final class NoteCanvasHostView: UIView {
         addSubview(canvas)
         addSubview(replay.mirror)
         addSubview(selectionOverlay)
+        addSubview(livingOverlay)
         lasso = LassoSelection(host: self, overlay: selectionOverlay)
         laserOverlay.frame = bounds
         laserOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -259,7 +262,7 @@ final class NoteCanvasHostView: UIView {
         if canvas.contentSize != scaledSize {
             canvas.contentSize = scaledSize
         }
-        for view in [pageBackground, elementLayer, selectionOverlay] as [UIView] {
+        for view in [pageBackground, elementLayer, selectionOverlay, livingOverlay] as [UIView] {
             view.transform = .identity
             view.bounds = CGRect(origin: .zero, size: size)
             view.transform = CGAffineTransform(scaleX: zoom, y: zoom)
@@ -276,6 +279,7 @@ final class NoteCanvasHostView: UIView {
         pageBackground.center = center
         elementLayer.center = center
         selectionOverlay.center = center
+        livingOverlay.center = center
         replay.syncGeometry()
         reportVisiblePage()
     }
