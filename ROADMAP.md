@@ -50,6 +50,56 @@
    - Next ideas, in order: Living Notes; then Focus Mode and Knowledge GPS; later Knowledge
      Versioning, Replay, Spatial Knowledge Graph and Ink → Structure
 
+10. **Agreed next (from the owner's interview, Nov 2026)**
+   - **Planner × Flowmodoro**: "Focus on This" on any task starts
+     Flowmodoro and logs time on the task; estimate vs actual (learns
+     better estimates); auto time-blocking of the day; scheduling by
+     energy (hard tasks in the hours the Flowmodoro history shows best
+     focus). Views: Today (hour timeline, focus time, reminders),
+     Eisenhower matrix, Timeline/Gantt, Weekly Review.
+   - **Distraction Box**: catch a stray thought with the Pencil while
+     focusing; it goes to a box (also in the sidebar and the drawing
+     toolbar), with distraction stats; each item can become an InkPad
+     reminder (Apple Reminders).
+   - **Focus Garden**: a plant/tree per subject grows with focus time and
+     follows the seasons. **Smart breaks**: due flashcards, breathing or
+     a walk. **Study-linked tasks**: a task tied to a note or book
+     chapter schedules spaced reviews (1, 3, 7 days) when done.
+   - **Customize** (brush): timer face (ring, big digits, analog, liquid,
+     growing plant) with glow, Planner cards (glass, sticky notes,
+     minimal, neon), backgrounds, ambient sounds and break chimes.
+   - **Big PDF books** (e.g. How Linux Works 3rd ed., Egan's 13th ed.):
+     the book's own outline and colored bookmarks, reading position and
+     progress; book and notebook side by side (drag text or a picture
+     into notes, linked to the page); split a book by chapters into
+     notebooks; fast full-book search (also from ⌘K). Top priority:
+     make a mind map or graph from a chosen chapter or text.
+   - **PDF tools (PDF24-like, offline)**: organize (merge, split,
+     extract, delete, rotate, reorder); "Send pages to a new note" to
+     study a few pages deeply; while one PDF is open, pull a page from
+     another PDF into it; convert (images ↔ PDF, pages as images,
+     extract images, web page → PDF, camera scan); protect (compress,
+     password, unlock, redact, watermark, page numbers, sign); compare
+     two editions and overlay.
+   - **OCR**: a searchable text layer for scanned books (Arabic and
+     English, in the background), tables and equations, lasso an area →
+     text, export the searchable PDF.
+   - **AI with books** (AI Firewall): ask the book with page citations,
+     chapter summaries, flashcards and exam-style questions per chapter,
+     a glossary linked to Living Notes.
+   - **Focus Mode**: clean screen with a small Flowmodoro timer and the
+     Distraction Box; a study companion (related concepts, quick
+     questions, weak cards); immersive scenes and sounds with the garden;
+     a session wrap-up (summary, distractions, spaced review into the
+     Planner).
+   - **Knowledge GPS**: a map of a book or chapter in selectable styles
+     (islands with a path, "you are here" and fog; metro map; skill
+     tree); progress from reading, flashcard memory, notes and concepts,
+     quizzes and focus time, and marked by hand (started, understood,
+     mastered), all interactive; navigation: next stop, ETA to an exam
+     date, a daily route into the Planner, and rerouting when behind or
+     weak.
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the
