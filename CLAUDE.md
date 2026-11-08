@@ -76,6 +76,8 @@ carefully for Swift pitfalls that have bitten before:
 InkPad.swiftpm/
   App/        entry point (appearance, theme, Scribble gate, automatic backups)
   Command/    Command Anywhere (⌘K): palette, sentence parser, voice, AI fallback
+  Living/     Living Notes: on-device concept index, bubble, side panel, concept cards
+  PDFTools/   PDF Tools hub, book panel (outline, bookmarks, progress), chapter mind maps and concept graphs
   Models/     notes, pages, workspace data (planner, decks, study, Flowmodoro)
   Storage/    LibraryStore, WorkspaceStore, backups (ZIP): the only code that touches files
   Canvas/     PencilKit host, tools, lasso, laser, text boxes, keyboard support
