@@ -58,6 +58,7 @@ struct BookPanel: View {
                 Text("Chapters").tag(0)
                 Text("Bookmarks").tag(1)
                 Text("Search").tag(2)
+                Text("Ask").tag(3)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
@@ -75,7 +76,15 @@ struct BookPanel: View {
             switch tab {
             case 0: chapterList
             case 1: bookmarkList
-            default: searchList
+            case 2: searchList
+            default:
+                AskBookView(
+                    noteID: noteID,
+                    bookTitle: store.note(noteID)?.title ?? "Book",
+                    document: document,
+                    chapter: currentChapter,
+                    goToPage: { go(toPDFPage: $0) }
+                )
             }
         }
         .background(Color(uiColor: .systemGroupedBackground))
@@ -307,6 +316,30 @@ struct BookPanel: View {
                 } label: {
                     Label("Send to a New Note", systemImage: "doc.badge.plus")
                 }
+                if ai.problem == nil {
+                    Section("With AI") {
+                        Button {
+                            study(chapter, .summary)
+                        } label: {
+                            Label("Summary Notes", systemImage: "doc.text")
+                        }
+                        Button {
+                            study(chapter, .flashcards)
+                        } label: {
+                            Label("Flashcards", systemImage: "rectangle.stack")
+                        }
+                        Button {
+                            study(chapter, .exam)
+                        } label: {
+                            Label("Exam Questions", systemImage: "checklist")
+                        }
+                        Button {
+                            study(chapter, .glossary)
+                        } label: {
+                            Label("Glossary", systemImage: "character.book.closed")
+                        }
+                    }
+                }
             } label: {
                 Image(systemName: "ellipsis.circle").font(.title3)
             }
@@ -454,6 +487,65 @@ struct BookPanel: View {
                 return
             }
             open(.conceptGraph(title: chapter.title, graph: graph, first: chapter.firstPage, last: chapter.lastPage))
+        }
+    }
+
+    enum StudyKind {
+        case summary, flashcards, exam, glossary
+    }
+
+    /// Summary notes, flashcards, exam questions or a glossary of a
+    /// chapter, made by the AI from the chapter's pages (AI Firewall).
+    private func study(_ chapter: BookChapter, _ kind: StudyKind) {
+        guard let document, let client = ai.client() else { return }
+        guard store.mayUseAI(noteID, onDevice: client.kind.isOnDevice) else {
+            message = NoteTexts.firewallMessage(onDevice: client.kind.isOnDevice)
+            return
+        }
+        let book = store.note(noteID)?.title ?? "Book"
+        let folder = store.note(noteID)?.folderID
+        working = "Asking AI about “\(chapter.title)”…"
+        Task {
+            defer { working = nil }
+            let index = await Task.detached(priority: .userInitiated) { BookIndex(document: document) }.value
+            let excerpt = index.excerpt(Array(chapter.firstPage...chapter.lastPage), limit: 24_000)
+            guard !excerpt.isEmpty else {
+                message = "These pages have no text yet. If they are scanned, use Make Searchable first."
+                return
+            }
+            do {
+                switch kind {
+                case .summary:
+                    let reply = try await client.complete(system: "You write clear study notes from books.",
+                                                          messages: [AIMessage(.user, BookAI.summaryPrompt(chapter: chapter.title, book: book, excerpt: excerpt))])
+                    let text = reply + "\n\nFrom [[\(book)]], \(chapter.pageLabel)."
+                    if store.createTextNote(titled: "Summary: \(chapter.title)", in: folder, extraText: text) != nil {
+                        CommandCenter.shared.say("“Summary: \(chapter.title)” is a new text note")
+                    }
+                case .flashcards:
+                    let reply = try await client.complete(system: "You make study flashcards.",
+                                                          messages: [AIMessage(.user, StudyAI.flashcardsPrompt(notes: excerpt, count: 20))])
+                    let cards = try StudyAI.flashcards(from: reply)
+                    workspace.save(FlashcardDeck(id: UUID(), title: chapter.title, sourceNoteIDs: [noteID], cards: cards, createdAt: Date(), modifiedAt: Date()))
+                    CommandCenter.shared.say("\(cards.count) flashcards are in Study with AI")
+                case .exam:
+                    let reply = try await client.complete(system: "You write exam questions.",
+                                                          messages: [AIMessage(.user, StudyAI.quizPrompt(notes: BookAI.examNotes(excerpt), count: 15))])
+                    let questions = try StudyAI.quizQuestions(from: reply)
+                    workspace.save(Quiz(id: UUID(), title: "Exam: \(chapter.title)", sourceNoteIDs: [noteID], questions: questions, bestScore: nil, createdAt: Date()))
+                    CommandCenter.shared.say("\(questions.count) exam questions are in Study with AI")
+                case .glossary:
+                    let reply = try await client.complete(system: "You build glossaries. Reply with JSON only.",
+                                                          messages: [AIMessage(.user, BookAI.glossaryPrompt(chapter: chapter.title, excerpt: excerpt))])
+                    let terms = try BookAI.terms(from: reply)
+                    let text = BookAI.glossaryMarkdown(terms, chapter: chapter.title, book: book)
+                    if store.createTextNote(titled: "Glossary: \(chapter.title)", in: folder, extraText: text) != nil {
+                        CommandCenter.shared.say("\(terms.count) terms in “Glossary: \(chapter.title)”")
+                    }
+                }
+            } catch {
+                message = "AI couldn't do it: \(error.localizedDescription)"
+            }
         }
     }
 

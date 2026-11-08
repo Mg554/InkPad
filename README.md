@@ -79,6 +79,12 @@ Done:
   Searchable does the same for any PDF. Lasso any area (even a scan or a
   picture) › Text from Area reads it as text or as a table, to copy, put
   on the page, save as a text note, or Clean Up with AI (AI Firewall)
+- AI with books (AI Firewall): Ask the Book (the Ask tab) finds the
+  pages that match a question on the iPad and sends only those; answers
+  cite pages you can tap to jump to, and can be saved as notes. Each
+  chapter's menu adds Summary Notes, Flashcards, Exam Questions
+  (board-exam style, like NBRC) and a Glossary note (terms, definitions,
+  pages, #glossary)
 - Refine Handwriting (the wand in the drawing toolbar): smooths strokes
   when the pencil lifts, levels a slanted line and evens out word sizes
   after a pause; each can be turned on or off. Lasso › Refine does it for

@@ -82,7 +82,10 @@
    - Done (batch 2, needs iPad testing): OCR text layer (Make Searchable,
      English and Arabic, background), full-book search, Text from Area
      with tables and AI clean-up, Make Searchable in PDF Tools.
-     Next: AI with books, convert, protect, compare, side-by-side notebook.
+   - Done (batch 3, needs iPad testing with an AI key): Ask the Book with
+     page citations, chapter summary notes, flashcards, exam questions
+     and glossary.
+     Next: convert, protect, compare, side-by-side notebook.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from
