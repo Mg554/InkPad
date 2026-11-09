@@ -212,6 +212,18 @@ Done:
   or 20% can be chosen), with a sound when it ends.
   Edit, complete, reorder and delete tasks, and see every session in the
   history with today's total focus time
+- Planner × Flowmodoro: Focus on This (task menu, task editor, Today and
+  Matrix) starts Flowmodoro on a planner task and logs the time on it;
+  estimates vs. real time, with corrected suggestions once InkPad has
+  learned how long your tasks take. Planner views: Today (hour timeline,
+  focus done, reminders due, Plan My Day puts tasks into time blocks with
+  breaks, hard tasks in your best focus hours), Board, List, Calendar,
+  Eisenhower Matrix (drag between Do Now / Schedule / Delegate / Later)
+  and Weekly Review (focus per day, tasks done, best hour, estimate
+  accuracy, where the time went)
+- Distraction Box: catch a stray thought while focusing, typed or written
+  with the pen (read on the iPad), from Flowmodoro, the note toolbar, the
+  sidebar or ⌘K; stats by hour and task; each one can become a reminder
 - Photos and images from Files placed on pages; move and resize
 - Templates: Plain, Lined, Grid, Dot, Hexagonal Grid, Cornell Note,
   College Rule, Manuscript, Two and Three Column; six paper colors

@@ -657,6 +657,15 @@ struct NoteEditorView: View {
                 }
             }
 
+            if workspace.flowTimer?.phase == .working {
+                Button {
+                    CommandCenter.shared.sheet = .catchDistraction
+                } label: {
+                    Label("Catch a Distraction", systemImage: "tray.and.arrow.down")
+                }
+                .tint(.orange)
+            }
+
             Button {
                 isShowingPages.toggle()
             } label: {

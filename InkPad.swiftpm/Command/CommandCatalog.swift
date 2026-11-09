@@ -139,6 +139,14 @@ struct CommandCatalog {
                     center.say("Focusing on \"\(task.title)\"")
                 }
             },
+            PaletteItem(id: "set-distraction", title: "Catch a Distraction", subtitle: "Put a stray thought in the Distraction Box", systemImage: "tray.and.arrow.down",
+                        tint: .orange, section: .create, keywords: ["distraction", "thought", "تشتت", "فكرة"]) { [center] in
+                center.sheet = .catchDistraction
+            },
+            PaletteItem(id: "go-distractions", title: "Distraction Box", systemImage: "tray.full", tint: .orange, section: .goTo,
+                        keywords: ["distraction", "box", "صندوق", "تشتت"]) { [center] in
+                center.sheet = .distractions
+            },
         ]
         for appearance in AppAppearance.allCases {
             items.append(PaletteItem(id: "set-appearance-\(appearance.rawValue)", title: "Appearance: \(appearance.title)",

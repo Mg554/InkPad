@@ -36,6 +36,25 @@ struct PlanTask: Codable, Identifiable, Equatable {
     var dueDate: Date?
     var tags: [String]
     let createdAt: Date
+    /// Minutes the task is expected to take.
+    var estimateMinutes: Int?
+    /// Seconds of focus logged on it with Flowmodoro.
+    var focusSeconds: Int?
+    /// When it is planned today (time blocking).
+    var scheduledAt: Date?
+    var completedAt: Date?
+    /// Eisenhower matrix: set when moved by hand; otherwise worked out from
+    /// priority (important) and due date (urgent).
+    var isImportant: Bool?
+    var isUrgent: Bool?
+
+    var important: Bool { isImportant ?? (priority == .high) }
+
+    var urgent: Bool {
+        if let isUrgent { return isUrgent }
+        guard let dueDate else { return false }
+        return dueDate < Date().addingTimeInterval(2 * 24 * 3600)
+    }
 
     init(title: String = "", status: Status = .todo, dueDate: Date? = nil) {
         id = UUID()
@@ -118,6 +137,33 @@ struct WorkspaceFile: Codable {
     var flowSessions: [FlowSession]?
     var flowTimer: FlowTimer?
     var flowBreakShare: Int?
+    var distractions: [Distraction]?
+}
+
+// MARK: Distraction Box
+
+/// A stray thought caught while focusing, to deal with later.
+struct Distraction: Codable, Identifiable, Equatable {
+    let id: UUID
+    var text: String
+    /// Handwriting (a PKDrawing) when it was written with the pen.
+    var ink: Data?
+    let createdAt: Date
+    /// What was being worked on.
+    var duringTask: String?
+    var isDone: Bool
+    /// Sent to Reminders.
+    var isReminder: Bool
+
+    init(text: String, ink: Data? = nil, duringTask: String?) {
+        id = UUID()
+        self.text = text
+        self.ink = ink
+        createdAt = Date()
+        self.duringTask = duringTask
+        isDone = false
+        isReminder = false
+    }
 }
 
 // MARK: Mind maps

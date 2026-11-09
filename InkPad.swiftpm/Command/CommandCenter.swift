@@ -41,9 +41,14 @@ enum CommandSheet: Identifiable {
     case reminder(ReminderDraft)
     /// Living Notes: everything written about a concept.
     case concept(String)
+    /// Distraction Box, and catching one.
+    case distractions
+    case catchDistraction
 
     var id: String {
         switch self {
+        case .distractions: "distractions"
+        case .catchDistraction: "catch-distraction"
         case .themes: "themes"
         case let .history(note): "history-\(note.id)"
         case let .reminder(draft): "reminder-\(draft.id)"

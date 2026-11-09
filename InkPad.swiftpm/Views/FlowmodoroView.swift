@@ -82,6 +82,11 @@ struct FlowmodoroView: View {
                 } label: {
                     Label("Break Length", systemImage: "cup.and.saucer")
                 }
+                Button {
+                    CommandCenter.shared.sheet = .distractions
+                } label: {
+                    Label("Distraction Box", systemImage: "tray.full")
+                }
                 AppearanceMenu()
             }
         }
@@ -134,12 +139,24 @@ struct FlowmodoroView: View {
                 Text(timer.taskTitle)
                     .font(.title3.weight(.semibold))
                     .multilineTextAlignment(.center)
+                if let planID = timer.planTaskID, let task = workspace.tasks.first(where: { $0.id == planID }) {
+                    plannerLine(task)
+                }
             }
         } else {
             Text("Pick a task to start")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// For a planner task: time logged so far and the estimate.
+    private func plannerLine(_ task: PlanTask) -> some View {
+        let logged = PlannerInsights.duration(task.focusSeconds ?? 0)
+        let estimate: String = task.estimateMinutes.map { " of about \($0) min" } ?? ""
+        return Label("From the Planner · \(logged) logged\(estimate)", systemImage: "checklist")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     private func timerBox(_ title: String, value: String, tint: Color, isRunning: Bool) -> some View {
@@ -178,6 +195,14 @@ struct FlowmodoroView: View {
                         .font(.title2)
                 }
                 .accessibilityLabel("More")
+                Button {
+                    CommandCenter.shared.sheet = .catchDistraction
+                } label: {
+                    Label("Catch a Distraction", systemImage: "tray.and.arrow.down")
+                        .frame(minHeight: 34)
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
             }
         case .breakReady?:
             HStack {

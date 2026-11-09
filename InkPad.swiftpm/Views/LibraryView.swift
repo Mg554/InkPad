@@ -230,6 +230,10 @@ struct LibraryView: View {
             ReminderEditor(draft: draft)
         case let .concept(key):
             ConceptCardView(key: key)
+        case .distractions:
+            DistractionBoxView()
+        case .catchDistraction:
+            DistractionCapture()
         }
     }
 

@@ -21,6 +21,7 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var flowTimer: FlowTimer?
     /// Break length in percent of the work time.
     @Published private(set) var flowBreakShare = Flowmodoro.defaultBreakShare
+    @Published private(set) var distractions: [Distraction] = []
     @Published var errorMessage: String?
     @Published private(set) var isReadOnly = false
 
@@ -38,23 +39,31 @@ final class WorkspaceStore: ObservableObject {
 
     func save(_ task: PlanTask) {
         guard canWrite() else { return }
+        var saved = task
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            tasks[index] = task
+            if tasks[index].status != task.status { saved.completedAt = task.status == .done ? Date() : nil }
+            tasks[index] = saved
         } else {
-            tasks.append(task)
+            if task.status == .done { saved.completedAt = Date() }
+            tasks.append(saved)
         }
         persist()
     }
 
     func setStatus(_ status: PlanTask.Status, for id: UUID) {
         guard canWrite(), let index = tasks.firstIndex(where: { $0.id == id }) else { return }
+        // Only a real change moves the completion date (drags may repeat it).
+        guard tasks[index].status != status else { return }
         tasks[index].status = status
+        tasks[index].completedAt = status == .done ? Date() : nil
         persist()
     }
 
     func deleteTask(_ id: UUID) {
         guard canWrite() else { return }
         tasks.removeAll { $0.id == id }
+        // A Focus on This session on it stops.
+        if flowTimer?.planTaskID == id, flowTimer?.phase == .working { flowTimer = nil }
         persist()
     }
 
@@ -303,8 +312,82 @@ final class WorkspaceStore: ObservableObject {
             taskTitle: timer.taskTitle,
             workSeconds: worked,
             breakSeconds: timer.breakSeconds,
-            endedAt: Date()
+            endedAt: Date(),
+            planTaskID: timer.planTaskID
         ))
+        // "Focus on This": the time is logged on the planner task.
+        if let planID = timer.planTaskID, let index = tasks.firstIndex(where: { $0.id == planID }) {
+            tasks[index].focusSeconds = (tasks[index].focusSeconds ?? 0) + worked
+        }
+        persist()
+    }
+
+    /// "Focus on This": starts the work stopwatch for a planner task.
+    func startFocus(onPlanTask id: UUID) {
+        // Not over running work or an earned break that hasn't been taken.
+        guard canWrite(), flowTimer == nil,
+              let index = tasks.firstIndex(where: { $0.id == id })
+        else { return }
+        if tasks[index].status == .todo { tasks[index].status = .inProgress }
+        let title = tasks[index].title.isEmpty ? "Untitled" : tasks[index].title
+        flowTimer = FlowTimer(
+            taskID: id,
+            taskTitle: title,
+            phase: .working,
+            workStartedAt: Date(),
+            workSeconds: 0,
+            breakSeconds: 0,
+            breakStartedAt: nil,
+            planTaskID: id
+        )
+        persist()
+    }
+
+    /// Time blocks for today (Plan My Day).
+    func schedule(_ plan: [UUID: Date], replacing candidates: Set<UUID> = []) {
+        guard canWrite() else { return }
+        for index in tasks.indices {
+            if let start = plan[tasks[index].id] {
+                tasks[index].scheduledAt = start
+            } else if candidates.contains(tasks[index].id) {
+                // Didn't fit this time: no old block left on the timeline.
+                tasks[index].scheduledAt = nil
+            }
+        }
+        persist()
+    }
+
+    func setMatrix(important: Bool, urgent: Bool, for id: UUID) {
+        guard canWrite(), let index = tasks.firstIndex(where: { $0.id == id }) else { return }
+        tasks[index].isImportant = important
+        tasks[index].isUrgent = urgent
+        persist()
+    }
+
+    // MARK: Distraction Box
+
+    func addDistraction(_ distraction: Distraction) {
+        guard canWrite() else { return }
+        distractions.insert(distraction, at: 0)
+        persist()
+    }
+
+    func updateDistraction(_ distraction: Distraction) {
+        guard canWrite(), let index = distractions.firstIndex(where: { $0.id == distraction.id }) else { return }
+        distractions[index] = distraction
+        persist()
+    }
+
+    /// Only the text (handwriting read later), keeping what changed meanwhile.
+    func setDistractionText(_ text: String, for id: UUID) {
+        guard canWrite(), let index = distractions.firstIndex(where: { $0.id == id }) else { return }
+        distractions[index].text = text
+        persist()
+    }
+
+    func deleteDistraction(_ id: UUID) {
+        guard canWrite() else { return }
+        distractions.removeAll { $0.id == id }
         persist()
     }
 
@@ -354,6 +437,7 @@ final class WorkspaceStore: ObservableObject {
         flowSessions = []
         flowTimer = nil
         flowBreakShare = Flowmodoro.defaultBreakShare
+        distractions = []
         isReadOnly = false
         load()
     }
@@ -379,6 +463,7 @@ final class WorkspaceStore: ObservableObject {
             flowSessions = file.flowSessions ?? []
             flowTimer = file.flowTimer
             flowBreakShare = file.flowBreakShare ?? Flowmodoro.defaultBreakShare
+            distractions = file.distractions ?? []
         } catch {
             isReadOnly = true
             errorMessage = "Your planner and expenses could not be read (\(error.localizedDescription)). "
@@ -402,7 +487,8 @@ final class WorkspaceStore: ObservableObject {
             flowTasks: flowTasks,
             flowSessions: flowSessions,
             flowTimer: flowTimer,
-            flowBreakShare: flowBreakShare
+            flowBreakShare: flowBreakShare,
+            distractions: distractions
         )
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)

@@ -3,9 +3,12 @@ import SwiftUI
 /// Notion-style task planner: a board by status, a list by due date, and a calendar.
 struct PlannerView: View {
     enum Mode: String, CaseIterable, Identifiable {
+        case today = "Today"
         case board = "Board"
         case list = "List"
         case calendar = "Calendar"
+        case matrix = "Matrix"
+        case review = "Review"
         var id: Self { self }
     }
 
@@ -18,9 +21,12 @@ struct PlannerView: View {
     var body: some View {
         Group {
             switch mode {
+            case .today: PlannerTodayView { editing = $0 }
             case .board: board
             case .list: list
             case .calendar: calendar
+            case .matrix: PlannerMatrixView { editing = $0 }
+            case .review: PlannerWeeklyReview()
             }
         }
         .themedBackground()
@@ -31,7 +37,7 @@ struct PlannerView: View {
                     ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 280)
+                .frame(maxWidth: 520)
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -209,6 +215,14 @@ struct PlannerView: View {
 
     @ViewBuilder
     private func taskMenu(_ task: PlanTask) -> some View {
+        if task.status != .done {
+            Button {
+                FocusLauncher.focus(on: task, workspace: workspace)
+            } label: {
+                Label("Focus on This", systemImage: "play.circle")
+            }
+            Divider()
+        }
         ForEach(PlanTask.Status.allCases) { status in
             Button {
                 workspace.setStatus(status, for: task.id)
@@ -263,6 +277,18 @@ private struct TaskCard: View {
 private struct TaskSummary: View {
     let task: PlanTask
 
+    /// Focus time logged, and the estimate: "25 / 30 min".
+    private var timeText: String {
+        let done = (task.focusSeconds ?? 0) / 60
+        guard let estimate = task.estimateMinutes else { return "\(done) min" }
+        return "\(done) / \(estimate) min"
+    }
+
+    private var isOverEstimate: Bool {
+        guard let estimate = task.estimateMinutes else { return false }
+        return (task.focusSeconds ?? 0) > estimate * 60
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(task.title.isEmpty ? "Untitled" : task.title)
@@ -274,6 +300,11 @@ private struct TaskSummary: View {
                     Label(due.formatted(date: .abbreviated, time: .omitted), systemImage: "calendar")
                         .font(.caption)
                         .foregroundStyle(due < Calendar.current.startOfDay(for: Date()) && task.status != .done ? Color.red : Color.secondary)
+                }
+                if task.estimateMinutes != nil || (task.focusSeconds ?? 0) > 0 {
+                    Label(timeText, systemImage: "timer")
+                        .font(.caption)
+                        .foregroundStyle(isOverEstimate ? Color.orange : Color.secondary)
                 }
                 ForEach(task.tags, id: \.self) { tag in
                     Text(tag)
@@ -316,6 +347,17 @@ private struct TaskEditor: View {
     @State private var hasDueDate: Bool
     @State private var tagsText: String
 
+    /// The task with the due date and tags as edited.
+    private func savedTask() -> PlanTask {
+        var saved = task
+        saved.dueDate = hasDueDate ? (task.dueDate ?? Date()) : nil
+        saved.tags = tagsText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return saved
+    }
+
     init(task: PlanTask) {
         _task = State(initialValue: task)
         _hasDueDate = State(initialValue: task.dueDate != nil)
@@ -345,6 +387,38 @@ private struct TaskEditor: View {
                     }
                     TextField("Tags (comma separated)", text: $tagsText)
                 }
+                Section {
+                    Stepper(value: Binding(
+                        get: { task.estimateMinutes ?? 0 },
+                        set: { task.estimateMinutes = $0 > 0 ? $0 : nil }
+                    ), in: 0...600, step: 5) {
+                        Text(task.estimateMinutes.map { "Estimate: \($0) min" } ?? "No estimate")
+                    }
+                    if let estimate = task.estimateMinutes, let factor = PlannerInsights.estimateFactor(workspace.tasks) {
+                        let suggested = PlannerInsights.suggestedMinutes(estimate, factor: factor)
+                        if suggested != estimate {
+                            Button("Your history suggests \(suggested) min — use it") { task.estimateMinutes = suggested }
+                                .font(.callout)
+                        }
+                    }
+                    if let seconds = task.focusSeconds, seconds > 0 {
+                        LabeledContent("Focused so far", value: PlannerInsights.duration(seconds))
+                    }
+                    if task.status != .done, workspace.tasks.contains(where: { $0.id == task.id }) {
+                        Button {
+                            let saved = savedTask()
+                            workspace.save(saved)
+                            FocusLauncher.focus(on: saved, workspace: workspace)
+                            dismiss()
+                        } label: {
+                            Label("Focus on This", systemImage: "play.circle.fill")
+                        }
+                    }
+                } header: {
+                    Text("Time")
+                } footer: {
+                    Text("Focus on This starts Flowmodoro and logs the time here. InkPad learns how long your tasks really take.")
+                }
                 Section("Notes") {
                     TextField("Details", text: $task.notes, axis: .vertical)
                         .lineLimit(4...12)
@@ -358,13 +432,7 @@ private struct TaskEditor: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        var saved = task
-                        saved.dueDate = hasDueDate ? (task.dueDate ?? Date()) : nil
-                        saved.tags = tagsText
-                            .split(separator: ",")
-                            .map { $0.trimmingCharacters(in: .whitespaces) }
-                            .filter { !$0.isEmpty }
-                        workspace.save(saved)
+                        workspace.save(savedTask())
                         dismiss()
                     }
                 }

@@ -58,6 +58,10 @@ struct FlowSession: Codable, Identifiable, Equatable {
     var workSeconds: Int
     var breakSeconds: Int
     let endedAt: Date
+    /// The planner task it was spent on ("Focus on This").
+    var planTaskID: UUID?
+
+    var startedAt: Date { endedAt.addingTimeInterval(-TimeInterval(workSeconds)) }
 }
 
 /// The timer in progress. Saved with its start times, so it keeps counting
@@ -80,6 +84,8 @@ struct FlowTimer: Codable, Equatable {
     var workSeconds: Int
     var breakSeconds: Int
     var breakStartedAt: Date?
+    /// Set when started from a planner task ("Focus on This").
+    var planTaskID: UUID? = nil
 
     func workElapsed(at now: Date) -> Int {
         phase == .working ? max(0, Int(now.timeIntervalSince(workStartedAt))) : workSeconds

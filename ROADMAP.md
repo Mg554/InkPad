@@ -95,6 +95,13 @@
    - Done (batch 6, needs iPad testing): notebook beside the book
      (chapter pages, follow the book, page links, Lasso › Send to
      Notebook as picture or text). The PDF batch is complete.
+   - Done (Planner × Flowmodoro batch 1, needs iPad testing): Focus on
+     This with time logged on tasks, estimate vs actual with learned
+     corrections, Today timeline with Plan My Day (energy-based time
+     blocking), Eisenhower Matrix, Weekly Review, Distraction Box (typed or
+     handwritten, stats, to Reminders). Next: Focus Garden, smart breaks,
+     study-linked tasks, Gantt timeline, the Customize brush, Focus Mode,
+     Knowledge GPS.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from

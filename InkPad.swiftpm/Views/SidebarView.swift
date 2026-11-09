@@ -84,6 +84,19 @@ struct SidebarView: View {
                     }
                 }
                 .tag(LibraryScope.flowmodoro)
+                Button {
+                    CommandCenter.shared.sheet = .distractions
+                } label: {
+                    HStack {
+                        Label("Distraction Box", systemImage: "tray.full")
+                        Spacer()
+                        let waiting = workspace.distractions.filter { !$0.isDone }.count
+                        if waiting > 0 {
+                            Text("\(waiting)").font(.caption.weight(.semibold)).foregroundStyle(.orange)
+                        }
+                    }
+                }
+                .foregroundStyle(Color(uiColor: .label))
             }
 
             if !store.allTags.isEmpty {
