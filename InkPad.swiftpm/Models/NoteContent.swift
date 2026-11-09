@@ -85,6 +85,22 @@ struct NoteBookmark: Codable, Equatable, Identifiable {
     var color: FolderColor
 }
 
+/// Where a chapter's notes start in a notebook.
+struct NotebookChapter: Codable, Equatable, Identifiable {
+    var id = UUID()
+    var title: String
+    /// The chapter's first PDF page in the book (zero-based).
+    var bookPage: Int
+    /// The notebook page (zero-based).
+    var page: Int
+}
+
+/// The book pages (PDF, zero-based) a notebook page was written beside.
+struct NotebookPageLink: Codable, Equatable {
+    var page: Int
+    var bookPages: [Int]
+}
+
 /// What one page shows underneath the ink.
 enum PageSource: Codable, Equatable {
     /// A page of the note's PDF (zero-based).
@@ -121,6 +137,13 @@ struct NoteMetadata: Codable, Equatable {
     /// The page last read, and the furthest page reached (layout pages).
     var readingPage: Int?
     var furthestPage: Int?
+    /// A book: the notebook written beside it (a paper note).
+    var notebookID: UUID?
+    /// A notebook: the book it belongs to, the page where each chapter's
+    /// notes start, and the book pages each page was written beside.
+    var notebookFor: UUID?
+    var notebookChapters: [NotebookChapter]?
+    var bookPageLinks: [NotebookPageLink]?
 
     func resolvedPages(pdfPageCount: Int) -> [PageSource] {
         pages ?? (0..<pdfPageCount).map { PageSource.pdf($0) } + Array(repeating: .paper, count: max(pageCount, 0))

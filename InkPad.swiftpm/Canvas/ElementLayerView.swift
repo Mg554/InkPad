@@ -87,7 +87,8 @@ final class ElementLayerView: UIView {
         elementsDidChange()
     }
 
-    func addImage(file: String, image: UIImage, pixelSize: CGSize, centeredAt center: CGPoint) {
+    @discardableResult
+    func addImage(file: String, image: UIImage, pixelSize: CGSize, centeredAt center: CGPoint) -> CGRect {
         let maxWidth = PageLayout.pageWidth * 0.6
         let width = min(maxWidth, pixelSize.width / 2)
         let height = width * pixelSize.height / max(pixelSize.width, 1)
@@ -96,6 +97,7 @@ final class ElementLayerView: UIView {
         add(view)
         selectElement(view)
         elementsDidChange()
+        return frame
     }
 
     private func add(_ view: PageElementView) {

@@ -84,6 +84,12 @@ Done:
   pages that mention it), or a note of its own. In More: Insert Pages from
   Another PDF (into the open note, after the current page) and Send Pages
   to a New Note
+- Notebook beside the book: the book button's neighbour opens a lined
+  notebook (a note of its own) next to the book, with a handle to make it
+  wider. A page for each chapter (Start Notes), the notebook follows the
+  chapter being read, every page remembers the book pages it was written
+  beside (tap p. 12 to go there), and Lasso › Send to Notebook copies part
+  of the book as a picture or as text, with its page number
 - OCR for scanned books (on the iPad, English and Arabic): the book
   panel notices pages without text and Make Searchable gives them an
   invisible text layer, in the background, keeping your writing in

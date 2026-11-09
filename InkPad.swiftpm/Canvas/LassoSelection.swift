@@ -23,6 +23,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     var onRemind: ((String) -> Void)?
     /// Text from Area: a picture of the lassoed area (page and ink), and where it is.
     var onReadArea: ((UIImage, CGRect) -> Void)?
+    /// Send to Notebook (books with a notebook beside them).
+    var onSendArea: ((UIImage, CGRect) -> Void)?
     /// A lassoed area with no ink or PDF text in it (for example a scan).
     private var area: CGRect?
 
@@ -289,6 +291,12 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         onReadArea?(image, target)
     }
 
+    private func sendArea(_ rect: CGRect) {
+        guard let host, let image = host.image(of: rect) else { return }
+        clearSelection()
+        onSendArea?(image, rect)
+    }
+
     func setDash(_ style: DashStyle) {
         edit { dash = style }
     }
@@ -315,6 +323,11 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
             actions.append(UIAction(title: "Text from Area", image: UIImage(systemName: "text.viewfinder")) { [weak self] _ in
                 self?.readArea(readable)
             })
+            if onSendArea != nil {
+                actions.append(UIAction(title: "Send to Notebook", image: UIImage(systemName: "book.pages")) { [weak self] _ in
+                    self?.sendArea(readable)
+                })
+            }
         }
         if hasTextSelection {
             actions += [

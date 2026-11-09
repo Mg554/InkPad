@@ -43,6 +43,11 @@ struct NoteEditorView: View {
     @State private var isInsertingPages = false
     @State private var isSendingPages = false
     @State private var areaRequest: AreaRequest?
+    /// The notebook beside the book.
+    @StateObject private var notebook = NotebookController()
+    @AppStorage("notebookWidth") private var notebookWidth: Double = 420
+    @State private var notebookDragStart: Double?
+    @State private var notebookSend: AreaRequest?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -55,6 +60,10 @@ struct NoteEditorView: View {
             if let content = session.initialContent, let background = session.background {
                 HStack(spacing: 0) {
                     canvasArea(content: content, background: background)
+                    if notebook.isOpen {
+                        notebookColumn
+                            .transition(.move(edge: .trailing))
+                    }
                     if isShowingPages, let snapshot = session.snapshot {
                         Divider()
                         PageSidebar(
@@ -70,6 +79,7 @@ struct NoteEditorView: View {
                     }
                 }
                 .animation(.snappy(duration: 0.25), value: isShowingPages)
+                .animation(.snappy(duration: 0.25), value: notebook.isOpen)
             } else if let loadError = session.loadError {
                 ContentUnavailableView(
                     "Could Not Open Note",
@@ -172,6 +182,9 @@ struct NoteEditorView: View {
             canvas.livingNoteID = noteID
             canvas.onReadArea = { image, rect in areaRequest = AreaRequest(image: image, rect: rect) }
             canvas.onConcept = { CommandCenter.shared.sheet = .concept($0) }
+            if session.snapshot?.pdf != nil {
+                canvas.onSendToNotebook = { image, rect in notebookSend = AreaRequest(image: image, rect: rect) }
+            }
             canvas.onRemind = { text in
                 let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 reminderRequest = NoteReminderRequest(noteID: noteID, title: title.isEmpty ? self.title : title)
@@ -190,6 +203,9 @@ struct NoteEditorView: View {
             sidePanel
                 .inspectorColumnWidth(min: 300, ideal: 360, max: 440)
         }
+        .modifier(NotebookSendDialog(request: $notebookSend) { request, asText in
+            sendToNotebook(request, asText: asText)
+        })
         .modifier(BookSheets(
             noteID: noteID,
             session: session,
@@ -205,6 +221,7 @@ struct NoteEditorView: View {
             // Stopping a recording stores it in the note before the save.
             session.audio.stopAll()
             session.save(thumbnail: true)
+            if notebook.isOpen { notebook.close() }
             indexHandwriting()
         }
         .onChange(of: scenePhase) {
@@ -213,7 +230,10 @@ struct NoteEditorView: View {
                 session.audio.stopRecording()
                 session.audio.pause()
             }
-            if scenePhase != .active { session.save(thumbnail: true) }
+            if scenePhase != .active {
+                session.save(thumbnail: true)
+                notebook.session.save(thumbnail: true)
+            }
         }
     }
 
@@ -343,6 +363,53 @@ struct NoteEditorView: View {
         }
     }
 
+    // MARK: Notebook
+
+    private var notebookColumn: some View {
+        HStack(spacing: 0) {
+            // Drag to make the notebook wider or narrower.
+            Rectangle()
+                .fill(Color(uiColor: .separator))
+                .frame(width: 1)
+                .overlay {
+                    Capsule()
+                        .fill(Color(uiColor: .tertiaryLabel))
+                        .frame(width: 5, height: 44)
+                }
+                .frame(width: 14)
+                .contentShape(Rectangle())
+                .gesture(DragGesture()
+                    .onChanged { value in
+                        let start = notebookDragStart ?? notebookWidth
+                        notebookDragStart = start
+                        notebookWidth = min(max(start - Double(value.translation.width), 280), 820)
+                    }
+                    .onEnded { _ in notebookDragStart = nil })
+            NotebookPane(notebook: notebook, session: notebook.session, bookCanvas: canvas, pencilOnly: pencilOnly) {
+                notebook.close()
+            }
+            .frame(width: CGFloat(notebookWidth))
+        }
+    }
+
+    private func openNotebook() {
+        notebook.open(book: session, bookID: noteID, store: store)
+    }
+
+    private func sendToNotebook(_ request: AreaRequest, asText: Bool) {
+        openNotebook()
+        let page = notebook.layoutPage(containing: request.rect)
+        Task {
+            // A notebook opened just now needs a moment to show its canvas.
+            try? await Task.sleep(for: .milliseconds(300))
+            if asText {
+                await notebook.sendText(of: request.image, fromLayoutPage: page)
+            } else {
+                await notebook.send(image: request.image, fromLayoutPage: page)
+            }
+        }
+    }
+
     private func openBookPanel() {
         showsBookPanel = true
         isShowingLiving = true
@@ -354,6 +421,10 @@ struct NoteEditorView: View {
             PaletteItem(id: "ink-chapters", title: "Chapters & Bookmarks", subtitle: "Outline, bookmarks, reading progress, chapter mind maps",
                         systemImage: "book", tint: .brown, section: .thisNote, keywords: ["book", "outline", "فصول", "كتاب", "فهرس"]) {
                 openBookPanel()
+            },
+            PaletteItem(id: "ink-notebook", title: "Notebook Beside the Book", subtitle: "Write notes next to the book, a page for each chapter",
+                        systemImage: "book.pages", tint: .brown, section: .thisNote, keywords: ["notebook", "notes", "دفتر", "ملاحظات"]) {
+                openNotebook()
             },
             PaletteItem(id: "ink-insert-pages", title: "Insert Pages from Another PDF…", systemImage: "doc.on.doc", section: .thisNote,
                         keywords: ["pdf", "pages", "صفحات", "ادراج"]) {
@@ -509,6 +580,11 @@ struct NoteEditorView: View {
                         Label("Chapters & Bookmarks", systemImage: "book")
                     }
                     Button {
+                        openNotebook()
+                    } label: {
+                        Label("Notebook Beside the Book", systemImage: "book.pages")
+                    }
+                    Button {
                         isInsertingPages = true
                     } label: {
                         Label("Insert Pages from Another PDF…", systemImage: "doc.on.doc")
@@ -573,6 +649,11 @@ struct NoteEditorView: View {
                     openBookPanel()
                 } label: {
                     Label("Chapters & Bookmarks", systemImage: "book")
+                }
+                Button {
+                    if notebook.isOpen { notebook.close() } else { openNotebook() }
+                } label: {
+                    Label("Notebook", systemImage: notebook.isOpen ? "book.pages.fill" : "book.pages")
                 }
             }
 
@@ -736,6 +817,28 @@ private struct BookSheets: ViewModifier {
         guard let document = session.snapshot?.pdf?.pdfDocument else { return [] }
         return (first...last).filter { index in
             document.page(at: index)?.string?.localizedCaseInsensitiveContains(concept) ?? false
+        }
+    }
+}
+
+/// Lasso › Send to Notebook: as a picture or as text.
+private struct NotebookSendDialog: ViewModifier {
+    @Binding var request: AreaRequest?
+    let send: (AreaRequest, Bool) -> Void
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("Send to Notebook", isPresented: Binding(get: { request != nil }, set: { if !$0 { request = nil } }), titleVisibility: .visible) {
+            Button("As a Picture") {
+                if let request { send(request, false) }
+                request = nil
+            }
+            Button("As Text (Read on This iPad)") {
+                if let request { send(request, true) }
+                request = nil
+            }
+            Button("Cancel", role: .cancel) { request = nil }
+        } message: {
+            Text("With the book's page number, on the notebook page you're on.")
         }
     }
 }

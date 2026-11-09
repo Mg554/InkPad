@@ -70,6 +70,26 @@ carefully for Swift pitfalls that have bitten before:
 - `@preconcurrency` on a conformance to an already main-actor protocol
   warns; use it only where the compiler asks.
 
+## Subagent workflow (only when the owner says to use it)
+
+Agents live in `.claude/agents/`. They share the weekly limit; the saving is
+that cheaper models do the bulky work. Don't use them for small changes (each
+starts cold), and keep the one-heavy-tool rule: builds and the simulator run
+one at a time.
+
+1. Main session (Opus): interview the owner, design, and write a precise plan
+   (files, types, functions, where it hooks in). `code-scout` (Haiku) can find
+   the code first.
+2. `swift-coder` (Sonnet) implements the plan; independent parts in different
+   files may go to two coders at once.
+3. `builder` (Haiku) builds simulator + device and lists problems; `fixer`
+   (Sonnet) fixes them until clean.
+4. Main session reviews the changed parts.
+5. `sim-tester` (Sonnet) checks the scenario with few screenshots, then shuts
+   the simulator down.
+6. `docs-writer` (Haiku) updates the docs and drafts the commit message; the
+   main session commits and pushes through GitHub Desktop.
+
 ## Layout
 
 ```

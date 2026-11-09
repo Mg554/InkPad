@@ -31,6 +31,16 @@ final class CanvasController: NSObject, ObservableObject {
     var onRemind: ((String) -> Void)?
     /// Lasso › Text from Area: a picture of the area and where it is.
     var onReadArea: ((UIImage, CGRect) -> Void)?
+    /// Lasso › Send to Notebook: a picture of the area, and where it is.
+    var onSendToNotebook: ((UIImage, CGRect) -> Void)? {
+        didSet {
+            guard onSendToNotebook != nil else {
+                host?.lasso.onSendArea = nil
+                return
+            }
+            host?.lasso.onSendArea = { [weak self] image, rect in self?.onSendToNotebook?(image, rect) }
+        }
+    }
 
     private weak var host: NoteCanvasHostView?
     private weak var palette: ToolPalette?
@@ -71,6 +81,9 @@ final class CanvasController: NSObject, ObservableObject {
         host.lasso.onThink = { [weak self] text, rect in self?.onThink?(text, rect) }
         host.lasso.onRemind = { [weak self] text in self?.onRemind?(text) }
         host.lasso.onReadArea = { [weak self] image, rect in self?.onReadArea?(image, rect) }
+        if onSendToNotebook != nil {
+            host.lasso.onSendArea = { [weak self] image, rect in self?.onSendToNotebook?(image, rect) }
+        }
         host.elementLayer.onTextStateChange = { [weak self] in
             self?.formattingRevision += 1
         }
@@ -436,11 +449,19 @@ final class CanvasController: NSObject, ObservableObject {
         host?.elementLayer.addTextBox(text, below: rect)
     }
 
-    func insertImage(file: String, image: UIImage, pixelSize: CGSize) {
+    func insertImage(file: String, image: UIImage, pixelSize: CGSize, caption: NSAttributedString? = nil) {
         guard let host else { return }
         palette?.select(.text)
         applyTool()
-        host.elementLayer.addImage(file: file, image: image, pixelSize: pixelSize, centeredAt: host.visibleCenter)
+        let frame = host.elementLayer.addImage(file: file, image: image, pixelSize: pixelSize, centeredAt: host.visibleCenter)
+        if let caption { host.elementLayer.addTextBox(caption, below: frame) }
+    }
+
+    /// A text box in the middle of what is shown.
+    func placeTextInView(_ text: NSAttributedString) {
+        guard let host else { return }
+        let center = host.visibleCenter
+        host.elementLayer.addTextBox(text, below: CGRect(x: center.x - 240, y: center.y - 60, width: 480, height: 0))
     }
 }
 

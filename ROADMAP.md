@@ -92,7 +92,9 @@
    - Done (batch 5, needs iPad testing): Compare Editions (chapters
      matched by title and text, word-level page diff with colors, AI
      explanation, report note, bookmarks moved to the new edition).
-     Next: side-by-side notebook.
+   - Done (batch 6, needs iPad testing): notebook beside the book
+     (chapter pages, follow the book, page links, Lasso › Send to
+     Notebook as picture or text). The PDF batch is complete.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from
