@@ -8,15 +8,19 @@ struct PlannerView: View {
         case list = "List"
         case calendar = "Calendar"
         case matrix = "Matrix"
+        case timeline = "Timeline"
         case review = "Review"
         var id: Self { self }
     }
 
     @EnvironmentObject private var workspace: WorkspaceStore
+    @EnvironmentObject private var store: LibraryStore
     @AppStorage("plannerMode") private var mode: Mode = .board
     @State private var editing: PlanTask?
     @State private var selectedDay = Date()
     @State private var targetedColumn: PlanTask.Status?
+    @ObservedObject private var looks = FlowLookStore.shared
+    @State private var isCustomizing = false
 
     var body: some View {
         Group {
@@ -26,10 +30,11 @@ struct PlannerView: View {
             case .list: list
             case .calendar: calendar
             case .matrix: PlannerMatrixView { editing = $0 }
+            case .timeline: PlannerTimelineView { editing = $0 }
             case .review: PlannerWeeklyReview()
             }
         }
-        .themedBackground()
+        .screenBackdrop(looks.look.backdrop)
         .navigationTitle("Planner")
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -37,7 +42,14 @@ struct PlannerView: View {
                     ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 520)
+                .frame(maxWidth: 600)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isCustomizing = true
+                } label: {
+                    Label("Customize", systemImage: "paintbrush")
+                }
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -49,6 +61,9 @@ struct PlannerView: View {
         }
         .sheet(item: $editing) { task in
             TaskEditor(task: task)
+        }
+        .sheet(isPresented: $isCustomizing) {
+            FlowStyleView()
         }
     }
 
@@ -88,7 +103,7 @@ struct PlannerView: View {
                 }
                 .buttonStyle(PressableStyle())
                 .draggable(task.id.uuidString) {
-                    TaskCard(task: task).frame(width: 260)
+                    TaskCard(task: task).frame(width: 260).environmentObject(store)
                 }
                 .contextMenu { taskMenu(task) }
                 .transition(.scale.combined(with: .opacity))
@@ -259,23 +274,27 @@ struct PlannerView: View {
 
 private struct TaskCard: View {
     let task: PlanTask
+    @ObservedObject private var looks = FlowLookStore.shared
 
     var body: some View {
+        // High-priority and in-progress tasks glow, in the chosen card style.
+        let tint: Color = task.priority == .high ? .red : PlannerView.color(for: task.status)
+        let isActive: Bool = task.priority == .high || task.status == .inProgress
         TaskSummary(task: task)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
-            .themedCard(cornerRadius: 14)
-            // High-priority and in-progress tasks glow.
-            .glowCard(
-                task.priority == .high ? .red : PlannerView.color(for: task.status),
-                isActive: task.priority == .high || task.status == .inProgress
-            )
-            .foregroundStyle(.primary)
+            .flowCard(looks.look, tint: tint, isActive: isActive)
     }
 }
 
 private struct TaskSummary: View {
+    @EnvironmentObject private var store: LibraryStore
     let task: PlanTask
+
+    private func studyLabel(_ title: String) -> String {
+        if let chapter = task.chapterTitle { return "\(title) · \(chapter)" }
+        return title
+    }
 
     /// Focus time logged, and the estimate: "25 / 30 min".
     private var timeText: String {
@@ -294,12 +313,24 @@ private struct TaskSummary: View {
             Text(task.title.isEmpty ? "Untitled" : task.title)
                 .font(.body.weight(.medium))
                 .strikethrough(task.status == .done)
-            HStack(spacing: 8) {
+            // Chips wrap as whole chips to the next line.
+            ChipFlow(spacing: 8) {
                 PriorityBadge(priority: task.priority)
                 if let due = task.dueDate {
                     Label(due.formatted(date: .abbreviated, time: .omitted), systemImage: "calendar")
                         .font(.caption)
                         .foregroundStyle(due < Calendar.current.startOfDay(for: Date()) && task.status != .done ? Color.red : Color.secondary)
+                }
+                if let noteID = task.noteID, let note = store.note(noteID) {
+                    Label(studyLabel(note.title), systemImage: "book")
+                        .font(.caption)
+                        .foregroundStyle(.teal)
+                        .lineLimit(1)
+                }
+                if let step = task.reviewStep, step > 0 {
+                    Label("Review \(step)/3", systemImage: "arrow.clockwise")
+                        .font(.caption)
+                        .foregroundStyle(.purple)
                 }
                 if task.estimateMinutes != nil || (task.focusSeconds ?? 0) > 0 {
                     Label(timeText, systemImage: "timer")
@@ -315,6 +346,56 @@ private struct TaskSummary: View {
                 }
             }
         }
+    }
+}
+
+/// Lays chips out in rows, each kept whole on one line.
+private struct ChipFlow: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(subviews, width: proposal.width ?? .infinity)
+        let height: CGFloat = rows.reduce(0) { $0 + $1.height } + spacing * CGFloat(max(rows.count - 1, 0))
+        let width: CGFloat = rows.map(\.width).max() ?? 0
+        return CGSize(width: min(width, proposal.width ?? width), height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                let fitted = CGSize(width: min(size.width, bounds.width), height: size.height)
+                subviews[index].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(fitted))
+                x += fitted.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Row {
+        var indices: [Int] = []
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    private func arrange(_ subviews: Subviews, width: CGFloat) -> [Row] {
+        var rows: [Row] = [Row()]
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let itemWidth: CGFloat = min(size.width, width)
+            let last = rows.count - 1
+            let needed: CGFloat = rows[last].indices.isEmpty ? itemWidth : rows[last].width + spacing + itemWidth
+            if needed > width, !rows[last].indices.isEmpty {
+                rows.append(Row(indices: [index], width: itemWidth, height: size.height))
+            } else {
+                rows[last].indices.append(index)
+                rows[last].width = needed
+                rows[last].height = max(rows[last].height, size.height)
+            }
+        }
+        return rows
     }
 }
 
@@ -343,14 +424,50 @@ private struct PriorityBadge: View {
 private struct TaskEditor: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var workspace: WorkspaceStore
+    @EnvironmentObject private var store: LibraryStore
     @State private var task: PlanTask
     @State private var hasDueDate: Bool
     @State private var tagsText: String
+
+    private var studySection: some View {
+        Section {
+            Picker("Note or Book", selection: $task.noteID) {
+                Text("None").tag(UUID?.none)
+                ForEach(store.notes.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }) { note in
+                    Text(note.title).tag(Optional(note.id))
+                }
+            }
+            .pickerStyle(.navigationLink)
+            if let noteID = task.noteID {
+                TextField("Chapter or pages (optional)", text: Binding(
+                    get: { task.chapterTitle ?? "" },
+                    set: { task.chapterTitle = $0.isEmpty ? nil : $0 }
+                ))
+                Toggle("Review It After 1, 3 and 7 Days", isOn: Binding(
+                    get: { task.schedulesReviews ?? false },
+                    set: { task.schedulesReviews = $0 }
+                ))
+                Button {
+                    workspace.save(savedTask())
+                    dismiss()
+                    CommandCenter.shared.openNote(noteID)
+                } label: {
+                    Label("Open the Note", systemImage: "book")
+                }
+            }
+        } header: {
+            Text("Study")
+        } footer: {
+            Text("Link a task to what you study. With reviews on, finishing it plans a review the next day, then 3 and 7 days later.")
+        }
+    }
 
     /// The task with the due date and tags as edited.
     private func savedTask() -> PlanTask {
         var saved = task
         saved.dueDate = hasDueDate ? (task.dueDate ?? Date()) : nil
+        // Reviews belong to a linked note.
+        if saved.noteID == nil { saved.schedulesReviews = nil }
         saved.tags = tagsText
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -419,6 +536,7 @@ private struct TaskEditor: View {
                 } footer: {
                     Text("Focus on This starts Flowmodoro and logs the time here. InkPad learns how long your tasks really take.")
                 }
+                studySection
                 Section("Notes") {
                     TextField("Details", text: $task.notes, axis: .vertical)
                         .lineLimit(4...12)

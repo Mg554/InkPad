@@ -224,6 +224,17 @@ Done:
 - Distraction Box: catch a stray thought while focusing, typed or written
   with the pen (read on the iPad), from Flowmodoro, the note toolbar, the
   sidebar or ⌘K; stats by hour and task; each one can become a reminder
+- Focus Garden: a plant per subject (a planner task's first tag, or the
+  Flowmodoro task) grows from seed to grand tree with focus time and
+  dresses for the season. Smart breaks: review due flashcards, a guided
+  breathing minute, or a tip to move. Study-linked tasks: link a task to a
+  note or book chapter; finishing it plans reviews 1, 3 and 7 days later.
+  Planner Timeline (Gantt) shows tasks as bars over four weeks
+- Customize focus (paintbrush in Flowmodoro and the Planner): timer face
+  (ring, big digits, analog, liquid, growing plant) with glow, Planner
+  cards (glass, sticky notes, minimal, neon), background, ambient sound
+  made on the iPad (rain, ocean, white, pink or brown noise, also on
+  breaks) and the break chime
 - Photos and images from Files placed on pages; move and resize
 - Templates: Plain, Lined, Grid, Dot, Hexagonal Grid, Cornell Note,
   College Rule, Manuscript, Two and Three Column; six paper colors

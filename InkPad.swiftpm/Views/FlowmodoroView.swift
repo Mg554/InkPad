@@ -11,6 +11,9 @@ struct FlowmodoroView: View {
     @State private var newTask = ""
     @State private var prompt: NamePrompt?
     @State private var isConfirmingClear = false
+    @State private var isCustomizing = false
+    @State private var isShowingGarden = false
+    @ObservedObject private var looks = FlowLookStore.shared
 
     private var timer: FlowTimer? { workspace.flowTimer }
     private var isWorking: Bool { timer?.phase == .working }
@@ -21,6 +24,15 @@ struct FlowmodoroView: View {
                 timerCard
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
             }
+
+            if timer?.phase == .breakReady || timer?.phase == .onBreak {
+                Section {
+                    SmartBreakCard()
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                }
+            }
+
+            gardenSection
 
             Section {
                 HStack {
@@ -66,8 +78,10 @@ struct FlowmodoroView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .themedBackground()
+        .screenBackdrop(looks.look.backdrop)
         .navigationTitle("Flowmodoro")
+        .sheet(isPresented: $isCustomizing) { FlowStyleView() }
+        .sheet(isPresented: $isShowingGarden) { FocusGardenView().environmentObject(workspace) }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
@@ -86,6 +100,16 @@ struct FlowmodoroView: View {
                     CommandCenter.shared.sheet = .distractions
                 } label: {
                     Label("Distraction Box", systemImage: "tray.full")
+                }
+                Button {
+                    isShowingGarden = true
+                } label: {
+                    Label("Focus Garden", systemImage: "leaf")
+                }
+                Button {
+                    isCustomizing = true
+                } label: {
+                    Label("Customize", systemImage: "paintbrush")
                 }
                 AppearanceMenu()
             }
@@ -108,20 +132,7 @@ struct FlowmodoroView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 currentTask
-                HStack(spacing: 14) {
-                    timerBox(
-                        "Work Time",
-                        value: Flowmodoro.clock(timer?.workElapsed(at: context.date) ?? 0, forceHours: true),
-                        tint: .green,
-                        isRunning: timer?.phase == .working
-                    )
-                    timerBox(
-                        "Break Time",
-                        value: Flowmodoro.clock(timer?.breakRemaining(at: context.date) ?? 0),
-                        tint: .blue,
-                        isRunning: timer?.phase == .onBreak
-                    )
-                }
+                timerFace(at: context.date)
                 controls
             }
             .frame(maxWidth: .infinity)
@@ -147,6 +158,44 @@ struct FlowmodoroView: View {
             Text("Pick a task to start")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    /// The chosen face: work counting up, or the break counting down.
+    private func timerFace(at date: Date) -> some View {
+        let onBreak: Bool = timer?.phase == .breakReady || timer?.phase == .onBreak
+        let work: Int = timer?.workElapsed(at: date) ?? 0
+        let left: Int = timer?.breakRemaining(at: date) ?? 0
+        let total: Int = max(timer?.breakSeconds ?? 1, 1)
+        let seconds: Int = onBreak ? left : work
+        let progress: Double = onBreak ? Double(left) / Double(total) : Double(work % 3600) / 3600
+        let tint: Color = onBreak ? .blue : .green
+        let running: Bool = timer?.phase == .working || timer?.phase == .onBreak
+        return FlowTimerFace(face: looks.look.face, seconds: seconds, progress: progress, tint: tint, label: onBreak ? "Break" : "Work")
+            .styledGlow(running ? looks.look.glow : .off, color: tint)
+            .padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private var gardenSection: some View {
+        let plants = GardenPlant.garden(sessions: workspace.flowSessions, tasks: workspace.tasks)
+        if !plants.isEmpty {
+            Section {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(plants.prefix(8)) { plant in
+                            GardenPlantCard(plant: plant, size: 90)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            } header: {
+                HStack {
+                    Text("Focus Garden")
+                    Spacer()
+                    Button("Open") { isShowingGarden = true }.font(.caption)
+                }
+            }
         }
     }
 
@@ -373,7 +422,10 @@ struct FlowmodoroView: View {
 /// The sound when a break is over. (No system notification: the
 /// notification center crashes apps run inside Swift Playgrounds.)
 enum FlowAlert {
+    @MainActor
     static func playSound() {
-        AudioServicesPlaySystemSound(1005)
+        if let sound = FlowLookStore.shared.look.chime.soundID {
+            AudioServicesPlaySystemSound(sound)
+        }
     }
 }

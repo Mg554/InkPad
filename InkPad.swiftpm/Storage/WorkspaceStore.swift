@@ -40,13 +40,18 @@ final class WorkspaceStore: ObservableObject {
     func save(_ task: PlanTask) {
         guard canWrite() else { return }
         var saved = task
+        var finished = false
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            if tasks[index].status != task.status { saved.completedAt = task.status == .done ? Date() : nil }
+            if tasks[index].status != task.status {
+                saved.completedAt = task.status == .done ? Date() : nil
+                finished = task.status == .done
+            }
             tasks[index] = saved
         } else {
             if task.status == .done { saved.completedAt = Date() }
             tasks.append(saved)
         }
+        if finished { scheduleReview(after: saved) }
         persist()
     }
 
@@ -56,7 +61,33 @@ final class WorkspaceStore: ObservableObject {
         guard tasks[index].status != status else { return }
         tasks[index].status = status
         tasks[index].completedAt = status == .done ? Date() : nil
+        if status == .done { scheduleReview(after: tasks[index]) }
         persist()
+    }
+
+    /// Study-linked tasks: the next spaced review becomes a task of its own.
+    private func scheduleReview(after task: PlanTask) {
+        guard let days = task.nextReviewDays else { return }
+        let step = (task.reviewStep ?? 0) + 1
+        // Only once per step, even if the task is reopened and finished again.
+        let exists = tasks.contains { $0.reviewStep == step && $0.noteID == task.noteID && $0.chapterTitle == task.chapterTitle && $0.title == Self.reviewTitle(task) }
+        guard !exists else { return }
+        let due = Calendar.current.date(byAdding: .day, value: days, to: Calendar.current.startOfDay(for: Date()))
+        var review = PlanTask(title: Self.reviewTitle(task), dueDate: due)
+        review.notes = "Review \(step) of 3 (spaced repetition)."
+        review.tags = task.tags
+        review.priority = task.priority
+        review.noteID = task.noteID
+        review.chapterTitle = task.chapterTitle
+        review.schedulesReviews = true
+        review.reviewStep = step
+        review.estimateMinutes = 15
+        tasks.append(review)
+    }
+
+    private static func reviewTitle(_ task: PlanTask) -> String {
+        let base = task.title.hasPrefix("Review: ") ? String(task.title.dropFirst(8)) : task.title
+        return "Review: \(base)"
     }
 
     func deleteTask(_ id: UUID) {

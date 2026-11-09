@@ -99,9 +99,11 @@
      This with time logged on tasks, estimate vs actual with learned
      corrections, Today timeline with Plan My Day (energy-based time
      blocking), Eisenhower Matrix, Weekly Review, Distraction Box (typed or
-     handwritten, stats, to Reminders). Next: Focus Garden, smart breaks,
-     study-linked tasks, Gantt timeline, the Customize brush, Focus Mode,
-     Knowledge GPS.
+     handwritten, stats, to Reminders).
+   - Done (Planner × Flowmodoro batch 2, needs iPad testing): Focus
+     Garden, smart breaks, study-linked tasks with spaced reviews, Gantt
+     timeline, Customize (timer faces, card styles, backgrounds, ambient
+     sound, chimes). Next: Focus Mode, Knowledge GPS.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from

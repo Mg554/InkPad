@@ -47,6 +47,21 @@ struct PlanTask: Codable, Identifiable, Equatable {
     /// priority (important) and due date (urgent).
     var isImportant: Bool?
     var isUrgent: Bool?
+    /// Study-linked: the note (or book) and chapter it is about.
+    var noteID: UUID?
+    var chapterTitle: String?
+    /// When done, schedule spaced reviews (1, 3, then 7 days later).
+    var schedulesReviews: Bool?
+    /// 0 for the task itself, 1–3 for its reviews.
+    var reviewStep: Int?
+
+    /// Days until the next review after this one is done, if any.
+    var nextReviewDays: Int? {
+        guard schedulesReviews == true else { return nil }
+        let days = [1, 3, 7]
+        let step = reviewStep ?? 0
+        return step < days.count ? days[step] : nil
+    }
 
     var important: Bool { isImportant ?? (priority == .high) }
 

@@ -471,3 +471,140 @@ struct PlannerWeeklyReview: View {
         .themedCard()
     }
 }
+
+// MARK: Timeline (Gantt)
+
+/// Tasks as bars over the coming weeks: from when they start (planned, or
+/// created) to when they are due.
+struct PlannerTimelineView: View {
+    @EnvironmentObject private var workspace: WorkspaceStore
+    let edit: (PlanTask) -> Void
+
+    private static let dayWidth: CGFloat = 46
+    private static let rowHeight: CGFloat = 40
+    private static let titleWidth: CGFloat = 220
+    private static let days = 28
+
+    private var firstDay: Date {
+        Calendar.current.date(byAdding: .day, value: -3, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+    }
+
+    private var rows: [PlanTask] {
+        let first = firstDay
+        return workspace.tasks
+            .filter { task in
+                let end = span(of: task).end
+                return task.status != .done || end >= first
+            }
+            .sorted { span(of: $0).start < span(of: $1).start }
+    }
+
+    private func span(of task: PlanTask) -> (start: Date, end: Date) {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: task.scheduledAt ?? task.createdAt)
+        let due = calendar.startOfDay(for: task.dueDate ?? task.scheduledAt ?? task.createdAt)
+        return (min(start, due), max(start, due))
+    }
+
+    private func dayIndex(_ date: Date) -> Int {
+        Calendar.current.dateComponents([.day], from: firstDay, to: Calendar.current.startOfDay(for: date)).day ?? 0
+    }
+
+    var body: some View {
+        ScrollView(.vertical) {
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Color.clear.frame(height: 44)
+                    ForEach(rows) { task in
+                        Text(task.title.isEmpty ? "Untitled" : task.title)
+                            .font(.callout)
+                            .lineLimit(1)
+                            .strikethrough(task.status == .done)
+                            .frame(width: Self.titleWidth - 16, height: Self.rowHeight, alignment: .leading)
+                            .padding(.leading, 16)
+                            .contentShape(Rectangle())
+                            .onTapGesture { edit(task) }
+                    }
+                }
+                .frame(width: Self.titleWidth)
+                Divider()
+                ScrollView(.horizontal) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        dayHeader
+                        ZStack(alignment: .topLeading) {
+                            grid
+                            ForEach(Array(rows.enumerated()), id: \.element.id) { item in
+                                bar(item.element, row: item.offset)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 10)
+        }
+        .overlay {
+            if workspace.tasks.isEmpty {
+                ContentUnavailableView("No Tasks", systemImage: "chart.bar.xaxis", description: Text("Tasks with dates show as bars here."))
+            }
+        }
+    }
+
+    private var dayHeader: some View {
+        HStack(spacing: 0) {
+            ForEach(0..<Self.days, id: \.self) { offset in
+                let day = Calendar.current.date(byAdding: .day, value: offset, to: firstDay) ?? firstDay
+                let isToday = Calendar.current.isDateInToday(day)
+                VStack(spacing: 2) {
+                    Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary)
+                    Text(day.formatted(.dateTime.day()))
+                        .font(.caption.weight(isToday ? .bold : .regular))
+                        .foregroundStyle(isToday ? Color.white : Color.primary)
+                        .frame(width: 24, height: 24)
+                        .background(isToday ? Color.red : Color.clear, in: Circle())
+                }
+                .frame(width: Self.dayWidth, height: 44)
+            }
+        }
+    }
+
+    private var grid: some View {
+        let height = max(CGFloat(rows.count) * Self.rowHeight, 200)
+        return HStack(spacing: 0) {
+            ForEach(0..<Self.days, id: \.self) { offset in
+                let day = Calendar.current.date(byAdding: .day, value: offset, to: firstDay) ?? firstDay
+                let weekend = Calendar.current.isDateInWeekend(day)
+                Rectangle()
+                    .fill(weekend ? Color.secondary.opacity(0.07) : Color.clear)
+                    .overlay(alignment: .leading) { Rectangle().fill(Color.secondary.opacity(0.12)).frame(width: 0.5) }
+                    .overlay {
+                        if Calendar.current.isDateInToday(day) {
+                            Rectangle().fill(Color.red.opacity(0.08))
+                        }
+                    }
+                    .frame(width: Self.dayWidth, height: height)
+            }
+        }
+    }
+
+    private func bar(_ task: PlanTask, row: Int) -> some View {
+        let range = span(of: task)
+        // Older open tasks start at the first day, marked overdue.
+        let startIndex = min(max(dayIndex(range.start), 0), Self.days - 1)
+        let endIndex = max(min(dayIndex(range.end), Self.days - 1), startIndex)
+        let length = max(endIndex - startIndex + 1, 1)
+        let tint: Color = task.status == .done ? .green : (task.important ? .red : PlannerView.color(for: task.status))
+        let overdue: Bool = task.status != .done && (task.dueDate ?? .distantFuture) < Calendar.current.startOfDay(for: Date())
+        return RoundedRectangle(cornerRadius: 8)
+            .fill(tint.opacity(task.status == .done ? 0.35 : 0.75).gradient)
+            .overlay(alignment: .leading) {
+                if let estimate = task.estimateMinutes {
+                    Text("\(estimate)m").font(.caption2.weight(.semibold)).foregroundStyle(.white).padding(.leading, 6)
+                }
+            }
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(overdue ? Color.red : Color.clear, lineWidth: 2))
+            .frame(width: CGFloat(length) * Self.dayWidth - 6, height: Self.rowHeight - 12)
+            .offset(x: CGFloat(startIndex) * Self.dayWidth + 3, y: CGFloat(row) * Self.rowHeight + 6)
+
+            .onTapGesture { edit(task) }
+    }
+}

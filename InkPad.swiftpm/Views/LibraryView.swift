@@ -244,5 +244,11 @@ struct LibraryView: View {
             .onChange(of: store.notes) { LivingNotes.shared.refresh(store: store) }
             .onChange(of: store.textIndex) { LivingNotes.shared.refresh(store: store) }
             .onChange(of: store.recognizedText) { LivingNotes.shared.refresh(store: store) }
+            // Ambient sound follows the Flowmodoro timer, wherever you are in InkPad.
+            .task {
+                FocusSoundController.workspace = workspace
+                FocusSoundController.update()
+            }
+            .onChange(of: workspace.flowTimer?.phase) { FocusSoundController.update() }
     }
 }
