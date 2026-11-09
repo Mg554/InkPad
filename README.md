@@ -244,6 +244,14 @@ Done:
   spaced review to plan. Focus Mode also has its own calm screen (⌘K or
   Flowmodoro): pick a task, the timer face, a seasonal scene, sounds and
   your subject's plant growing
+- Knowledge GPS (sidebar or ⌘K): a map of what you're learning — a PDF
+  book by its chapters, a subject's tagged notes, or stations you make
+  (an exam syllabus) — drawn as islands with a path and fog, a metro
+  line, or a skill tree. Each station's progress comes from reading,
+  flashcard memory, quizzes and focus time, and your own mark (started,
+  understood, mastered). It shows where you are, the next stop, time
+  left at your pace and before the exam, and a daily route you can add
+  to the Planner (with a reroute when you fall behind)
 - Photos and images from Files placed on pages; move and resize
 - Templates: Plain, Lined, Grid, Dot, Hexagonal Grid, Cornell Note,
   College Rule, Manuscript, Two and Three Column; six paper colors

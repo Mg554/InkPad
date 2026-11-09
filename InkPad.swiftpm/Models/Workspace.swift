@@ -153,6 +153,7 @@ struct WorkspaceFile: Codable {
     var flowTimer: FlowTimer?
     var flowBreakShare: Int?
     var distractions: [Distraction]?
+    var knowledgeMaps: [KnowledgeMap]?
 }
 
 // MARK: Distraction Box

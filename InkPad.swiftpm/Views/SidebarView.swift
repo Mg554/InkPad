@@ -74,6 +74,8 @@ struct SidebarView: View {
                     .tag(LibraryScope.slides)
                 Label("PDF Tools", systemImage: "doc.on.doc")
                     .tag(LibraryScope.pdfTools)
+                Label("Knowledge GPS", systemImage: "location.north.circle")
+                    .tag(LibraryScope.gps)
                 HStack {
                     Label("Flowmodoro", systemImage: "timer")
                     Spacer()

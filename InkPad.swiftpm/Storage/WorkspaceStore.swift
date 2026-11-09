@@ -22,6 +22,7 @@ final class WorkspaceStore: ObservableObject {
     /// Break length in percent of the work time.
     @Published private(set) var flowBreakShare = Flowmodoro.defaultBreakShare
     @Published private(set) var distractions: [Distraction] = []
+    @Published private(set) var knowledgeMaps: [KnowledgeMap] = []
     @Published var errorMessage: String?
     @Published private(set) var isReadOnly = false
 
@@ -414,6 +415,24 @@ final class WorkspaceStore: ObservableObject {
         persist()
     }
 
+    // MARK: Knowledge GPS
+
+    func save(_ map: KnowledgeMap) {
+        guard canWrite() else { return }
+        if let index = knowledgeMaps.firstIndex(where: { $0.id == map.id }) {
+            knowledgeMaps[index] = map
+        } else {
+            knowledgeMaps.append(map)
+        }
+        persist()
+    }
+
+    func deleteKnowledgeMap(_ id: UUID) {
+        guard canWrite() else { return }
+        knowledgeMaps.removeAll { $0.id == id }
+        persist()
+    }
+
     // MARK: Distraction Box
 
     func addDistraction(_ distraction: Distraction) {
@@ -488,6 +507,7 @@ final class WorkspaceStore: ObservableObject {
         flowTimer = nil
         flowBreakShare = Flowmodoro.defaultBreakShare
         distractions = []
+        knowledgeMaps = []
         isReadOnly = false
         load()
     }
@@ -514,6 +534,7 @@ final class WorkspaceStore: ObservableObject {
             flowTimer = file.flowTimer
             flowBreakShare = file.flowBreakShare ?? Flowmodoro.defaultBreakShare
             distractions = file.distractions ?? []
+            knowledgeMaps = file.knowledgeMaps ?? []
         } catch {
             isReadOnly = true
             errorMessage = "Your planner and expenses could not be read (\(error.localizedDescription)). "
@@ -538,7 +559,8 @@ final class WorkspaceStore: ObservableObject {
             flowSessions: flowSessions,
             flowTimer: flowTimer,
             flowBreakShare: flowBreakShare,
-            distractions: distractions
+            distractions: distractions,
+            knowledgeMaps: knowledgeMaps
         )
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)

@@ -237,6 +237,8 @@ enum LibraryScope: Hashable {
     case graph
     /// PDF tools (merge, split, pages to a note...).
     case pdfTools
+    /// Knowledge GPS: maps of what to learn.
+    case gps
 }
 
 /// A folder positioned in the folder tree, for sidebars and menus.

@@ -106,7 +106,12 @@
      sound, chimes).
    - Done (Focus Mode, needs iPad testing): in a note and on its own
      screen, companion (related, quick questions, weak cards), wrap-up
-     with a spaced review. Next: Knowledge GPS.
+     with a spaced review.
+   - Done (Knowledge GPS, needs iPad testing): maps from a book, a tag or
+     by hand; islands, metro and skill tree; progress from reading,
+     memory, quizzes, focus and marks; next stop, ETA, exam pace, daily
+     route to the Planner on approval, reroute. The agreed list from the
+     Nov 2026 interview is complete.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from

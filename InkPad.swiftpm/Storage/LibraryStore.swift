@@ -176,7 +176,7 @@ final class LibraryStore: ObservableObject {
         switch scope {
         case .allNotes: matching = notes
         case .unfiled: matching = notes.filter { $0.folderID == nil }
-        case .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .pdfTools: matching = []
+        case .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .pdfTools, .gps: matching = []
         case let .tag(tag):
             let key = NoteLinks.key(tag)
             matching = notes.filter { tags(of: $0).contains { NoteLinks.key($0) == key } }
@@ -235,6 +235,11 @@ final class LibraryStore: ObservableObject {
 
     func thumbnail(for id: UUID) -> UIImage? {
         UIImage(contentsOfFile: noteDirectory(id).appendingPathComponent(NoteFiles.thumbnailFile).path)
+    }
+
+    /// Whether the note has an imported PDF (a book).
+    func hasPDF(_ id: UUID) -> Bool {
+        FileManager.default.fileExists(atPath: noteDirectory(id).appendingPathComponent(NoteFiles.pdfFile).path)
     }
 
     /// The note's thumbnail, read and decoded off the main thread at card
