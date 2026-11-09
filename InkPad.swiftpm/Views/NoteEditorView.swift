@@ -48,6 +48,9 @@ struct NoteEditorView: View {
     @AppStorage("notebookWidth") private var notebookWidth: Double = 420
     @State private var notebookDragStart: Double?
     @State private var notebookSend: AreaRequest?
+    /// Focus Mode in this note.
+    @ObservedObject private var focus = FocusSession.shared
+    @State private var showsCompanion = false
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -195,6 +198,7 @@ struct NoteEditorView: View {
             LivingBubble(noteID: noteID, isText: false) { tab in
                 livingTab = tab
                 showsBookPanel = false
+                showsCompanion = false
                 isShowingLiving = true
             }
             }
@@ -203,6 +207,17 @@ struct NoteEditorView: View {
             sidePanel
                 .inspectorColumnWidth(min: 300, ideal: 360, max: 440)
         }
+        .modifier(FocusHUD(
+            isActive: isFocusingHere,
+            canvas: canvas,
+            showsCompanion: Binding(get: { showsCompanion && isShowingLiving }, set: { show in
+                showsCompanion = show
+                showsBookPanel = false
+                isShowingLiving = show
+            }),
+            noteID: noteID,
+            end: endFocus
+        ))
         .modifier(NotebookSendDialog(request: $notebookSend) { request, asText in
             sendToNotebook(request, asText: asText)
         })
@@ -222,6 +237,8 @@ struct NoteEditorView: View {
             session.audio.stopAll()
             session.save(thumbnail: true)
             if notebook.isOpen { notebook.close() }
+            // Leaving the note ends its focus session; the toolbar comes back.
+            if isFocusingHere { endFocus() }
             indexHandwriting()
         }
         .onChange(of: scenePhase) {
@@ -354,13 +371,63 @@ struct NoteEditorView: View {
 
     @ViewBuilder
     private var sidePanel: some View {
-        if showsBookPanel {
+        if showsCompanion {
+            FocusCompanionView(noteID: noteID, pageText: currentPageText)
+        } else if showsBookPanel {
             BookPanel(session: session, canvas: canvas, noteID: noteID) { result in
                 bookResult = result
             }
         } else {
             LivingPanel(noteID: noteID, tab: $livingTab)
         }
+    }
+
+    // MARK: Focus Mode
+
+    private var isFocusingHere: Bool { focus.isActive && focus.noteID == noteID }
+
+    private func startFocus() {
+        // A session in another note ends first.
+        if focus.isActive { focus.end(strokes: 0, concepts: [], workspace: workspace) }
+        focus.toolbarWasHidden = isToolbarHidden
+        setToolbarHidden(true)
+        isShowingPages = false
+        if notebook.isOpen { notebook.close() }
+        showsBookPanel = false
+        showsCompanion = true
+        isShowingLiving = true
+        focus.start(title: title, noteID: noteID, strokes: canvas.drawing?.strokes.count ?? 0, workspace: workspace)
+        focus.sawPage(canvas.currentPage, in: noteID)
+        if !focus.isActive {
+            showsCompanion = false
+            isShowingLiving = false
+            setToolbarHidden(focus.toolbarWasHidden)
+        }
+    }
+
+    private func endFocus() {
+        let related = LivingNotes.shared.related(to: noteID, store: store, limit: 5)
+        var keys: [String] = []
+        for item in related {
+            for key in item.shared where !keys.contains(key) { keys.append(key) }
+        }
+        let concepts = keys.prefix(6).map { LivingNotes.shared.display(of: $0) }
+        focus.end(strokes: canvas.drawing?.strokes.count ?? 0, concepts: concepts, workspace: workspace)
+        showsCompanion = false
+        isShowingLiving = false
+        setToolbarHidden(focus.toolbarWasHidden)
+    }
+
+    /// The text of the page being read: the book page, or the handwriting read so far.
+    private func currentPageText() -> String {
+        if let pdf = session.snapshot?.pdf?.pdfDocument, let metadata = session.metadata {
+            let pages = metadata.resolvedPages(pdfPageCount: pdf.pageCount)
+            let page = canvas.currentPage
+            if pages.indices.contains(page), case let .pdf(index) = pages[page] {
+                return pdf.page(at: index)?.string ?? ""
+            }
+        }
+        return store.recognizedText[noteID] ?? ""
     }
 
     // MARK: Notebook
@@ -411,6 +478,7 @@ struct NoteEditorView: View {
     }
 
     private func openBookPanel() {
+        showsCompanion = false
         showsBookPanel = true
         isShowingLiving = true
     }
@@ -421,6 +489,10 @@ struct NoteEditorView: View {
             PaletteItem(id: "ink-chapters", title: "Chapters & Bookmarks", subtitle: "Outline, bookmarks, reading progress, chapter mind maps",
                         systemImage: "book", tint: .brown, section: .thisNote, keywords: ["book", "outline", "فصول", "كتاب", "فهرس"]) {
                 openBookPanel()
+            },
+            PaletteItem(id: "ink-focus", title: isFocusingHere ? "End Focus Mode" : "Focus Mode", subtitle: "Hide the tools, time the session, study companion beside the page",
+                        systemImage: "scope", tint: .green, section: .thisNote, keywords: ["focus", "تركيز", "deep work"]) {
+                if isFocusingHere { endFocus() } else { startFocus() }
             },
             PaletteItem(id: "ink-notebook", title: "Notebook Beside the Book", subtitle: "Write notes next to the book, a page for each chapter",
                         systemImage: "book.pages", tint: .brown, section: .thisNote, keywords: ["notebook", "notes", "دفتر", "ملاحظات"]) {
@@ -657,6 +729,13 @@ struct NoteEditorView: View {
                 }
             }
 
+            Button {
+                if isFocusingHere { endFocus() } else { startFocus() }
+            } label: {
+                Label(isFocusingHere ? "End Focus" : "Focus Mode", systemImage: "scope")
+            }
+            .tint(isFocusingHere ? Color.green : Color.inkAccent)
+
             if workspace.flowTimer?.phase == .working {
                 Button {
                     CommandCenter.shared.sheet = .catchDistraction
@@ -849,5 +928,60 @@ private struct NotebookSendDialog: ViewModifier {
         } message: {
             Text("With the book's page number, on the notebook page you're on.")
         }
+    }
+}
+
+/// While focusing in a note: a small timer, catch a distraction, the
+/// companion, and End; then the wrap-up.
+private struct FocusHUD: ViewModifier {
+    let isActive: Bool
+    @ObservedObject var canvas: CanvasController
+    @Binding var showsCompanion: Bool
+    let noteID: UUID
+    let end: () -> Void
+    @EnvironmentObject private var workspace: WorkspaceStore
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .top) {
+                if isActive { hud.transition(.move(edge: .top).combined(with: .opacity)) }
+            }
+            .animation(.snappy, value: isActive)
+            .onChange(of: canvas.currentPage) {
+                FocusSession.shared.sawPage(canvas.currentPage, in: noteID)
+            }
+    }
+
+    private var hud: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "scope").foregroundStyle(.green)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(Flowmodoro.clock(FocusSession.shared.elapsed(at: context.date)))
+                    .font(.headline.monospacedDigit())
+            }
+            Divider().frame(height: 22)
+            Button {
+                CommandCenter.shared.sheet = .catchDistraction
+            } label: {
+                Image(systemName: "tray.and.arrow.down")
+            }
+            .accessibilityLabel("Catch a Distraction")
+            Button {
+                showsCompanion.toggle()
+            } label: {
+                Image(systemName: showsCompanion ? "lightbulb.fill" : "lightbulb")
+            }
+            .accessibilityLabel("Study Companion")
+            Button("End", role: .destructive, action: end)
+                .font(.subheadline.weight(.semibold))
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+        // Solid enough to read over the page's text.
+        .background(Color(uiColor: .systemBackground).opacity(0.94), in: Capsule())
+        .overlay(Capsule().stroke(Color.green.opacity(0.45), lineWidth: 1))
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 3)
+        .padding(.top, 8)
     }
 }

@@ -17,6 +17,13 @@ struct LibraryView: View {
     @State private var noteAfterSwitch: UUID?
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @ObservedObject private var commands = CommandCenter.shared
+    @ObservedObject private var focusSession = FocusSession.shared
+
+    /// A note's focus session ended: its wrap-up (the Focus screen shows its own).
+    private var noteWrapUp: FocusSummary? {
+        guard let summary = focusSession.summary, summary.noteID != nil else { return nil }
+        return summary
+    }
     @State private var themeToApply: ThemeRecipe?
 
     private var navigation: NoteNavigation {
@@ -249,6 +256,26 @@ struct LibraryView: View {
                 FocusSoundController.workspace = workspace
                 FocusSoundController.update()
             }
-            .onChange(of: workspace.flowTimer?.phase) { FocusSoundController.update() }
+            .onChange(of: workspace.flowTimer?.phase) {
+                FocusSoundController.update()
+                FocusSession.shared.timerChanged(workspace)
+            }
+            .onChange(of: workspace.flowTimer?.taskID) { FocusSession.shared.timerChanged(workspace) }
+            .sheet(item: Binding(
+                get: { noteWrapUp },
+                set: { if $0 == nil { FocusSession.shared.summary = nil } }
+            )) { summary in
+                FocusWrapUpView(summary: summary)
+                    .environmentObject(store)
+                    .environmentObject(workspace)
+            }
+            .fullScreenCover(isPresented: Binding(
+                get: { CommandCenter.shared.showsFocusScreen },
+                set: { CommandCenter.shared.showsFocusScreen = $0 }
+            )) {
+                FocusScreenView()
+                    .environmentObject(store)
+                    .environmentObject(workspace)
+            }
     }
 }

@@ -143,6 +143,10 @@ struct CommandCatalog {
                         tint: .orange, section: .create, keywords: ["distraction", "thought", "تشتت", "فكرة"]) { [center] in
                 center.sheet = .catchDistraction
             },
+            PaletteItem(id: "go-focus-screen", title: "Focus Mode", subtitle: "A calm screen: timer, scene, sounds, your plant growing", systemImage: "scope", tint: .green,
+                        section: .goTo, keywords: ["focus", "deep work", "تركيز", "وضع"]) { [center] in
+                center.showsFocusScreen = true
+            },
             PaletteItem(id: "go-distractions", title: "Distraction Box", systemImage: "tray.full", tint: .orange, section: .goTo,
                         keywords: ["distraction", "box", "صندوق", "تشتت"]) { [center] in
                 center.sheet = .distractions

@@ -107,6 +107,11 @@ struct FlowmodoroView: View {
                     Label("Focus Garden", systemImage: "leaf")
                 }
                 Button {
+                    CommandCenter.shared.showsFocusScreen = true
+                } label: {
+                    Label("Focus Mode", systemImage: "scope")
+                }
+                Button {
                     isCustomizing = true
                 } label: {
                     Label("Customize", systemImage: "paintbrush")

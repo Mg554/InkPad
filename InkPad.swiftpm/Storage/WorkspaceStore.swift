@@ -374,6 +374,25 @@ final class WorkspaceStore: ObservableObject {
         persist()
     }
 
+    /// Focus Mode: starts the stopwatch on a Flowmodoro task with this
+    /// title, making the task if needed. Returns whether work is running.
+    @discardableResult
+    func startFocusSession(title: String) -> Bool {
+        guard canWrite() else { return false }
+        let name = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Focus" : title
+        // Already focusing on this: keep going. Other work is logged and stopped.
+        if flowTimer?.phase == .working, flowTimer?.taskTitle == name { return true }
+        if flowTimer?.phase == .working { stopFlowWork() }
+        // An earned break is skipped when a new focus session starts.
+        if flowTimer != nil { flowTimer = nil }
+        if !flowTasks.contains(where: { $0.title == name && !$0.isDone }) {
+            flowTasks.append(FlowTask(title: name))
+        }
+        guard let task = flowTasks.first(where: { $0.title == name && !$0.isDone }) else { return false }
+        startFlowWork(on: task.id)
+        return flowTimer?.phase == .working
+    }
+
     /// Time blocks for today (Plan My Day).
     func schedule(_ plan: [UUID: Date], replacing candidates: Set<UUID> = []) {
         guard canWrite() else { return }

@@ -80,6 +80,9 @@ final class CommandCenter: ObservableObject {
     private(set) var recent: [String] = UserDefaults.standard.stringArray(forKey: recentKey) ?? []
     private var toastTask: Task<Void, Never>?
 
+    /// Focus Mode on its own screen.
+    @Published var showsFocusScreen = false
+
     func show(prefill text: String = "") {
         prefill = text
         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { isPresented = true }

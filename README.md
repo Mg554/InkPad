@@ -235,6 +235,15 @@ Done:
   cards (glass, sticky notes, minimal, neon), background, ambient sound
   made on the iPad (rain, ocean, white, pink or brown noise, also on
   breaks) and the break chime
+- Focus Mode, in a note or book (the scope button or ⌘K): the tools hide,
+  a small bar shows the session timer, catch a distraction and End, and a
+  study companion sits beside the page: related notes and concepts (on
+  the iPad), two quick questions about the page (AI through the AI
+  Firewall, or from your flashcards) and your weak cards on the subject.
+  Ending shows a wrap-up: time, pages, strokes, distractions, and a
+  spaced review to plan. Focus Mode also has its own calm screen (⌘K or
+  Flowmodoro): pick a task, the timer face, a seasonal scene, sounds and
+  your subject's plant growing
 - Photos and images from Files placed on pages; move and resize
 - Templates: Plain, Lined, Grid, Dot, Hexagonal Grid, Cornell Note,
   College Rule, Manuscript, Two and Three Column; six paper colors

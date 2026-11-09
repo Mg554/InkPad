@@ -103,7 +103,10 @@
    - Done (Planner × Flowmodoro batch 2, needs iPad testing): Focus
      Garden, smart breaks, study-linked tasks with spaced reviews, Gantt
      timeline, Customize (timer faces, card styles, backgrounds, ambient
-     sound, chimes). Next: Focus Mode, Knowledge GPS.
+     sound, chimes).
+   - Done (Focus Mode, needs iPad testing): in a note and on its own
+     screen, companion (related, quick questions, weak cards), wrap-up
+     with a spaced review. Next: Knowledge GPS.
    - **PDF tools (PDF24-like, offline)**: organize (merge, split,
      extract, delete, rotate, reorder); "Send pages to a new note" to
      study a few pages deeply; while one PDF is open, pull a page from
@@ -129,6 +132,14 @@
      mastered), all interactive; navigation: next stop, ETA to an exam
      date, a daily route into the Planner, and rerouting when behind or
      weak.
+   - Decided (interview, 9 Nov 2026): Focus Mode both inside a note/book
+     (hides the tools; mini timer, Distraction Box, companion panel) and
+     as its own screen; companion shows related concepts (on-device),
+     quick questions (AI via the Firewall, or from your cards), weak
+     cards, and a session wrap-up. Knowledge GPS maps a PDF book by its
+     chapters, a subject/tag from notes, or a hand-made map (e.g. an exam
+     syllabus); the daily route is suggested and added to the Planner
+     only when approved, with a reroute when behind.
 
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
