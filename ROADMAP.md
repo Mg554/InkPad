@@ -146,6 +146,33 @@
      syllabus); the daily route is suggested and added to the Planner
      only when approved, with a reroute when behind.
 
+11. **Next-generation plan (owner's review of a product brief, 12 Nov 2026)**
+   Rule: each feature also speeds up and hardens the part of the app it
+   touches ("both together"), and every change still builds in Swift
+   Playgrounds as well as the Xcode-installed app. Batches, in order:
+   1. **Library + pages** — favorites, pinning, sorting (name, created,
+      edited, custom order); smart collections (recently edited, PDFs,
+      notes with audio, unfinished tasks, untitled, by tag); notebook
+      covers (colors, gradients) and a grid/list switch; page management
+      (multi-select, move pages to another note, duplicate, colored page
+      tabs, mixed page sizes).
+   2. **Writing** — pen presets and named color palettes; configurable
+      gestures (double tap, two- and three-finger taps); a clean reading
+      mode; sticky notes (colors, pinned to pages, turn into Planner tasks
+      linked to their page, into pages, grouped) and a sticker studio
+      (image packs and saved handwriting, folders, favorites, recents).
+   3. **Split workspace** — any two notes or PDFs side by side, dragging
+      between them.
+   4. **AI** — Ask This Page with page and paragraph citations (marking
+      outside knowledge); Explain / Translate / math steps from the lasso;
+      search by meaning (on-device by default, the connected AI when
+      allowed by the AI Firewall); folder and tag suggestions.
+   5. **Sync** — a free sync folder in iCloud Drive chosen in Files (no
+      CloudKit, which needs the paid program), first between the Swift
+      Playgrounds copy and the Xcode-installed copy on the same iPad.
+   Postponed: layers and an infinite canvas. Real-time collaboration is
+   out of scope (needs a paid server or program).
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the
