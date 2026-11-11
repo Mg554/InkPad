@@ -156,6 +156,18 @@
       covers (colors, gradients) and a grid/list switch; page management
       (multi-select, move pages to another note, duplicate, colored page
       tabs, mixed page sizes).
+      Decided (interview, 12 Nov 2026): covers are optional per note
+      (first-page preview by default, or a cover with a color, gradient
+      or pattern and the title in a chosen font); a Favorites item in the
+      sidebar and pinned notes in a row at the top of every list; smart
+      collections in a sidebar section, ready-made plus the owner's own
+      rules (tag + kind + date); pages move with select › Move to… (note
+      and position) and by dragging onto a note; page tabs have a name
+      and a color, show on the page edge and in a jump list; page sizes
+      are free per page (A4, Letter, square, 16:9, screen, any custom
+      size, portrait or landscape); the list view has detailed rows
+      (preview, title, folder, tags, pages, audio, edited), sortable by
+      column; Custom Order is drag-to-reorder, kept per folder.
    2. **Writing** — pen presets and named color palettes; configurable
       gestures (double tap, two- and three-finger taps); a clean reading
       mode; sticky notes (colors, pinned to pages, turn into Planner tasks
