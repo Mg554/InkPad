@@ -24,11 +24,9 @@ struct NoteEditorView: View {
     @AppStorage("toolbarEdge") private var toolbarEdge: ToolbarEdge = .top
     @AppStorage("toolbarAlignment") private var toolbarAlignment: ToolbarAlignment = .center
     @AppStorage("toolbarHidden") private var isToolbarHidden = false
-    /// While the toolbar is dragged: how far, and where it would dock.
-    @State private var toolbarDrag: CGSize = .zero
+    /// While the toolbar is dragged: where it would dock (the drag itself
+    /// stays inside the toolbar, so the page doesn't redraw on every move).
     @State private var dropTarget: ToolbarPlacement?
-    /// The docked toolbar's frame in the editor area, before any drag.
-    @State private var toolbarFrame: CGRect = .zero
     @State private var recordingToDelete: AudioRecording?
     @State private var slidesRequest: SlidesRequest?
     @State private var studyRequest: SlidesRequest?
@@ -306,52 +304,29 @@ struct NoteEditorView: View {
     @ViewBuilder
     private func dockedToolbar(_ edge: ToolbarEdge, area: CGSize) -> some View {
         if isToolbarDocked(at: edge) {
-            DrawingToolbar(
-                canvas: canvas,
-                pencilOnly: $pencilOnly,
+            DockedToolbarHost(
                 edge: edge,
-                onMove: { value in
-                    toolbarDrag = value.translation
-                    dropTarget = dropPlacement(for: value, in: area)
-                },
-                onMoveEnded: { value in
-                    let target = dropPlacement(for: value, in: area)
-                    withAnimation(.snappy(duration: 0.3)) {
-                        toolbarEdge = target.edge
-                        toolbarAlignment = target.alignment
-                        toolbarDrag = .zero
-                        dropTarget = nil
-                    }
-                },
-                onHide: { setToolbarHidden(true) }
-            ) {
-                insertMenu
-            }
-            .background {
-                GeometryReader { proxy in
-                    Color.clear.onChange(of: proxy.frame(in: .named(ToolbarPlacement.coordinateSpace)), initial: true) { _, frame in
-                        if toolbarDrag == .zero { toolbarFrame = frame }
-                    }
+                area: area,
+                placement: toolbarPlacement,
+                dropTarget: $dropTarget,
+                dock: { target in
+                    toolbarEdge = target.edge
+                    toolbarAlignment = target.alignment
+                }
+            ) { onMove, onMoveEnded, onMoveCancelled in
+                DrawingToolbar(
+                    canvas: canvas,
+                    pencilOnly: $pencilOnly,
+                    edge: edge,
+                    onMove: onMove,
+                    onMoveEnded: onMoveEnded,
+                    onMoveCancelled: onMoveCancelled,
+                    onHide: { setToolbarHidden(true) }
+                ) {
+                    insertMenu
                 }
             }
-            .offset(toolbarDrag)
-            .padding(ToolbarPlacement.margin)
-            .frame(
-                maxWidth: edge.isVertical ? nil : .infinity,
-                maxHeight: edge.isVertical ? .infinity : nil,
-                alignment: toolbarPlacement.frameAlignment
-            )
         }
-    }
-
-    private func dropPlacement(for drag: DragGesture.Value, in area: CGSize) -> ToolbarPlacement {
-        ToolbarPlacement.drop(
-            at: drag.location,
-            translation: drag.translation,
-            toolbarFrame: toolbarFrame,
-            from: toolbarPlacement,
-            in: area
-        )
     }
 
     /// Brings a hidden toolbar back, from where it was docked.
@@ -983,5 +958,114 @@ private struct FocusHUD: ViewModifier {
         .overlay(Capsule().stroke(Color.green.opacity(0.45), lineWidth: 1))
         .shadow(color: .black.opacity(0.18), radius: 10, y: 3)
         .padding(.top, 8)
+    }
+}
+
+/// The docked drawing toolbar while it is dragged: follows the finger
+/// without redrawing the page, lifts a little, then glides with a spring
+/// into its new place before it docks there.
+private struct DockedToolbarHost<Bar: View>: View {
+    let edge: ToolbarEdge
+    let area: CGSize
+    let placement: ToolbarPlacement
+    @Binding var dropTarget: ToolbarPlacement?
+    let dock: (ToolbarPlacement) -> Void
+    @ViewBuilder let bar: (
+        _ onMove: @escaping (DragGesture.Value) -> Void,
+        _ onMoveEnded: @escaping (DragGesture.Value) -> Void,
+        _ onMoveCancelled: @escaping () -> Void
+    ) -> Bar
+
+    @State private var drag: CGSize = .zero
+    @State private var frame: CGRect = .zero
+    @State private var isDragging = false
+
+    var body: some View {
+        bar(moved, ended, cancelled)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.onChange(of: proxy.frame(in: .named(ToolbarPlacement.coordinateSpace)), initial: true) { _, newFrame in
+                        if drag == .zero { frame = newFrame }
+                    }
+                }
+            }
+            .scaleEffect(isDragging ? 1.03 : 1)
+            .shadow(color: .black.opacity(isDragging ? 0.22 : 0), radius: isDragging ? 18 : 0, y: isDragging ? 8 : 0)
+            .offset(drag)
+            .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isDragging)
+            .padding(ToolbarPlacement.margin)
+            .frame(
+                maxWidth: edge.isVertical ? nil : .infinity,
+                maxHeight: edge.isVertical ? .infinity : nil,
+                alignment: placement.frameAlignment
+            )
+    }
+
+    private func target(for value: DragGesture.Value) -> ToolbarPlacement {
+        ToolbarPlacement.drop(at: value.location, translation: value.translation, toolbarFrame: frame, from: placement, in: area)
+    }
+
+    private func moved(_ value: DragGesture.Value) {
+        // Follows the finger exactly, with no animation lag.
+        var instant = Transaction()
+        instant.disablesAnimations = true
+        withTransaction(instant) {
+            drag = value.translation
+            isDragging = true
+        }
+        let next = target(for: value)
+        // The page redraws only when the dock outline moves.
+        if next != dropTarget { dropTarget = next }
+    }
+
+    /// The system cut the drag off (a call, a sheet, a busy moment): no
+    /// end comes, so the toolbar springs back instead of staying stuck.
+    private func cancelled() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            guard isDragging else { return }
+            isDragging = false
+            dropTarget = nil
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) { drag = .zero }
+        }
+    }
+
+    private func ended(_ value: DragGesture.Value) {
+        let next = target(for: value)
+        dropTarget = nil
+        isDragging = false
+        guard next != placement, frame != .zero else {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) { drag = .zero }
+            return
+        }
+        // Glide to where it will dock: the same shape on the same orientation,
+        // or its middle onto the new spot when it turns upright or flat.
+        let sameShape: Bool = next.edge.isVertical == edge.isVertical
+        let landing: CGRect
+        if sameShape {
+            landing = next.dockedFrame(barSize: frame.size, in: area)
+        } else {
+            let turned = CGSize(width: frame.height, height: frame.width)
+            landing = next.dockedFrame(barSize: turned, in: area)
+        }
+        let delta = CGSize(width: landing.midX - frame.midX, height: landing.midY - frame.midY)
+        // Docks as soon as it reaches its place, not after the spring's last wobble.
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.84), completionCriteria: .logicallyComplete) {
+            drag = delta
+        } completion: {
+            if sameShape {
+                // Already in place: dock without any visible jump.
+                var instant = Transaction()
+                instant.disablesAnimations = true
+                withTransaction(instant) {
+                    dock(next)
+                    drag = .zero
+                }
+            } else {
+                withAnimation(.easeOut(duration: 0.18)) {
+                    dock(next)
+                    drag = .zero
+                }
+            }
+        }
     }
 }

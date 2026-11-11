@@ -15,6 +15,9 @@ struct DrawingToolbar<InsertMenu: View>: View {
     /// Dragging the grip, measured in `ToolbarPlacement.coordinateSpace`.
     let onMove: (DragGesture.Value) -> Void
     let onMoveEnded: (DragGesture.Value) -> Void
+    /// The drag stopped without an end (cancelled by the system).
+    var onMoveCancelled: () -> Void = {}
+    @GestureState private var isMoving = false
     let onHide: () -> Void
     @ViewBuilder let insertMenu: () -> InsertMenu
 
@@ -544,12 +547,16 @@ struct DrawingToolbar<InsertMenu: View>: View {
             .frame(width: isVertical ? 44 : 24, height: isVertical ? 24 : 44)
             .contentShape(Rectangle())
             .gesture(moveGesture)
+            .onChange(of: isMoving) {
+                if !isMoving { onMoveCancelled() }
+            }
             .accessibilityLabel("Move Toolbar")
             .accessibilityHint("Drag to any edge of the screen.")
     }
 
     private var moveGesture: some Gesture {
         DragGesture(minimumDistance: 4, coordinateSpace: .named(ToolbarPlacement.coordinateSpace))
+            .updating($isMoving) { _, moving, _ in moving = true }
             .onChanged { onMove($0) }
             .onEnded { onMoveEnded($0) }
     }

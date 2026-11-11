@@ -89,6 +89,29 @@ struct ToolbarPlacement: Equatable {
         return ToolbarPlacement(edge: edge, alignment: alignment)
     }
 
+    /// The frame a toolbar of `barSize` takes when docked here (in the
+    /// editor area). `barSize` is the size it has on this edge.
+    func dockedFrame(barSize: CGSize, in area: CGSize) -> CGRect {
+        let margin = ToolbarPlacement.margin
+        func along(_ length: CGFloat, _ bar: CGFloat) -> CGFloat {
+            switch alignment {
+            case .start: return margin
+            case .center: return (length - bar) / 2
+            case .end: return length - bar - margin
+            }
+        }
+        switch edge {
+        case .top:
+            return CGRect(x: along(area.width, barSize.width), y: margin, width: barSize.width, height: barSize.height)
+        case .bottom:
+            return CGRect(x: along(area.width, barSize.width), y: area.height - barSize.height - margin, width: barSize.width, height: barSize.height)
+        case .leading:
+            return CGRect(x: margin, y: along(area.height, barSize.height), width: barSize.width, height: barSize.height)
+        case .trailing:
+            return CGRect(x: area.width - barSize.width - margin, y: along(area.height, barSize.height), width: barSize.width, height: barSize.height)
+        }
+    }
+
     /// Where the toolbar sits inside the editor area.
     var frameAlignment: Alignment {
         switch (edge, alignment) {
