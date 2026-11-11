@@ -96,7 +96,7 @@ struct ReminderEditor: View {
                     }
                     Picker(selection: $listID) {
                         ForEach(center.lists, id: \.calendarIdentifier) { list in
-                            Text(list.title).tag(list.calendarIdentifier)
+                            Text(tr(list.title)).tag(list.calendarIdentifier)
                         }
                     } label: {
                         Label("List", systemImage: "list.bullet")
@@ -104,7 +104,7 @@ struct ReminderEditor: View {
                     Picker(selection: $noteID) {
                         Text("None").tag(UUID?.none)
                         ForEach(store.notes(in: .allNotes)) { note in
-                            Text(note.title).tag(UUID?.some(note.id))
+                            Text(tr(note.title)).tag(UUID?.some(note.id))
                         }
                     } label: {
                         Label("Note", systemImage: "doc.text")

@@ -254,7 +254,7 @@ struct NotebookPane: View {
                 )
                 .clipped()
             } else if let error = session.loadError {
-                ContentUnavailableView("Could Not Open the Notebook", systemImage: "exclamationmark.triangle", description: Text(error))
+                ContentUnavailableView("Could Not Open the Notebook", systemImage: "exclamationmark.triangle", description: Text(trMessage(error)))
             } else {
                 ProgressView().frame(maxHeight: .infinity)
             }
@@ -291,7 +291,7 @@ private struct NotebookHeader: View {
     private var topRow: some View {
         HStack(spacing: 10) {
             Image(systemName: "book.pages").foregroundStyle(Color.inkAccent)
-            Text(notebook.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+            Text(tr(notebook.title)).font(.subheadline.weight(.semibold)).lineLimit(1)
             Spacer()
             Button {
                 canvas.undo()
@@ -327,14 +327,14 @@ private struct NotebookHeader: View {
             if !notebook.notebookChapters.isEmpty {
                 Section("Chapters in This Notebook") {
                     ForEach(notebook.notebookChapters) { entry in
-                        Button(entry.title) { canvas.scrollToPage(entry.page) }
+                        Button(tr(entry.title)) { canvas.scrollToPage(entry.page) }
                     }
                 }
             }
             if !notebook.bookChapters.isEmpty {
                 Menu("Start Notes for a Chapter") {
                     ForEach(notebook.bookChapters) { chapter in
-                        Button(chapter.title) { notebook.startNotes(for: chapter) }
+                        Button(tr(chapter.title)) { notebook.startNotes(for: chapter) }
                     }
                 }
             }
@@ -350,7 +350,7 @@ private struct NotebookHeader: View {
                 Image(systemName: notebook.follows ? "arrow.triangle.2.circlepath" : "book")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(chapter.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(tr(chapter.title)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Spacer()
                 if let page = notebook.notebookPage(for: chapter) {
                     if page != canvas.currentPage {

@@ -158,7 +158,7 @@ struct StudyView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Connect an AI service")
                     .font(.headline)
-                Text(problem)
+                Text(trMessage(problem))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Button("Open AI Settings") { isShowingSettings = true }
@@ -233,7 +233,7 @@ struct StudyView: View {
                             Image(systemName: "bubble.left.and.text.bubble.right")
                                 .foregroundStyle(.teal)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(chat.title)
+                                Text(tr(chat.title))
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(.primary)
                                     .lineLimit(1)
@@ -347,7 +347,7 @@ struct StudyView: View {
             Image(systemName: systemImage)
                 .font(.title2)
                 .foregroundStyle(tint)
-            Text(title)
+            Text(tr(title))
                 .font(.headline)
                 .foregroundStyle(.primary)
         }
@@ -411,10 +411,10 @@ struct StudyView: View {
                 .foregroundStyle(tint)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
+                Text(tr(title))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
-                Text(detail)
+                Text(trMessage(detail))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -433,7 +433,7 @@ struct StudyView: View {
             VStack(spacing: 14) {
                 ProgressView()
                     .controlSize(.large)
-                Text(stage)
+                Text(trMessage(stage))
                     .font(.headline)
                     .multilineTextAlignment(.center)
             }

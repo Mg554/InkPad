@@ -23,7 +23,7 @@ struct InsertPagesSheet: View {
             Form {
                 Section {
                     if let source {
-                        Label(source.title, systemImage: source.isFile ? "doc" : "doc.richtext")
+                        Label(tr(source.title), systemImage: source.isFile ? "doc" : "doc.richtext")
                     }
                     Button {
                         isPickingNote = true

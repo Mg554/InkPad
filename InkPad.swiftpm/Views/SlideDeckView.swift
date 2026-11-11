@@ -157,7 +157,7 @@ struct SlideDeckView: View {
                     Button {
                         updateDeck { $0.theme = theme }
                     } label: {
-                        Label(theme.title, systemImage: deck?.theme == theme ? "checkmark.circle.fill" : "circle")
+                        Label(tr(theme.title), systemImage: deck?.theme == theme ? "checkmark.circle.fill" : "circle")
                     }
                 }
             } label: {
@@ -169,7 +169,7 @@ struct SlideDeckView: View {
                         Button {
                             export(kind)
                         } label: {
-                            Label(kind.title, systemImage: kind.symbol)
+                            Label(tr(kind.title), systemImage: kind.symbol)
                         }
                     }
                 }
@@ -373,7 +373,7 @@ private struct SlideFields: View {
             HStack {
                 Picker("Layout", selection: $slide.layout) {
                     ForEach(Slide.Layout.allCases) { layout in
-                        Text(layout.title).tag(layout)
+                        Text(tr(layout.title)).tag(layout)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -449,7 +449,7 @@ private struct SlideFields: View {
 
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
+            Text(tr(title))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             content()

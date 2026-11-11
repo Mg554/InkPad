@@ -178,7 +178,7 @@ struct MindSketchView: View {
                 Section("Shape") {
                     Picker("Layout", selection: $layout) {
                         ForEach(MindMapStyle.Layout.allCases) { layout in
-                            Label(layout.title, systemImage: layout.systemImage).tag(layout)
+                            Label(tr(layout.title), systemImage: layout.systemImage).tag(layout)
                         }
                     }
                     .pickerStyle(.inline)

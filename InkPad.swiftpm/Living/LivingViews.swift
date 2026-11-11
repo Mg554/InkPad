@@ -121,7 +121,7 @@ struct LivingBubble: View {
             open(tab)
         } label: {
             HStack {
-                Label(title, systemImage: tab.systemImage)
+                Label(tr(title), systemImage: tab.systemImage)
                 Spacer()
                 Text("\(count)")
                     .font(.callout.monospacedDigit().weight(.semibold))
@@ -156,7 +156,7 @@ struct LivingPanel: View {
             }
             .pickerStyle(.segmented)
             .padding()
-            Text(tab.title).font(.headline).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
+            Text(tr(tab.title)).font(.headline).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     content
@@ -199,7 +199,7 @@ struct LivingPanel: View {
                 let strength = deck.memoryStrength()
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(deck.title).font(.headline)
+                        Text(tr(deck.title)).font(.headline)
                         Text("\(deck.cards.count) cards · \(deck.dueCount) due").font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -265,7 +265,7 @@ struct LivingPanel: View {
     }
 
     private func empty(_ text: String) -> some View {
-        Text(text).font(.callout).foregroundStyle(.secondary).padding(.vertical, 20)
+        Text(tr(text)).font(.callout).foregroundStyle(.secondary).padding(.vertical, 20)
     }
 
     /// Asks the AI how the two notes connect, if the AI Firewall allows both.
@@ -347,7 +347,7 @@ struct ConceptCardView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
-                                    Text(mention.title).font(.headline).foregroundStyle(Color(uiColor: .label))
+                                    Text(tr(mention.title)).font(.headline).foregroundStyle(Color(uiColor: .label))
                                     Spacer()
                                     Text(mention.date.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(Color(uiColor: .secondaryLabel))
                                 }
@@ -384,7 +384,7 @@ struct ConceptCardView: View {
                     Text("A text note that gathers these passages with [[links]] to each note.")
                 }
             }
-            .navigationTitle(name)
+            .navigationTitle(tr(name))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

@@ -78,7 +78,7 @@ private struct MapCard: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text(map.title).font(.headline).foregroundStyle(Color(uiColor: .label)).lineLimit(2)
+            Text(tr(map.title)).font(.headline).foregroundStyle(Color(uiColor: .label)).lineLimit(2)
             Text(sourceText).font(.caption).foregroundStyle(.secondary)
             ProgressView(value: Double(marked), total: Double(max(map.stations.count, 1)))
                 .tint(.green)
@@ -119,7 +119,7 @@ private struct NewKnowledgeMapSheet: View {
         NavigationStack {
             Form {
                 Picker("Map", selection: $kind) {
-                    ForEach(Kind.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(Kind.allCases) { Text(tr($0.rawValue)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 switch kind {
@@ -127,7 +127,7 @@ private struct NewKnowledgeMapSheet: View {
                     Section {
                         Picker("Book", selection: $bookID) {
                             Text("Choose…").tag(UUID?.none)
-                            ForEach(books) { Text($0.title).tag(Optional($0.id)) }
+                            ForEach(books) { Text(tr($0.title)).tag(Optional($0.id)) }
                         }
                         .pickerStyle(.navigationLink)
                     } footer: {
@@ -170,7 +170,7 @@ private struct NewKnowledgeMapSheet: View {
                     Text("With an exam date, the GPS works out the pace you need and suggests a daily route.")
                 }
                 if let problem {
-                    Text(problem).foregroundStyle(.red)
+                    Text(trMessage(problem)).foregroundStyle(.red)
                 }
             }
             .task { books = store.notes.filter { !$0.isText && store.hasPDF($0.id) } }
@@ -300,7 +300,7 @@ struct KnowledgeMapView: View {
             RoutePanel(map: map, progress: progress, route: route) { selected = $0 }
                 .frame(width: 330)
         }
-        .navigationTitle(map.title)
+        .navigationTitle(tr(map.title))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -309,7 +309,7 @@ struct KnowledgeMapView: View {
                     changed.style = style
                     workspace.save(changed)
                 })) {
-                    ForEach(KnowledgeMap.Style.allCases) { Text($0.title).tag($0) }
+                    ForEach(KnowledgeMap.Style.allCases) { Text(tr($0.title)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 320)
@@ -501,7 +501,7 @@ private struct KnowledgeMapCanvas: View {
                     Image(systemName: "cloud.fog.fill").foregroundStyle(.gray)
                 }
             }
-            Text(station.title)
+            Text(tr(station.title))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Color(uiColor: .label))
                 .lineLimit(2)
@@ -523,7 +523,7 @@ private struct KnowledgeMapCanvas: View {
                     Circle().stroke(Color.red, lineWidth: 3).frame(width: 44, height: 44)
                 }
             }
-            Text(station.title)
+            Text(tr(station.title))
                 .font(.caption.weight(isHere ? .bold : .medium))
                 .foregroundStyle(Color(uiColor: .label))
                 .lineLimit(2)
@@ -544,7 +544,7 @@ private struct KnowledgeMapCanvas: View {
             Image(systemName: locked ? "lock.fill" : (state.level == .mastered ? "star.fill" : "leaf.fill"))
                 .foregroundStyle(locked ? Color.gray : tint)
             VStack(alignment: .leading, spacing: 4) {
-                Text(station.title).font(.callout.weight(.semibold)).lineLimit(2).foregroundStyle(Color(uiColor: .label))
+                Text(tr(station.title)).font(.callout.weight(.semibold)).lineLimit(2).foregroundStyle(Color(uiColor: .label))
                 ProgressView(value: state.value).tint(tint)
             }
         }
@@ -648,8 +648,8 @@ private struct RoutePanel: View {
             HStack {
                 Image(systemName: icon).foregroundStyle(tint)
                 VStack(alignment: .leading) {
-                    Text(label).font(.caption).foregroundStyle(.secondary)
-                    Text(station.title).foregroundStyle(Color(uiColor: .label)).lineLimit(2)
+                    Text(trMessage(label)).font(.caption).foregroundStyle(.secondary)
+                    Text(tr(station.title)).foregroundStyle(Color(uiColor: .label)).lineLimit(2)
                 }
             }
         }
@@ -755,7 +755,7 @@ private struct StationSheet: View {
                     }
                     Section {
                         Picker("Mark", selection: Binding(get: { station.mark }, set: { setMark($0) })) {
-                            ForEach(KnowledgeStation.Mark.allCases) { Text($0.title).tag($0) }
+                            ForEach(KnowledgeStation.Mark.allCases) { Text(tr($0.title)).tag($0) }
                         }
                         .pickerStyle(.segmented)
                     } header: {
@@ -767,7 +767,7 @@ private struct StationSheet: View {
                         Picker("Note or Book", selection: Binding(get: { station.noteID }, set: { setNote($0) })) {
                             Text("None").tag(UUID?.none)
                             ForEach(store.notes.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }) { note in
-                                Text(note.title).tag(Optional(note.id))
+                                Text(tr(note.title)).tag(Optional(note.id))
                             }
                         }
                         .pickerStyle(.navigationLink)
@@ -843,7 +843,7 @@ private struct MapSettingsSheet: View {
                     }
                     Section {
                         ForEach(map.stations) { station in
-                            Text(station.title)
+                            Text(tr(station.title))
                         }
                         .onDelete { offsets in change { $0.stations.remove(atOffsets: offsets) } }
                         .onMove { from, to in change { $0.stations.move(fromOffsets: from, toOffset: to) } }

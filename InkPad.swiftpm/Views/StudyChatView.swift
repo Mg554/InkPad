@@ -38,7 +38,7 @@ struct StudyChatView: View {
                             .id(message.id)
                     }
                     if let stage {
-                        Label(stage, systemImage: "doc.text.magnifyingglass")
+                        Label(trMessage(stage), systemImage: "doc.text.magnifyingglass")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -73,7 +73,7 @@ struct StudyChatView: View {
         if message.role == .user {
             HStack {
                 Spacer(minLength: 60)
-                Text(message.text)
+                Text(tr(message.text))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .foregroundStyle(.white)

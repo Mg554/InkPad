@@ -22,6 +22,12 @@ Done:
   stands upright with the pens pointing at the page, and the page makes
   room for it. Collapse it to a pill or hide it completely (More › Hide
   Toolbar / Move Toolbar)
+- Undo and redo at the start of the toolbar (also when it is collapsed),
+  and finger shortcuts on the page: a two-finger tap undoes, a
+  three-finger tap redoes, with a small label saying what happened
+- Arabic or English: the AR/EN button at the top of the sidebar (or
+  Appearance › Language) switches the whole interface at once, right to
+  left in Arabic; pages, ink and your own notes are never changed
 - Eraser "Back to Last Tool" (on by default): after an erase, InkPad
   switches straight back to the tool you used before
 - Notability-style highlighter: even, see-through, pressure-independent

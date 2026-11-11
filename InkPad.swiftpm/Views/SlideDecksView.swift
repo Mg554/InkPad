@@ -85,7 +85,7 @@ private struct DeckCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
             }
-            Text(deck.title)
+            Text(tr(deck.title))
                 .font(.headline)
                 .lineLimit(1)
             HStack(spacing: 6) {

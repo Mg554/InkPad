@@ -30,7 +30,7 @@ struct TemplateGallery: View {
                 VStack(alignment: .leading, spacing: 24) {
                     paperColors
                     ForEach(PageTemplate.Section.allCases) { section in
-                        Text(section.rawValue)
+                        Text(tr(section.rawValue))
                             .font(.title3.bold())
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 20)], spacing: 20) {
                             ForEach(PageTemplate.allCases.filter { $0.section == section }) { item in
@@ -41,14 +41,14 @@ struct TemplateGallery: View {
                 }
                 .padding(24)
             }
-            .navigationTitle(title)
+            .navigationTitle(tr(title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(applyTitle) {
+                    Button(tr(applyTitle)) {
                         onApply(template, paper)
                         dismiss()
                     }
@@ -73,7 +73,7 @@ struct TemplateGallery: View {
                             .padding(4)
                             .overlay(Circle().stroke(paper == color ? Color.inkAccent : Color.clear, lineWidth: 3))
                     }
-                    .accessibilityLabel(color.title)
+                    .accessibilityLabel(tr(color.title))
                 }
             }
         }
@@ -101,7 +101,7 @@ struct TemplateGallery: View {
                                 .padding(8)
                         }
                     }
-                Text(item.title)
+                Text(tr(item.title))
                     .font(.subheadline)
                     .foregroundStyle(.primary)
             }

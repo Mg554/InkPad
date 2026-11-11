@@ -38,7 +38,7 @@ struct MarkdownNoteView: View {
     var body: some View {
         Group {
             if let loadError {
-                ContentUnavailableView("Could Not Open Note", systemImage: "exclamationmark.triangle", description: Text(loadError))
+                ContentUnavailableView("Could Not Open Note", systemImage: "exclamationmark.triangle", description: Text(trMessage(loadError)))
             } else {
                 switch mode {
                 case .edit:
@@ -59,7 +59,7 @@ struct MarkdownNoteView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker("Mode", selection: $mode) {
-                    ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(Mode.allCases) { Text(tr($0.rawValue)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 240)
@@ -245,7 +245,7 @@ struct MarkdownNoteView: View {
                 .frame(width: 36, height: 32)
         }
         .buttonStyle(PressableStyle())
-        .accessibilityLabel(title)
+        .accessibilityLabel(tr(title))
     }
 
     // MARK: Actions
@@ -606,7 +606,7 @@ struct BacklinksSection: View {
                     open(item.note.id)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(item.note.title)
+                        Text(tr(item.note.title))
                             .font(.subheadline.weight(.semibold))
                         if !item.line.isEmpty {
                             Text(MarkdownPreview.inline(item.line))

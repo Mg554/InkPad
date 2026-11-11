@@ -126,6 +126,14 @@ InkPad.swiftpm/
   done; test them on the iPad. Every path that sends note text to AI must
   go through `NoteTexts.sources` or check `LibraryStore.isHiddenFromAI`
   (the AI Firewall).
+- Language (App/AppLanguage.swift, App/Arabic/): Arabic comes from
+  `english => arabic` tables, looked up through a `Bundle.main` hook, so
+  every `Text("literal")`/`Label`/`Button` literal is translated; add the
+  Arabic line for each new UI string (`{}` for interpolated values). A
+  label held in a `String` must go through `tr(...)`; a message built in
+  code with values ("12 pages added") through `trMessage(...)`. Never
+  translate note titles or anything the owner wrote. The note editor's
+  canvas stays left to right.
 - Colors: use `Color.inkAccent` (the theme's accent), not
   `Color.accentColor`, and `.themedBackground()` on new screens (or
   `.screenBackdrop(_:)` for a screen with its own background). Shared

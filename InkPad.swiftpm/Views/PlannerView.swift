@@ -39,7 +39,7 @@ struct PlannerView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker("View", selection: $mode) {
-                    ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(Mode.allCases) { Text(tr($0.rawValue)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 600)
@@ -84,7 +84,7 @@ struct PlannerView: View {
         let tasks = workspace.tasks.filter { $0.status == status }.sorted(by: Self.byDueDate)
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label(status.title, systemImage: status.systemImage)
+                Label(tr(status.title), systemImage: status.systemImage)
                     .font(.headline)
                 Text("\(tasks.count)")
                     .foregroundStyle(.secondary)
@@ -242,7 +242,7 @@ struct PlannerView: View {
             Button {
                 workspace.setStatus(status, for: task.id)
             } label: {
-                Label(status.title, systemImage: status.systemImage)
+                Label(tr(status.title), systemImage: status.systemImage)
             }
             .disabled(task.status == status)
         }
@@ -333,7 +333,7 @@ private struct TaskSummary: View {
                         .foregroundStyle(.purple)
                 }
                 if task.estimateMinutes != nil || (task.focusSeconds ?? 0) > 0 {
-                    Label(timeText, systemImage: "timer")
+                    Label(trMessage(timeText), systemImage: "timer")
                         .font(.caption)
                         .foregroundStyle(isOverEstimate ? Color.orange : Color.secondary)
                 }
@@ -411,7 +411,7 @@ private struct PriorityBadge: View {
     }
 
     var body: some View {
-        Text(priority.title)
+        Text(tr(priority.title))
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -434,7 +434,7 @@ private struct TaskEditor: View {
             Picker("Note or Book", selection: $task.noteID) {
                 Text("None").tag(UUID?.none)
                 ForEach(store.notes.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }) { note in
-                    Text(note.title).tag(Optional(note.id))
+                    Text(tr(note.title)).tag(Optional(note.id))
                 }
             }
             .pickerStyle(.navigationLink)
@@ -490,10 +490,10 @@ private struct TaskEditor: View {
                 }
                 Section("Properties") {
                     Picker("Status", selection: $task.status) {
-                        ForEach(PlanTask.Status.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
+                        ForEach(PlanTask.Status.allCases) { Label(tr($0.title), systemImage: $0.systemImage).tag($0) }
                     }
                     Picker("Priority", selection: $task.priority) {
-                        ForEach(PlanTask.Priority.allCases) { Text($0.title).tag($0) }
+                        ForEach(PlanTask.Priority.allCases) { Text(tr($0.title)).tag($0) }
                     }
                     Toggle("Due Date", isOn: $hasDueDate)
                     if hasDueDate {

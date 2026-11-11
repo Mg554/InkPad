@@ -69,7 +69,7 @@ struct MemoryHeatmap: View {
     private func tile(_ deck: FlashcardDeck, strength: Double?) -> some View {
         let color = Self.color(for: strength)
         return VStack(alignment: .leading, spacing: 6) {
-            Text(deck.title)
+            Text(tr(deck.title))
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(2, reservesSpace: true)
                 .foregroundStyle(.primary)

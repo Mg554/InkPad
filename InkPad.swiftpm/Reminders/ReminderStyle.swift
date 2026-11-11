@@ -87,7 +87,7 @@ struct ListIcon: View {
         ZStack {
             Circle().fill(color.gradient)
             if UIImage(systemName: icon) == nil {
-                Text(icon).font(.system(size: size * 0.55))
+                Text(tr(icon)).font(.system(size: size * 0.55))
             } else {
                 Image(systemName: icon)
                     .font(.system(size: size * 0.45, weight: .bold))
@@ -131,7 +131,7 @@ struct ReminderStyleView: View {
             Form {
                 Section("Tiles") {
                     Picker("Tiles", selection: $store.look.tiles) {
-                        ForEach(ReminderLook.Tiles.allCases) { Text($0.title).tag($0) }
+                        ForEach(ReminderLook.Tiles.allCases) { Text(tr($0.title)).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     HStack(spacing: 12) {
@@ -140,7 +140,7 @@ struct ReminderStyleView: View {
                                 Image(systemName: smart.systemImage)
                                     .foregroundStyle(store.look.tiles == .gradient ? .white : smart.tint)
                                     .styledGlow(store.look.glow, color: smart.tint)
-                                Text(smart.title)
+                                Text(tr(smart.title))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(store.look.tiles == .gradient ? Color.white : Color(uiColor: .label))
                             }
@@ -155,13 +155,13 @@ struct ReminderStyleView: View {
 
                 Section("Rows") {
                     Picker(selection: $store.look.density) {
-                        ForEach(ReminderLook.Density.allCases) { Text($0.title).tag($0) }
+                        ForEach(ReminderLook.Density.allCases) { Text(tr($0.title)).tag($0) }
                     } label: {
                         Label("Spacing", systemImage: "line.3.horizontal")
                     }
                     Picker(selection: $store.look.check) {
                         ForEach(ReminderLook.Check.allCases) { check in
-                            Label(check.title, systemImage: check.symbol(done: true)).tag(check)
+                            Label(tr(check.title), systemImage: check.symbol(done: true)).tag(check)
                         }
                     } label: {
                         Label("Done Button", systemImage: store.look.check.symbol(done: false))

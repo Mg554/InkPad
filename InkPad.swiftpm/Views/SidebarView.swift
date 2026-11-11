@@ -148,6 +148,9 @@ struct SidebarView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 AppearanceMenu()
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                LanguageButton()
+            }
         }
         .sheet(isPresented: $showsBackup) {
             BackupView()
@@ -205,7 +208,7 @@ struct SidebarView: View {
                 Color.clear.frame(width: 16)
             }
             Label {
-                Text(folder.name)
+                Text(tr(folder.name))
             } icon: {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(folder.color.tint)
@@ -238,7 +241,7 @@ struct SidebarView: View {
                     Button {
                         store.setFolderColor(folder.id, to: color)
                     } label: {
-                        Label { Text(color.title) } icon: { color.menuDot(selected: folder.color == color) }
+                        Label { Text(tr(color.title)) } icon: { color.menuDot(selected: folder.color == color) }
                     }
                 }
             } label: {

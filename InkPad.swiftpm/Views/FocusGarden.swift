@@ -174,7 +174,7 @@ struct SmartBreakCard: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: icon).font(.title2)
-                Text(title).font(.caption.weight(.semibold)).multilineTextAlignment(.center).lineLimit(2)
+                Text(tr(title)).font(.caption.weight(.semibold)).multilineTextAlignment(.center).lineLimit(2)
             }
             .frame(maxWidth: .infinity, minHeight: 70)
             .foregroundStyle(tint)
@@ -203,7 +203,7 @@ struct BreathingView: View {
                             .frame(width: 260 * state.scale, height: 260 * state.scale)
                             .shadow(color: .teal.opacity(0.5), radius: 20)
                     }
-                    Text(state.name).font(.title.weight(.semibold))
+                    Text(tr(state.name)).font(.title.weight(.semibold))
                     Text("Cycle \(state.cycle) of 5").foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

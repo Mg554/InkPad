@@ -199,7 +199,7 @@ struct ConceptGraphView: View {
                     pagesBar(for: selected)
                 }
             }
-            .navigationTitle(title)
+            .navigationTitle(tr(title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

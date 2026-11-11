@@ -67,7 +67,7 @@ struct BookPanel: View {
                 ProgressView(working).padding(.vertical, 6)
             }
             if let message {
-                Text(message)
+                Text(trMessage(message))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
@@ -223,7 +223,7 @@ struct BookPanel: View {
             }
             ProgressView(value: fraction).tint(Color.inkAccent)
             if let chapter = currentChapter {
-                Label(chapter.title, systemImage: "book").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Label(tr(chapter.title), systemImage: "book").font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }
         .padding()
@@ -287,10 +287,10 @@ struct BookPanel: View {
                 .foregroundStyle(done ? Color.green : isCurrent ? Color.inkAccent : Color.secondary)
                 .font(.caption)
             VStack(alignment: .leading, spacing: 2) {
-                Text(chapter.title)
+                Text(tr(chapter.title))
                     .font(chapter.depth == 0 ? .subheadline.weight(.semibold) : .subheadline)
                     .lineLimit(2)
-                Text(chapter.pageLabel).font(.caption2).foregroundStyle(.secondary)
+                Text(trMessage(chapter.pageLabel)).font(.caption2).foregroundStyle(.secondary)
             }
             Spacer(minLength: 4)
             Menu {
@@ -386,7 +386,7 @@ struct BookPanel: View {
                 HStack {
                     Image(systemName: "bookmark.fill").foregroundStyle(bookmark.color.color)
                     VStack(alignment: .leading) {
-                        Text(bookmark.title).lineLimit(2)
+                        Text(tr(bookmark.title)).lineLimit(2)
                         Text("Page \(bookmark.page + 1)").font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -395,7 +395,7 @@ struct BookPanel: View {
                             Button {
                                 recolor(bookmark, color)
                             } label: {
-                                Label { Text(color.title) } icon: { color.menuDot(selected: bookmark.color == color) }
+                                Label { Text(tr(color.title)) } icon: { color.menuDot(selected: bookmark.color == color) }
                             }
                         }
                     } label: {

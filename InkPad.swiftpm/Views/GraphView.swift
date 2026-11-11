@@ -76,7 +76,7 @@ struct GraphView: View {
                 Menu {
                     Picker("Arrange", selection: $look.arrangement) {
                         ForEach(GraphLook.Arrangement.allCases) { arrangement in
-                            Label(arrangement.title, systemImage: arrangement.systemImage).tag(arrangement)
+                            Label(tr(arrangement.title), systemImage: arrangement.systemImage).tag(arrangement)
                         }
                     }
                 } label: {
@@ -142,12 +142,12 @@ struct GraphView: View {
                 let rect = CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)
                 context.fill(Path(ellipseIn: rect), with: .radialGradient(Gradient(colors: [color.opacity(0.18), color.opacity(0.04)]), center: center, startRadius: 0, endRadius: r))
                 context.stroke(Path(ellipseIn: rect), with: .color(color.opacity(0.35)), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
-                context.draw(Text(guide.title).font(.headline).foregroundStyle(color), at: CGPoint(x: center.x, y: center.y - r - 12))
+                context.draw(Text(tr(guide.title)).font(.headline).foregroundStyle(color), at: CGPoint(x: center.x, y: center.y - r - 12))
             case let .ring(radius):
                 let r = radius * scale
                 let rect = CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)
                 context.stroke(Path(ellipseIn: rect), with: .color(Color.secondary.opacity(0.25)), style: StrokeStyle(lineWidth: 1, dash: [4, 6]))
-                context.draw(Text(guide.title).font(.caption2).foregroundStyle(.secondary), at: CGPoint(x: center.x, y: center.y - r - 10))
+                context.draw(Text(tr(guide.title)).font(.caption2).foregroundStyle(.secondary), at: CGPoint(x: center.x, y: center.y - r - 10))
             case let .axis(from, to):
                 var line = Path()
                 line.move(to: screen(CGPoint(x: from, y: 0), in: size))
@@ -158,7 +158,7 @@ struct GraphView: View {
                 tick.move(to: CGPoint(x: center.x, y: center.y - 8))
                 tick.addLine(to: CGPoint(x: center.x, y: center.y + 8))
                 context.stroke(tick, with: .color(Color.inkAccent.opacity(0.7)), lineWidth: 2)
-                context.draw(Text(guide.title).font(.caption.weight(.semibold)).foregroundStyle(Color.inkAccent), at: CGPoint(x: center.x, y: center.y + 22))
+                context.draw(Text(tr(guide.title)).font(.caption.weight(.semibold)).foregroundStyle(Color.inkAccent), at: CGPoint(x: center.x, y: center.y + 22))
             }
         }
     }
@@ -242,7 +242,7 @@ struct GraphView: View {
                         .frame(width: size, height: size)
                         .shadow(color: tint.opacity(dimmed || look.nodeStyle == .dot ? 0 : 0.9), radius: isSelected ? 14 : 7)
                     if showsTitle {
-                        Text(node.title)
+                        Text(tr(node.title))
                             .font(.caption.weight(isSelected ? .bold : .regular))
                             .lineLimit(1)
                             .frame(maxWidth: 140)
@@ -267,7 +267,7 @@ struct GraphView: View {
                     Image(systemName: node.isTag ? "number" : node.isText ? "doc.text" : "pencil.and.scribble")
                         .foregroundStyle(tint)
                     if look.showsLabels {
-                        Text(node.title)
+                        Text(tr(node.title))
                             .font(.caption.weight(.semibold))
                             .lineLimit(1)
                     }
@@ -326,7 +326,7 @@ struct GraphView: View {
                 .font(.title2)
                 .foregroundStyle(color(of: node))
             VStack(alignment: .leading, spacing: 2) {
-                Text(node.title).font(.headline)
+                Text(tr(node.title)).font(.headline)
                 Text("\(graph.degree(of: node.id)) connections")
                     .font(.caption)
                     .foregroundStyle(.secondary)

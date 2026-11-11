@@ -18,8 +18,8 @@ struct AIFirewallView: View {
                 ForEach(AIAccess.allCases) { level in
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(level.title).font(.headline)
-                            Text(level.detail)
+                            Text(tr(level.title)).font(.headline)
+                            Text(trMessage(level.detail))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -88,7 +88,7 @@ struct AIFirewallView: View {
         HStack {
             Label {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
+                    Text(tr(title))
                     if inherited > own {
                         Text("\(inherited.title), set by \(inheritedFrom)")
                             .font(.caption)
@@ -99,9 +99,9 @@ struct AIFirewallView: View {
                 icon
             }
             Spacer()
-            Picker(title, selection: Binding(get: { own }, set: set)) {
+            Picker(tr(title), selection: Binding(get: { own }, set: set)) {
                 ForEach(AIAccess.allCases) { level in
-                    Text(level.title).tag(level)
+                    Text(tr(level.title)).tag(level)
                 }
             }
             .labelsHidden()
@@ -134,7 +134,7 @@ struct AIAccessMenu: View {
                 Button {
                     set(level)
                 } label: {
-                    Label(level.title, systemImage: level == current ? "checkmark" : level.systemImage)
+                    Label(tr(level.title), systemImage: level == current ? "checkmark" : level.systemImage)
                 }
             }
             if inherited > current {

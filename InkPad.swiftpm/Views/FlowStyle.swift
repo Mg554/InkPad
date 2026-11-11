@@ -152,7 +152,7 @@ struct FlowTimerFace: View {
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 1), value: progress)
             VStack(spacing: 4) {
-                Text(label).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text(trMessage(label)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 Text(Flowmodoro.clock(seconds))
                     .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(tint)
@@ -164,7 +164,7 @@ struct FlowTimerFace: View {
 
     private var digits: some View {
         VStack(spacing: 2) {
-            Text(label).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+            Text(trMessage(label)).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
             Text(Flowmodoro.clock(seconds, forceHours: seconds >= 3600))
                 .font(.system(size: 88, weight: .heavy, design: .rounded).monospacedDigit())
                 .foregroundStyle(tint.gradient)
@@ -206,7 +206,7 @@ private struct AnalogFace: View {
         .frame(width: 190, height: 190)
         .overlay(alignment: .bottom) {
             HStack(spacing: 6) {
-                Text(label).font(.caption).foregroundStyle(.secondary)
+                Text(trMessage(label)).font(.caption).foregroundStyle(.secondary)
                 Text(Flowmodoro.clock(seconds)).font(.headline.monospacedDigit()).foregroundStyle(tint)
             }
             .fixedSize()
@@ -259,8 +259,8 @@ private struct LiquidFace: View {
         .overlay(RoundedRectangle(cornerRadius: 40, style: .continuous).stroke(tint.opacity(0.4), lineWidth: 2))
         .overlay {
             VStack(spacing: 2) {
-                Text(label).font(.caption.weight(.semibold))
-                Text(text).font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
+                Text(trMessage(label)).font(.caption.weight(.semibold))
+                Text(tr(text)).font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
             }
             .foregroundStyle(Color(uiColor: .label))
         }
@@ -281,8 +281,8 @@ private struct PlantFace: View {
                 PlantPainter.draw(in: &context, size: size, growth: growth, season: PlantPainter.currentSeason, tint: tint)
             }
             .frame(width: 200, height: 180)
-            Text(text).font(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit()).foregroundStyle(tint)
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(tr(text)).font(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit()).foregroundStyle(tint)
+            Text(trMessage(label)).font(.caption).foregroundStyle(.secondary)
         }
     }
 }
@@ -580,7 +580,7 @@ struct FlowStyleView: View {
                 }
                 Section("Planner Cards") {
                     Picker("Cards", selection: $store.look.cards) {
-                        ForEach(FlowLook.Cards.allCases) { Text($0.title).tag($0) }
+                        ForEach(FlowLook.Cards.allCases) { Text(tr($0.title)).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     Text("Sample task")
@@ -595,7 +595,7 @@ struct FlowStyleView: View {
                 }
                 Section {
                     Picker("Ambient Sound", selection: $store.look.ambient) {
-                        ForEach(FlowLook.Ambient.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
+                        ForEach(FlowLook.Ambient.allCases) { Label(tr($0.title), systemImage: $0.systemImage).tag($0) }
                     }
                     LabeledSlider(title: "Volume", systemImage: "speaker.wave.2", value: $store.look.volume, range: 0...1, text: "\(Int(store.look.volume * 100))%")
                     Toggle("Also During Breaks", isOn: $store.look.ambientOnBreaks)
@@ -612,7 +612,7 @@ struct FlowStyleView: View {
                 }
                 Section("Break Chime") {
                     Picker("Chime", selection: $store.look.chime) {
-                        ForEach(FlowLook.Chime.allCases) { Text($0.title).tag($0) }
+                        ForEach(FlowLook.Chime.allCases) { Text(tr($0.title)).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .onChange(of: store.look.chime) {
@@ -641,7 +641,7 @@ struct FlowStyleView: View {
                 FlowTimerFace(face: face, seconds: 1525, progress: 0.42, tint: .green, label: "Work")
                     .scaleEffect(0.5)
                     .frame(width: 120, height: 120)
-                Text(face.title).font(.caption.weight(.semibold)).foregroundStyle(Color(uiColor: .label))
+                Text(tr(face.title)).font(.caption.weight(.semibold)).foregroundStyle(Color(uiColor: .label))
             }
             .padding(8)
             .background(RoundedRectangle(cornerRadius: 14).stroke(selected ? Color.inkAccent : Color.secondary.opacity(0.25), lineWidth: selected ? 3 : 1))

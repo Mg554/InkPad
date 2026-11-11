@@ -137,10 +137,10 @@ struct PDFExtraToolSheet: View {
                 inputSection
                 optionsSection
                 if let done {
-                    Section { Label(done, systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
+                    Section { Label(tr(done), systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
                 }
             }
-            .navigationTitle(tool.title)
+            .navigationTitle(tr(tool.title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -251,7 +251,7 @@ struct PDFExtraToolSheet: View {
             }
         default:
             Section {
-                if let source { Label(source.title, systemImage: "doc.richtext") }
+                if let source { Label(tr(source.title), systemImage: "doc.richtext") }
                 if tool != .unlock {
                     Button {
                         isPickingNote = true
@@ -318,7 +318,7 @@ struct PDFExtraToolSheet: View {
         case .pageNumbers:
             Section("Numbers") {
                 Picker("Where", selection: $numberPlace) {
-                    ForEach(PDFEdit.NumberPlace.allCases) { Text($0.title).tag($0) }
+                    ForEach(PDFEdit.NumberPlace.allCases) { Text(tr($0.title)).tag($0) }
                 }
                 Picker("Style", selection: $numberStyle) {
                     Text("1").tag(0)
@@ -344,7 +344,7 @@ struct PDFExtraToolSheet: View {
                 Section("Where") {
                     Stepper("Page \(signPage) of \(document.pageCount)", value: $signPage, in: 1...max(document.pageCount, 1))
                     Picker("Place", selection: $signPlace) {
-                        ForEach(PDFEdit.NumberPlace.allCases) { Text($0.title).tag($0) }
+                        ForEach(PDFEdit.NumberPlace.allCases) { Text(tr($0.title)).tag($0) }
                     }
                     LabeledSlider(title: "Width", systemImage: "arrow.left.and.right", value: $signWidth, range: 80...300, text: "\(Int(signWidth)) pt")
                 }

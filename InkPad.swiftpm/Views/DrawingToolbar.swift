@@ -93,6 +93,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
     private var toolsStack: some View {
         AxisStack(vertical: isVertical, spacing: isVertical ? 0 : 2) {
             grip
+            undoRedoButtons
+            barDivider
             scrollingIfNeeded(isVertical ? .vertical : .horizontal) {
                 AxisStack(vertical: isVertical, spacing: isVertical ? 0 : 2) {
                     ForEach(palette.toolbarTools) { tool in
@@ -115,6 +117,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     private var collapsedBar: some View {
         AxisStack(vertical: isVertical, spacing: 8) {
             grip
+            undoRedoButtons
             Image(systemName: palette.tool.systemImage)
                 .font(.title3)
             if palette.tool.isInking {
@@ -129,6 +132,25 @@ struct DrawingToolbar<InsertMenu: View>: View {
             }
             .accessibilityLabel("Expand Toolbar")
         }
+    }
+
+    /// Undo and redo first on the bar, shown even when it is collapsed.
+    @ViewBuilder
+    private var undoRedoButtons: some View {
+        Button {
+            canvas.undo()
+        } label: {
+            icon("arrow.uturn.backward")
+        }
+        .disabled(!canvas.canUndo)
+        .accessibilityLabel("Undo")
+        Button {
+            canvas.redo()
+        } label: {
+            icon("arrow.uturn.forward")
+        }
+        .disabled(!canvas.canRedo)
+        .accessibilityLabel("Redo")
     }
 
     @ViewBuilder
@@ -366,7 +388,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             .frame(width: isVertical ? 44 : 34, height: isVertical ? 32 : 44)
             .clipped()
         }
-        .accessibilityLabel(tool.title)
+        .accessibilityLabel(tr(tool.title))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -639,7 +661,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             .frame(minWidth: 38, minHeight: 32)
             .background(Color.inkAccent.opacity(0.12), in: Capsule())
         }
-        .accessibilityLabel(mode.switchLabel)
+        .accessibilityLabel(trMessage(mode.switchLabel))
     }
 
     private func formatButton(_ systemImage: String, label: String, isOn: Bool = false, action: @escaping () -> Void) -> some View {
@@ -649,7 +671,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 .foregroundStyle(isOn ? Color.inkAccent : Color.primary)
                 .background(isOn ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
         }
-        .accessibilityLabel(label)
+        .accessibilityLabel(trMessage(label))
     }
 
     private var deleteButton: some View {
@@ -670,7 +692,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 .foregroundStyle(isOn.wrappedValue ? Color.inkAccent : Color.primary)
                 .background(isOn.wrappedValue ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
         }
-        .accessibilityLabel(title)
+        .accessibilityLabel(tr(title))
     }
 
     private func icon(_ systemImage: String) -> some View {
@@ -685,7 +707,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         if isVertical {
             HintButton(text: text)
         } else {
-            Text(text)
+            Text(tr(text))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
@@ -748,9 +770,9 @@ private struct HintButton: View {
                 .font(.title3)
                 .frame(width: 38, height: 34)
         }
-        .accessibilityLabel(text)
+        .accessibilityLabel(tr(text))
         .popover(isPresented: $isShowing) {
-            Text(text)
+            Text(tr(text))
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(width: 260)

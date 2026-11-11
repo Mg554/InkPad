@@ -192,7 +192,7 @@ struct AskBookView: View {
     var body: some View {
         VStack(spacing: 8) {
             if let problem {
-                Text(problem).font(.caption).foregroundStyle(.red).padding(.horizontal)
+                Text(trMessage(problem)).font(.caption).foregroundStyle(.red).padding(.horizontal)
             }
             if ai.problem != nil {
                 Text("Set up an AI service in AI Settings to ask the book.").font(.callout).foregroundStyle(.secondary).padding()

@@ -162,7 +162,7 @@ struct ExpensesView: View {
 
     private func summaryCard(_ title: String, _ value: Decimal, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+            Text(tr(title))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(money.string(value))
@@ -294,7 +294,7 @@ struct ExpensesView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title.isEmpty ? item.category.title : item.title)
                 if !item.note.isEmpty {
-                    Text(item.note)
+                    Text(tr(item.note))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -480,7 +480,7 @@ private struct ExpenseEditor: View {
             Form {
                 Section {
                     Picker("Type", selection: $expense.kind) {
-                        ForEach(Expense.Kind.allCases) { Text($0.title).tag($0) }
+                        ForEach(Expense.Kind.allCases) { Text(tr($0.title)).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     HStack {
@@ -494,7 +494,7 @@ private struct ExpenseEditor: View {
                 }
                 Section {
                     Picker("Category", selection: $expense.category) {
-                        ForEach(Expense.Category.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
+                        ForEach(Expense.Category.allCases) { Label(tr($0.title), systemImage: $0.systemImage).tag($0) }
                     }
                     DatePicker("Date", selection: $expense.date, displayedComponents: .date)
                     TextField("Note", text: $expense.note, axis: .vertical)

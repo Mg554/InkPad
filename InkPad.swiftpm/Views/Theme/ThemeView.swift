@@ -42,7 +42,7 @@ struct ThemeView: View {
                     presetPicker("Colors", systemImage: "paintpalette", selection: $draft.colorsFrom)
                     presetPicker("Accent", systemImage: "drop", selection: $draft.accentFrom)
                     Picker(selection: $draft.backdrop) {
-                        ForEach(ThemeRecipe.Backdrop.allCases) { Text($0.title).tag($0) }
+                        ForEach(ThemeRecipe.Backdrop.allCases) { Text(tr($0.title)).tag($0) }
                     } label: {
                         Label("Background", systemImage: "square.3.layers.3d")
                     }
@@ -59,7 +59,7 @@ struct ThemeView: View {
                 Section {
                     Picker(selection: $draft.season) {
                         ForEach(Season.allCases) { season in
-                            Label(season.title, systemImage: season.systemImage).tag(season)
+                            Label(tr(season.title), systemImage: season.systemImage).tag(season)
                         }
                     } label: {
                         Label("Scenery", systemImage: "tree")
@@ -106,14 +106,14 @@ struct ThemeView: View {
                 Section {
                     Picker(selection: $draft.appFont) {
                         ForEach(ThemeRecipe.FontStyle.allCases) { style in
-                            Text(style.title).tag(style)
+                            Text(tr(style.title)).tag(style)
                         }
                     } label: {
                         Label("App Font", systemImage: "textformat")
                     }
                     Picker(selection: $draft.typingFont) {
                         ForEach(ThemeRecipe.FontStyle.allCases) { style in
-                            Text(style.title).tag(style)
+                            Text(tr(style.title)).tag(style)
                         }
                     } label: {
                         Label("Typing Font", systemImage: "keyboard")
@@ -132,7 +132,7 @@ struct ThemeView: View {
 
                 Section("Layout") {
                     Picker(selection: $draft.cardSize) {
-                        ForEach(ThemeRecipe.CardSize.allCases) { Text($0.title).tag($0) }
+                        ForEach(ThemeRecipe.CardSize.allCases) { Text(tr($0.title)).tag($0) }
                     } label: {
                         Label("Note Cards", systemImage: "square.grid.2x2")
                     }
@@ -170,9 +170,9 @@ struct ThemeView: View {
     private func sliderRow(_ title: String, systemImage: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double, text: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Label(title, systemImage: systemImage)
+                Label(tr(title), systemImage: systemImage)
                 Spacer()
-                Text(text).foregroundStyle(.secondary).monospacedDigit()
+                Text(tr(text)).foregroundStyle(.secondary).monospacedDigit()
             }
             Slider(value: value, in: range, step: step)
         }
@@ -181,10 +181,10 @@ struct ThemeView: View {
     private func presetPicker(_ title: String, systemImage: String, selection: Binding<String>) -> some View {
         Picker(selection: selection) {
             ForEach(ThemePreset.all) { preset in
-                Text(preset.name).tag(preset.id)
+                Text(tr(preset.name)).tag(preset.id)
             }
         } label: {
-            Label(title, systemImage: systemImage)
+            Label(tr(title), systemImage: systemImage)
         }
     }
 
@@ -215,7 +215,7 @@ struct ThemeView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(isChosen ? recipe.accent : Color.secondary.opacity(0.3), lineWidth: isChosen ? 3 : 1)
                 )
-                Text(title)
+                Text(tr(title))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color(uiColor: .label))
                     .lineLimit(1)
@@ -234,7 +234,7 @@ struct ThemePreview: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("InkPad").font(.headline)
                 ForEach(["All Notes", "Study", "Reminders"], id: \.self) { item in
-                    Label(item, systemImage: "circle.fill")
+                    Label(tr(item), systemImage: "circle.fill")
                         .font(.caption)
                         .foregroundStyle(item == "All Notes" ? recipe.accent : Color.primary)
                 }

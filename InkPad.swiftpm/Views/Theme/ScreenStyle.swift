@@ -198,7 +198,7 @@ struct GlowSettingsSection: View {
             }
             if glow.isOn {
                 Picker(selection: $glow.source) {
-                    ForEach(GlowStyle.Source.allCases) { Text($0.title).tag($0) }
+                    ForEach(GlowStyle.Source.allCases) { Text(tr($0.title)).tag($0) }
                 } label: {
                     Label("Color", systemImage: "paintpalette")
                 }
@@ -223,7 +223,7 @@ struct GlowSettingsSection: View {
         } header: {
             Text("Glow")
         } footer: {
-            Text(footer)
+            Text(trMessage(footer))
         }
     }
 }
@@ -238,9 +238,9 @@ struct LabeledSlider: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Label(title, systemImage: systemImage)
+                Label(tr(title), systemImage: systemImage)
                 Spacer()
-                Text(text).foregroundStyle(.secondary).monospacedDigit()
+                Text(tr(text)).foregroundStyle(.secondary).monospacedDigit()
             }
             Slider(value: $value, in: range)
         }
@@ -265,7 +265,7 @@ struct BackdropPicker: View {
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(backdrop == option ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: backdrop == option ? 3 : 1)
                             )
-                        Text(option.title)
+                        Text(tr(option.title))
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(Color(uiColor: .label))
                     }

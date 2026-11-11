@@ -50,7 +50,7 @@ struct OrganizeView: View {
                             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.purple.opacity(0.3)))
                     }
                     if let error {
-                        Label(error, systemImage: "exclamationmark.triangle")
+                        Label(trMessage(error), systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
                 }
@@ -95,8 +95,8 @@ struct OrganizeView: View {
                 .font(.title2)
                 .foregroundStyle(tint)
             VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(.headline)
-                Text(message)
+                Text(tr(title)).font(.headline)
+                Text(trMessage(message))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

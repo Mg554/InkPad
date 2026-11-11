@@ -162,7 +162,7 @@ struct AudioPlaybackBar: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "waveform")
-                Text(title)
+                Text(tr(title))
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                 Image(systemName: "chevron.down")

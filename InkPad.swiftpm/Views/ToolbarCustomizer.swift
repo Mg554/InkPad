@@ -69,7 +69,7 @@ struct ToolbarCustomizer: View {
             .frame(width: 36, height: 28)
             .opacity(isShown ? 1 : 0.4)
 
-            Text(tool.title)
+            Text(tr(tool.title))
                 .foregroundStyle(isShown ? Color.primary : Color.secondary)
             Spacer()
         }

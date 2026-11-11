@@ -30,6 +30,8 @@ final class NoteCanvasHostView: UIView {
     /// During playback, a finger tap on ink plays from when it was written.
     private lazy var seekTap = UITapGestureRecognizer(target: self, action: #selector(handleSeekTap(_:)))
     private var suspendedRecognizers: [UIGestureRecognizer] = []
+    /// Two-finger tap to undo, three-finger tap to redo.
+    let fingerGestures = FingerGestures()
 
     /// Reports the page in the middle of the screen and the page count.
     var onVisiblePageChange: ((_ current: Int, _ count: Int) -> Void)?
@@ -63,6 +65,7 @@ final class NoteCanvasHostView: UIView {
         laserOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         addSubview(laserOverlay)
         laser = LaserPointer(gestureView: canvas, overlay: laserOverlay)
+        fingerGestures.install(on: canvas, hudHost: self)
     }
 
     required init?(coder: NSCoder) {

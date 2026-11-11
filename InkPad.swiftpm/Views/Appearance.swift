@@ -44,9 +44,18 @@ struct AppearanceMenu: View {
         Menu {
             Picker("Appearance", selection: $appearance) {
                 ForEach(AppAppearance.allCases) { option in
-                    Label(option.title, systemImage: option.symbol).tag(option)
+                    Label(tr(option.title), systemImage: option.symbol).tag(option)
                 }
             }
+            Picker("Language", selection: Binding(
+                get: { LanguageSettings.shared.language },
+                set: { new in DispatchQueue.main.async { LanguageSettings.shared.set(new) } }
+            )) {
+                ForEach(AppLanguage.allCases) { option in
+                    Text(verbatim: option.title).tag(option)
+                }
+            }
+            .pickerStyle(.menu)
             Section("Tapping a Text Field with Apple Pencil") {
                 Picker("Apple Pencil in Text Fields", selection: Binding(
                     get: { textInput },

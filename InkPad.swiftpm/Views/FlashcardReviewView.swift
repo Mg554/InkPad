@@ -82,10 +82,10 @@ struct FlashcardReviewView: View {
 
     private func face(_ text: String, label: String, tint: Color) -> some View {
         VStack(spacing: 18) {
-            Text(label.uppercased())
+            Text(tr(label.uppercased()))
                 .font(.caption.weight(.bold))
                 .foregroundStyle(tint)
-            Text(text)
+            Text(tr(text))
                 .font(.title2.weight(.medium))
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.6)
@@ -102,7 +102,7 @@ struct FlashcardReviewView: View {
                 Button {
                     rate(rating)
                 } label: {
-                    Text(rating.title)
+                    Text(tr(rating.title))
                         .font(.headline)
                         .frame(maxWidth: .infinity, minHeight: 50)
                 }
@@ -198,7 +198,7 @@ struct QuizView: View {
                     if item.offset == question.answer { score += 1 }
                 } label: {
                     HStack {
-                        Text(item.element)
+                        Text(tr(item.element))
                             .multilineTextAlignment(.leading)
                             .foregroundStyle(.primary)
                         Spacer()

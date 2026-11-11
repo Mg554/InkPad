@@ -25,7 +25,7 @@ struct AISettingsView: View {
                 Section {
                     Picker("Service", selection: $ai.provider) {
                         ForEach(AIProviderKind.allCases) { kind in
-                            Text(kind.title).tag(kind)
+                            Text(tr(kind.title)).tag(kind)
                         }
                     }
                 } footer: {
@@ -80,7 +80,7 @@ struct AISettingsView: View {
                         HStack {
                             Label("AI Firewall", systemImage: "lock.shield")
                             Spacer()
-                            Text(hiddenCountText)
+                            Text(trMessage(hiddenCountText))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -100,10 +100,10 @@ struct AISettingsView: View {
                     }
                     .disabled(isTesting || !ai.isReady)
                     if let problem = ai.problem {
-                        Label(problem, systemImage: "exclamationmark.circle")
+                        Label(trMessage(problem), systemImage: "exclamationmark.circle")
                             .foregroundStyle(.orange)
                     } else if let testResult {
-                        Text(testResult)
+                        Text(trMessage(testResult))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }

@@ -128,7 +128,7 @@ struct PlannerTodayView: View {
                 Text("\(title) · \(minutes) min").font(.caption.weight(.semibold)).lineLimit(1)
             } else {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.callout.weight(.semibold)).lineLimit(2)
+                    Text(tr(title)).font(.callout.weight(.semibold)).lineLimit(2)
                     Text("\(minutes) min").font(.caption2).foregroundStyle(.secondary)
                 }
             }
@@ -187,7 +187,7 @@ struct PlannerTodayView: View {
                 }
                 .disabled(todayTasks.isEmpty)
             } footer: {
-                Text(planFooter)
+                Text(trMessage(planFooter))
             }
             Section("To Plan Today") {
                 if unscheduled.isEmpty {
@@ -322,10 +322,10 @@ struct PlannerMatrixView: View {
         let tasks = workspace.tasks.filter { $0.status != .done && $0.important == quadrant.important && $0.urgent == quadrant.urgent }
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(quadrant.title).font(.headline).foregroundStyle(quadrant.color)
+                Text(tr(quadrant.title)).font(.headline).foregroundStyle(quadrant.color)
                 Text("\(tasks.count)").foregroundStyle(.secondary)
                 Spacer()
-                Text(quadrant.hint).font(.caption).foregroundStyle(.secondary)
+                Text(trMessage(quadrant.hint)).font(.caption).foregroundStyle(.secondary)
             }
             ScrollView {
                 VStack(spacing: 6) {
@@ -387,7 +387,7 @@ struct PlannerWeeklyReview: View {
                         Text("Where the Time Went").font(.headline)
                         ForEach(week.topTasks, id: \.title) { item in
                             HStack {
-                                Text(item.title).lineLimit(1)
+                                Text(tr(item.title)).lineLimit(1)
                                 Spacer()
                                 Text(PlannerInsights.duration(item.seconds)).foregroundStyle(.secondary).monospacedDigit()
                             }
@@ -405,8 +405,8 @@ struct PlannerWeeklyReview: View {
 
     private func stat(_ value: String, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 4) {
-            Text(value).font(.title2.bold()).foregroundStyle(color)
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(tr(value)).font(.title2.bold()).foregroundStyle(color)
+            Text(trMessage(label)).font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)

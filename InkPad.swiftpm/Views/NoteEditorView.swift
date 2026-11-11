@@ -85,7 +85,7 @@ struct NoteEditorView: View {
                 ContentUnavailableView(
                     "Could Not Open Note",
                     systemImage: "exclamationmark.triangle",
-                    description: Text(loadError)
+                    description: Text(trMessage(loadError))
                 )
             } else {
                 ProgressView()
@@ -98,7 +98,7 @@ struct NoteEditorView: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
             }
         }
-        .navigationTitle(title)
+        .navigationTitle(tr(title))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
         .namePrompt($prompt)
@@ -295,6 +295,8 @@ struct NoteEditorView: View {
             }
         }
         .coordinateSpace(name: ToolbarPlacement.coordinateSpace)
+        // The page and the toolbar's edges keep their place in Arabic too.
+        .environment(\.layoutDirection, .leftToRight)
     }
 
     private func isToolbarDocked(at edge: ToolbarEdge) -> Bool {
@@ -653,7 +655,7 @@ struct NoteEditorView: View {
                             Button {
                                 moveToolbar(to: edge)
                             } label: {
-                                Label(edge.title, systemImage: edge.systemImage)
+                                Label(tr(edge.title), systemImage: edge.systemImage)
                             }
                         }
                     } label: {

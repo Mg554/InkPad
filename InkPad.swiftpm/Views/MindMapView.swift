@@ -73,7 +73,7 @@ struct MindMapsView: View {
                 .frame(height: 120)
                 .background { ScreenBackdropView(backdrop: map.appliedStyle.backdrop, animated: false) }
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-            Text(map.title)
+            Text(tr(map.title))
                 .font(.headline)
                 .foregroundStyle(.primary)
             Text("\(map.nodes.count) ideas · \(map.modifiedAt.formatted(date: .abbreviated, time: .omitted))")
@@ -336,7 +336,7 @@ struct MindMapEditor: View {
                     Button {
                         update(node.id) { $0.shape = shape }
                     } label: {
-                        Label(shape.title, systemImage: node.shape == shape ? "checkmark" : shape.systemImage)
+                        Label(tr(shape.title), systemImage: node.shape == shape ? "checkmark" : shape.systemImage)
                     }
                 }
             } label: {
@@ -347,7 +347,7 @@ struct MindMapEditor: View {
                     Button {
                         update(node.id) { $0.color = color }
                     } label: {
-                        Label { Text(color.title) } icon: { color.menuDot(selected: node.color == color) }
+                        Label { Text(tr(color.title)) } icon: { color.menuDot(selected: node.color == color) }
                     }
                 }
             } label: {
@@ -371,7 +371,7 @@ struct MindMapEditor: View {
     }
 
     private func barLabel(_ title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
+        Label(tr(title), systemImage: systemImage)
             .font(.subheadline.weight(.medium))
             .padding(.horizontal, 12)
             .padding(.vertical, 8)

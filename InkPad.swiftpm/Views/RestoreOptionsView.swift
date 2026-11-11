@@ -118,7 +118,7 @@ struct RestoreOptionsView: View {
                 .frame(width: 32)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(title)
+                    Text(tr(title))
                         .font(.headline)
                         .foregroundStyle(tint == .red ? Color.red : Color(uiColor: .label))
                     if recommended {
@@ -130,7 +130,7 @@ struct RestoreOptionsView: View {
                             .foregroundStyle(.green)
                     }
                 }
-                Text(detail)
+                Text(trMessage(detail))
                     .font(.subheadline)
                     .foregroundStyle(Color(uiColor: .secondaryLabel))
                     .multilineTextAlignment(.leading)
@@ -140,7 +140,7 @@ struct RestoreOptionsView: View {
     }
 
     private func badge(_ text: String, color: Color) -> some View {
-        Text(text)
+        Text(tr(text))
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(color)
     }
@@ -186,7 +186,7 @@ private struct BackupNotePicker: View {
                     Image(systemName: note.isText ? "doc.text" : "pencil.and.scribble")
                         .foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(note.title)
+                        Text(tr(note.title))
                             .foregroundStyle(Color(uiColor: .label))
                         Text("\(folderName(note.folderID)) · \(note.modifiedAt.formatted(date: .abbreviated, time: .shortened))")
                             .font(.caption)

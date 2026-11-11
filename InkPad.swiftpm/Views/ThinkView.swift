@@ -96,7 +96,7 @@ struct ThinkView: View {
                     modePicker
                     thinkButton
                     if let error {
-                        Label(error, systemImage: "exclamationmark.triangle")
+                        Label(trMessage(error), systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
                     resultCard
@@ -159,7 +159,7 @@ struct ThinkView: View {
                     VStack(spacing: 8) {
                         Image(systemName: item.systemImage)
                             .font(.title2)
-                        Text(item.title)
+                        Text(tr(item.title))
                             .font(.subheadline.weight(.semibold))
                     }
                     .foregroundStyle(mode == item ? Color.white : item.tint)
@@ -263,8 +263,8 @@ struct ThinkView: View {
                 .font(.title2)
                 .foregroundStyle(tint)
             VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(.headline)
-                Text(message)
+                Text(tr(title)).font(.headline)
+                Text(trMessage(message))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 action()

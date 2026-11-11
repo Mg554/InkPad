@@ -215,10 +215,10 @@ struct FlowmodoroView: View {
 
     private func timerBox(_ title: String, value: String, tint: Color, isRunning: Bool) -> some View {
         VStack(spacing: 6) {
-            Text(title)
+            Text(tr(title))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text(value)
+            Text(tr(value))
                 .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(tint)
                 .contentTransition(.numericText())
@@ -299,7 +299,7 @@ struct FlowmodoroView: View {
                 workspace.startFlowWork(on: task.id)
             } label: {
                 HStack {
-                    Text(task.title)
+                    Text(tr(task.title))
                         .strikethrough(task.isDone)
                         .foregroundStyle(task.isDone ? Color.secondary : Color.primary)
                         .multilineTextAlignment(.leading)

@@ -32,7 +32,7 @@ struct NoteCard: View {
             .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
 
             HStack(spacing: 4) {
-                Text(note.title)
+                Text(tr(note.title))
                     .font(.headline)
                     .lineLimit(1)
                 if store.aiAccess(of: note.id) != .allowed {

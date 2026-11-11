@@ -130,7 +130,7 @@ struct ExpenseStyleView: View {
                         }
                     }
                     .padding(.vertical, 6)
-                    Text(look.style.detail)
+                    Text(trMessage(look.style.detail))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -203,7 +203,7 @@ struct ExpenseStyleView: View {
                 .background { sample.rowBackground }
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(isOn ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: isOn ? 3 : 1))
-                Text(style.title)
+                Text(tr(style.title))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color(uiColor: .label))
             }
@@ -261,10 +261,10 @@ struct BudgetRings: View {
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(rings) { ring in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(ring.title)
+                        Text(tr(ring.title))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(ring.color)
-                        Text(ring.detail)
+                        Text(trMessage(ring.detail))
                             .font(.title3.bold())
                             .contentTransition(.numericText())
                     }

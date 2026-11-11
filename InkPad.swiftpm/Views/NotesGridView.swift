@@ -79,7 +79,7 @@ struct NotesGridView: View {
             }
         }
         .themedBackground()
-        .navigationTitle(title)
+        .navigationTitle(tr(title))
         .searchable(text: $searchText, prompt: "Search titles, text, handwriting and #tags")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -98,7 +98,7 @@ struct NotesGridView: View {
                     }
                     Menu {
                         ForEach(store.templates) { template in
-                            Button(template.name) { createTextNote(template: template) }
+                            Button(tr(template.name)) { createTextNote(template: template) }
                         }
                     } label: {
                         Label("Text Note from Template", systemImage: "doc.on.clipboard")
@@ -316,7 +316,7 @@ private struct QuickActionLabel: View {
             Image(systemName: systemImage)
                 .font(.title2)
                 .foregroundStyle(tint)
-            Text(title)
+            Text(tr(title))
                 .font(.headline)
                 .foregroundStyle(.primary)
         }

@@ -35,7 +35,7 @@ struct ExportOptionsView: View {
                         Label("Add Page Margins", systemImage: "rectangle.inset.filled")
                     }
                     Picker(selection: $range) {
-                        ForEach(RangeChoice.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(RangeChoice.allCases) { Text(tr($0.rawValue)).tag($0) }
                     } label: {
                         Label("Page Range", systemImage: "book.pages")
                     }

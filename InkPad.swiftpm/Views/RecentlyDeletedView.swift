@@ -94,7 +94,7 @@ struct RecentlyDeletedView: View {
         HStack(spacing: 14) {
             DeletedNoteThumbnail(note: note)
             VStack(alignment: .leading, spacing: 3) {
-                Text(note.title)
+                Text(tr(note.title))
                     .font(.headline)
                     .lineLimit(1)
                 Text(daysLeftText(note))

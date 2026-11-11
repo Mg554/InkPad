@@ -94,7 +94,7 @@ struct RemindersView: View {
                             HStack(spacing: 14) {
                                 ListIcon(icon: look.icon(for: list), color: Color(cgColor: list.cgColor))
                                     .styledGlow(look.glow, color: Color(cgColor: list.cgColor))
-                                Text(list.title)
+                                Text(tr(list.title))
                                     .foregroundStyle(Color(uiColor: .label))
                                 Spacer()
                                 Text("\(center.reminders(in: list).count)")
@@ -157,7 +157,7 @@ struct RemindersView: View {
                     .foregroundStyle(look.tiles == .gradient ? Color.white : Color(uiColor: .label))
                     .contentTransition(.numericText())
             }
-            Text(smart.title)
+            Text(tr(smart.title))
                 .font(.headline)
                 .foregroundStyle(look.tiles == .gradient ? Color.white.opacity(0.9) : Color.secondary)
         }
@@ -245,7 +245,7 @@ struct ReminderListView: View {
             }
         }
         .screenBackdrop(style.look.backdrop)
-        .navigationTitle(title)
+        .navigationTitle(tr(title))
         .toolbar {
             if canAdd {
                 ToolbarItem(placement: .primaryAction) {
@@ -328,7 +328,7 @@ struct ReminderRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
                     if !reminder.priorityMarks.isEmpty {
-                        Text(reminder.priorityMarks)
+                        Text(tr(reminder.priorityMarks))
                             .foregroundStyle(reminder.listColor)
                             .bold()
                     }
@@ -337,7 +337,7 @@ struct ReminderRow: View {
                         .foregroundStyle(reminder.isCompleted ? Color.secondary : Color(uiColor: .label))
                 }
                 if let notes = reminder.notes, !notes.isEmpty {
-                    Text(notes)
+                    Text(tr(notes))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -351,7 +351,7 @@ struct ReminderRow: View {
                         Button {
                             openNote(id)
                         } label: {
-                            Label(note.title, systemImage: "doc.text")
+                            Label(tr(note.title), systemImage: "doc.text")
                                 .lineLimit(1)
                         }
                         .buttonStyle(.borderless)

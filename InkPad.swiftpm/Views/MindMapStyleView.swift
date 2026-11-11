@@ -20,7 +20,7 @@ struct MindMapStyleView: View {
                                             .frame(width: 110, height: 72)
                                             .clipShape(RoundedRectangle(cornerRadius: 12))
                                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(style == preset.style ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: style == preset.style ? 3 : 1))
-                                        Label(preset.name, systemImage: preset.systemImage)
+                                        Label(tr(preset.name), systemImage: preset.systemImage)
                                             .font(.caption.weight(.semibold))
                                             .foregroundStyle(Color(uiColor: .label))
                                     }
@@ -35,13 +35,13 @@ struct MindMapStyleView: View {
                 Section {
                     Picker(selection: $style.layout) {
                         ForEach(MindMapStyle.Layout.allCases) { layout in
-                            Label(layout.title, systemImage: layout.systemImage).tag(layout)
+                            Label(tr(layout.title), systemImage: layout.systemImage).tag(layout)
                         }
                     } label: {
                         Label("Layout", systemImage: "square.grid.3x1.below.line.grid.1x2")
                     }
                     Picker(selection: $style.branch) {
-                        ForEach(MindMapStyle.Branch.allCases) { Text($0.title).tag($0) }
+                        ForEach(MindMapStyle.Branch.allCases) { Text(tr($0.title)).tag($0) }
                     } label: {
                         Label("Branches", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                     }
@@ -59,7 +59,7 @@ struct MindMapStyleView: View {
                     Picker(selection: $style.palette) {
                         ForEach(MindMapStyle.Palette.allCases) { palette in
                             HStack {
-                                Text(palette.title)
+                                Text(tr(palette.title))
                                 Spacer()
                                 ForEach(Array(palette.colors.prefix(5).enumerated()), id: \.offset) { item in
                                     Circle().fill(item.element).frame(width: 10, height: 10)
@@ -71,7 +71,7 @@ struct MindMapStyleView: View {
                         Label("Colors", systemImage: "paintpalette")
                     }
                     Picker(selection: $style.font) {
-                        ForEach(ThemeRecipe.FontStyle.allCases) { Text($0.title).tag($0) }
+                        ForEach(ThemeRecipe.FontStyle.allCases) { Text(tr($0.title)).tag($0) }
                     } label: {
                         Label("Font", systemImage: "textformat")
                     }
@@ -98,10 +98,10 @@ struct MindMapStyleView: View {
     private func shapePicker(_ title: String, selection: Binding<MindMapStyle.NodeShape>) -> some View {
         Picker(selection: selection) {
             ForEach(MindMapStyle.NodeShape.allCases) { shape in
-                Label(shape.title, systemImage: shape.systemImage).tag(shape)
+                Label(tr(shape.title), systemImage: shape.systemImage).tag(shape)
             }
         } label: {
-            Label(title, systemImage: selection.wrappedValue.systemImage)
+            Label(tr(title), systemImage: selection.wrappedValue.systemImage)
         }
     }
 }

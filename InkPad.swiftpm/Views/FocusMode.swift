@@ -153,7 +153,7 @@ struct FocusCompanionView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             ForEach(item.shared.prefix(4), id: \.self) { name in
-                                Button(name) { CommandCenter.shared.sheet = .concept(LivingAnalyzer.key(for: name)) }
+                                Button(tr(name)) { CommandCenter.shared.sheet = .concept(LivingAnalyzer.key(for: name)) }
                                     .font(.caption)
                                     .buttonStyle(.bordered)
                                     .controlSize(.mini)
@@ -176,7 +176,7 @@ struct FocusCompanionView: View {
                 Text("\(item.offset + 1). \(item.element)").font(.callout)
             }
             if let problem {
-                Text(problem).font(.caption).foregroundStyle(.red)
+                Text(trMessage(problem)).font(.caption).foregroundStyle(.red)
             }
             Button {
                 ask()
@@ -363,8 +363,8 @@ struct FocusWrapUpView: View {
 
     private func stat(_ value: String, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 2) {
-            Text(value).font(.title3.bold()).foregroundStyle(color)
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(tr(value)).font(.title3.bold()).foregroundStyle(color)
+            Text(trMessage(label)).font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -453,7 +453,7 @@ struct FocusScreenView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
                         ForEach(suggestions, id: \.self) { item in
-                            Button(item) { title = item }
+                            Button(tr(item)) { title = item }
                                 .buttonStyle(.bordered)
                         }
                     }
@@ -462,7 +462,7 @@ struct FocusScreenView: View {
                 .frame(maxWidth: 620)
             }
             Picker("Sound", selection: $looks.look.ambient) {
-                ForEach(FlowLook.Ambient.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
+                ForEach(FlowLook.Ambient.allCases) { Label(tr($0.title), systemImage: $0.systemImage).tag($0) }
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 620)
@@ -489,7 +489,7 @@ struct FocusScreenView: View {
             let seconds = session.elapsed(at: context.date)
             let plant = GardenPlant(subject: session.title, seconds: subjectSeconds + seconds)
             VStack(spacing: 18) {
-                Text(session.title).font(.title2.weight(.semibold))
+                Text(tr(session.title)).font(.title2.weight(.semibold))
                 FlowTimerFace(face: looks.look.face, seconds: seconds, progress: Double(seconds % 3600) / 3600, tint: .green, label: "Focus")
                     .styledGlow(looks.look.glow, color: .green)
                 GardenPlantCard(plant: plant, size: 110)

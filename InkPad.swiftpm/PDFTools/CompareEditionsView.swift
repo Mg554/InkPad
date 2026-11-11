@@ -131,9 +131,9 @@ struct CompareEditionsView: View {
     }
 
     private func sourceSection(_ side: Side, title: String, item: PDFSourceItem?) -> some View {
-        Section(title) {
+        Section(tr(title)) {
             if let item {
-                Label(item.title, systemImage: side == .old ? "book.closed" : "book")
+                Label(tr(item.title), systemImage: side == .old ? "book.closed" : "book")
             }
             Button {
                 picking = side
@@ -214,7 +214,7 @@ struct CompareEditionsView: View {
                         .font(.caption).foregroundStyle(.orange)
                 }
                 if let message {
-                    Label(message, systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    Label(trMessage(message), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                 }
             }
             Section {
@@ -249,7 +249,7 @@ struct CompareEditionsView: View {
                     Text("\(comparison.count(kind))")
                         .font(.title2.bold())
                         .foregroundStyle(kind.color)
-                    Text(kind.title).font(.caption).foregroundStyle(.secondary)
+                    Text(tr(kind.title)).font(.caption).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -263,8 +263,8 @@ struct CompareEditionsView: View {
                 .font(.title3)
                 .foregroundStyle(change.kind.color)
             VStack(alignment: .leading, spacing: 3) {
-                Text(change.title).font(.body.weight(.medium)).lineLimit(2)
-                Text(change.pagesLabel).font(.caption).foregroundStyle(.secondary)
+                Text(tr(change.title)).font(.body.weight(.medium)).lineLimit(2)
+                Text(trMessage(change.pagesLabel)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             if change.kind == .changed {
@@ -363,7 +363,7 @@ struct ChapterCompareView: View {
             }
             .padding()
         }
-        .navigationTitle(change.title)
+        .navigationTitle(tr(change.title))
         .navigationBarTitleDisplayMode(.inline)
         .themedBackground()
         .task {
@@ -376,14 +376,14 @@ struct ChapterCompareView: View {
 
     private var header: some View {
         HStack {
-            Label(change.kind.title, systemImage: change.kind.systemImage)
+            Label(tr(change.kind.title), systemImage: change.kind.systemImage)
                 .foregroundStyle(change.kind.color)
                 .font(.headline)
             if change.kind == .changed {
                 Text("about \(change.percentChanged)% changed").foregroundStyle(.secondary)
             }
             Spacer()
-            Text(change.pagesLabel).font(.caption).foregroundStyle(.secondary)
+            Text(trMessage(change.pagesLabel)).font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -399,7 +399,7 @@ struct ChapterCompareView: View {
                 }
                 .disabled(offset <= 0)
                 Spacer()
-                Text(pageCaption).font(.callout.monospacedDigit())
+                Text(trMessage(pageCaption)).font(.callout.monospacedDigit())
                 Spacer()
                 Button {
                     offset += 1
@@ -431,7 +431,7 @@ struct ChapterCompareView: View {
 
     private func pageColumn(_ title: String, image: UIImage?, missing: Bool) -> some View {
         VStack(spacing: 6) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(tr(title)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -507,7 +507,7 @@ struct ChapterCompareView: View {
                 Text("Set up an AI service in AI Settings to explain the changes.").font(.caption).foregroundStyle(.secondary)
             }
             if let problem {
-                Text(problem).font(.caption).foregroundStyle(.red)
+                Text(trMessage(problem)).font(.caption).foregroundStyle(.red)
             }
             if let explanation {
                 Text(LocalizedStringKey(explanation)).font(.callout).textSelection(.enabled)
@@ -558,7 +558,7 @@ struct ChapterCompareView: View {
             DisclosureGroup {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(items.enumerated()), id: \.offset) { item in
-                        Text(item.element)
+                        Text(tr(item.element))
                             .font(.callout)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)

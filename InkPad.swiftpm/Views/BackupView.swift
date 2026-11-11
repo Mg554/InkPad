@@ -89,7 +89,7 @@ struct BackupView: View {
 
                 Section {
                     Picker(selection: $frequency) {
-                        ForEach(AutoBackupFrequency.allCases) { Text($0.title).tag($0) }
+                        ForEach(AutoBackupFrequency.allCases) { Text(tr($0.title)).tag($0) }
                     } label: {
                         Label("Automatic Backup", systemImage: "clock.arrow.2.circlepath")
                     }
@@ -108,7 +108,7 @@ struct BackupView: View {
                 } header: {
                     Text("Automatic Backups on This iPad")
                 } footer: {
-                    Text(automaticFooter)
+                    Text(trMessage(automaticFooter))
                 }
 
                 if !safetyCopies.isEmpty {
@@ -143,7 +143,7 @@ struct BackupView: View {
                     VStack(spacing: 12) {
                         ProgressView()
                             .controlSize(.large)
-                        Text(progress)
+                        Text(trMessage(progress))
                             .font(.headline)
                     }
                     .padding(28)
@@ -178,7 +178,7 @@ struct BackupView: View {
             .environmentObject(store)
         }
         .alert(item: $notice) { notice in
-            Alert(title: Text(notice.title), message: Text(notice.message))
+            Alert(title: Text(tr(notice.title)), message: Text(trMessage(notice.message)))
         }
         .interactiveDismissDisabled(progress != nil)
         .onChange(of: frequency) {

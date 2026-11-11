@@ -25,7 +25,7 @@ private struct NamePromptModifier: ViewModifier {
             ) { current in
                 TextField("Name", text: $text)
                 Button("Cancel", role: .cancel) {}
-                Button(current.confirmTitle) { current.onConfirm(text) }
+                Button(tr(current.confirmTitle)) { current.onConfirm(text) }
             }
             .onChange(of: prompt?.id) {
                 text = prompt?.initialText ?? ""

@@ -55,7 +55,7 @@ struct AreaTextSheet: View {
                 } header: {
                     Text(lines.isEmpty && !isReading ? "No text was found" : "Text (you can edit it)")
                 } footer: {
-                    if let problem { Text(problem).foregroundStyle(.red) }
+                    if let problem { Text(trMessage(problem)).foregroundStyle(.red) }
                 }
                 if !isReading && !text.isEmpty {
                     Section {

@@ -6,6 +6,7 @@ struct InkPadApp: App {
     @StateObject private var palette = ToolPalette()
     @StateObject private var workspace = WorkspaceStore()
     @ObservedObject private var theme = ThemeSettings.shared
+    @ObservedObject private var language = LanguageSettings.shared
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
     @Environment(\.scenePhase) private var scenePhase
 
@@ -18,7 +19,9 @@ struct InkPadApp: App {
             LibraryView()
                 // A theme change rebuilds the views, so every color and
                 // font picks it up.
-                .id(theme.revision)
+                .id("\(theme.revision)-\(language.revision)")
+                .environment(\.locale, language.language.locale)
+                .environment(\.layoutDirection, language.language.layoutDirection)
                 .tint(theme.recipe.accent)
                 .fontDesign(theme.recipe.appFont.design)
                 .environmentObject(store)

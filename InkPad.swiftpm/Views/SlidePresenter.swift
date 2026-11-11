@@ -180,7 +180,7 @@ struct SlidePresenter: View {
                 .frame(width: 40, height: 34)
                 .background(isOn ? deck.theme.accent.opacity(0.35) : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         }
-        .accessibilityLabel(label)
+        .accessibilityLabel(trMessage(label))
     }
 
     private var progressBar: some View {

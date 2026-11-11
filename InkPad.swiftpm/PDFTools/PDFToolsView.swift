@@ -115,7 +115,7 @@ struct PDFToolsView: View {
 
     private func extraSection(_ title: String, tools: [PDFExtraTool]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.title3.bold())
+            Text(tr(title)).font(.title3.bold())
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
                 ForEach(tools) { item in
                     Button {
@@ -131,7 +131,7 @@ struct PDFToolsView: View {
 
     private func section(_ title: String, tools: [PDFTool]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.title3.bold())
+            Text(tr(title)).font(.title3.bold())
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
                 ForEach(tools) { item in
                     Button {
@@ -157,11 +157,11 @@ struct PDFToolsView: View {
                 .frame(width: 60, height: 60)
                 .background(tint.gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .shadow(color: tint.opacity(0.4), radius: 8)
-            Text(title)
+            Text(tr(title))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color(uiColor: .label))
                 .multilineTextAlignment(.center)
-            Text(detail)
+            Text(trMessage(detail))
                 .font(.caption)
                 .foregroundStyle(Color(uiColor: .secondaryLabel))
                 .multilineTextAlignment(.center)
@@ -229,12 +229,12 @@ struct PDFToolSheet: View {
                 if !made.isEmpty {
                     Section("Done") {
                         ForEach(made, id: \.self) { title in
-                            Label(title, systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                            Label(tr(title), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                         }
                     }
                 }
             }
-            .navigationTitle(tool.title)
+            .navigationTitle(tr(tool.title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -288,7 +288,7 @@ struct PDFToolSheet: View {
     private var sourceSection: some View {
         Section {
             ForEach(sources) { source in
-                Label(source.title, systemImage: source.isFile ? "doc" : "doc.richtext")
+                Label(tr(source.title), systemImage: source.isFile ? "doc" : "doc.richtext")
             }
             .onMove { from, to in sources.move(fromOffsets: from, toOffset: to) }
             .onDelete { offsets in
@@ -562,7 +562,7 @@ struct PDFNotePicker: View {
                 HStack {
                     Image(systemName: chosen.contains(note.id) ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(chosen.contains(note.id) ? Color.inkAccent : Color.secondary)
-                    Text(note.title)
+                    Text(tr(note.title))
                     Spacer()
                     Text(note.modifiedAt.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(.secondary)
                 }

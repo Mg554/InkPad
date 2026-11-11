@@ -36,13 +36,13 @@ struct RecordingTimelineView: View {
                     start
                 }
             }
-            .navigationTitle(recording.title)
+            .navigationTitle(tr(recording.title))
             .navigationBarTitleDisplayMode(.inline)
             .overlay {
                 if let stage {
                     VStack(spacing: 10) {
                         ProgressView()
-                        Text(stage)
+                        Text(trMessage(stage))
                             .font(.subheadline)
                             .multilineTextAlignment(.center)
                     }
@@ -96,7 +96,7 @@ struct RecordingTimelineView: View {
             }
             if let error {
                 Section {
-                    Label(error, systemImage: "exclamationmark.triangle")
+                    Label(trMessage(error), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 }
             }
@@ -120,7 +120,7 @@ struct RecordingTimelineView: View {
                                     .font(.subheadline.monospacedDigit())
                                     .foregroundStyle(.secondary)
                                     .frame(width: 56, alignment: .leading)
-                                Text(chapter.title)
+                                Text(tr(chapter.title))
                                     .font(.body.weight(chapter == playing ? .bold : .regular))
                                     .foregroundStyle(chapter == playing ? Color.inkAccent : Color.primary)
                                 Spacer()
@@ -166,7 +166,7 @@ struct RecordingTimelineView: View {
                 }
             }
             if let error {
-                Label(error, systemImage: "exclamationmark.triangle")
+                Label(trMessage(error), systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
             }
         }
@@ -205,7 +205,7 @@ struct RecordingTimelineView: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 56, alignment: .leading)
-                Text(phrase.text)
+                Text(tr(phrase.text))
                     .font(.subheadline)
                     .foregroundStyle(Color.primary)
                     .multilineTextAlignment(.leading)

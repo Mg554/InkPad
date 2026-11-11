@@ -242,7 +242,7 @@ struct DistractionBoxView: View {
                     DistractionInkThumbnail(id: item.id, data: data)
                 }
                 if !item.text.isEmpty {
-                    Text(item.text).strikethrough(item.isDone)
+                    Text(tr(item.text)).strikethrough(item.isDone)
                 }
                 HStack(spacing: 8) {
                     Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))

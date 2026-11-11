@@ -319,7 +319,7 @@ struct GraphStyleView: View {
                 Section {
                     Picker(selection: $look.arrangement) {
                         ForEach(GraphLook.Arrangement.allCases) { arrangement in
-                            Label(arrangement.title, systemImage: arrangement.systemImage).tag(arrangement)
+                            Label(tr(arrangement.title), systemImage: arrangement.systemImage).tag(arrangement)
                         }
                     } label: {
                         Label("Arrange", systemImage: "circle.grid.cross")
@@ -332,12 +332,12 @@ struct GraphStyleView: View {
 
                 Section("Notes") {
                     Picker(selection: $look.nodeStyle) {
-                        ForEach(GraphLook.NodeStyle.allCases) { Text($0.title).tag($0) }
+                        ForEach(GraphLook.NodeStyle.allCases) { Text(tr($0.title)).tag($0) }
                     } label: {
                         Label("Shape", systemImage: "circle.circle")
                     }
                     Picker(selection: $look.colorBy) {
-                        ForEach(GraphLook.ColorBy.allCases) { Text($0.title).tag($0) }
+                        ForEach(GraphLook.ColorBy.allCases) { Text(tr($0.title)).tag($0) }
                     } label: {
                         Label("Color By", systemImage: "paintpalette")
                     }
@@ -351,7 +351,7 @@ struct GraphStyleView: View {
 
                 Section("Links") {
                     Picker(selection: $look.edgeStyle) {
-                        ForEach(GraphLook.EdgeStyle.allCases) { Text($0.title).tag($0) }
+                        ForEach(GraphLook.EdgeStyle.allCases) { Text(tr($0.title)).tag($0) }
                     } label: {
                         Label("Lines", systemImage: "line.diagonal")
                     }

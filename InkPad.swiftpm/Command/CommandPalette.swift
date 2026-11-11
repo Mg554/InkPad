@@ -125,7 +125,7 @@ struct CommandPalette: View {
             .accessibilityLabel("Write with Apple Pencil")
             Menu {
                 Picker("Language", selection: $language) {
-                    ForEach(VoiceCommandListener.Language.allCases) { Text($0.title).tag($0) }
+                    ForEach(VoiceCommandListener.Language.allCases) { Text(tr($0.title)).tag($0) }
                 }
             } label: {
                 Image(systemName: voice.isListening ? "waveform.circle.fill" : "mic")
@@ -191,7 +191,7 @@ struct CommandPalette: View {
                 Text(voice.text.isEmpty ? "Listening… (\(language.title))" : voice.text)
             } else if let problem = voice.problem ?? aiProblem {
                 Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
-                Text(problem)
+                Text(trMessage(problem))
             }
             Spacer()
         }
@@ -243,10 +243,10 @@ struct CommandPalette: View {
                 .frame(width: 30, height: 30)
                 .background(item.tint.gradient, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.title)
+                Text(tr(item.title))
                     .lineLimit(1)
                 if let subtitle = item.subtitle, subtitle != "Recent" {
-                    Text(subtitle)
+                    Text(tr(subtitle))
                         .font(.caption)
                         .foregroundStyle(Self.faint)
                         .lineLimit(1)
@@ -254,7 +254,7 @@ struct CommandPalette: View {
             }
             Spacer(minLength: 8)
             if let shortcut = item.shortcut {
-                Text(shortcut)
+                Text(tr(shortcut))
                     .font(.caption.monospaced())
                     .foregroundStyle(Self.faint)
                     .padding(.horizontal, 6)
@@ -454,7 +454,7 @@ struct CommandShortcuts: View {
     ]
 
     private func shortcut(_ title: String, _ key: KeyEquivalent, _ modifiers: EventModifiers = .command, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
+        Button(tr(title), action: action)
             .keyboardShortcut(key, modifiers: modifiers)
     }
 }
@@ -465,7 +465,7 @@ struct CommandToast: View {
 
     var body: some View {
         if let toast = center.toast {
-            Label(toast, systemImage: "checkmark.circle.fill")
+            Label(trMessage(toast), systemImage: "checkmark.circle.fill")
                 .font(.callout.weight(.medium))
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)

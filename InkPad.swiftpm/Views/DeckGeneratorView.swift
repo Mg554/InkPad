@@ -88,7 +88,7 @@ struct DeckGeneratorView: View {
             Section {
                 Picker("Format", selection: $options.format) {
                     ForEach(DeckFormat.allCases) { format in
-                        Text(format.title).tag(format)
+                        Text(tr(format.title)).tag(format)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -97,7 +97,7 @@ struct DeckGeneratorView: View {
                     .foregroundStyle(.secondary)
                 Picker("Length", selection: $options.length) {
                     ForEach(DeckLength.allCases) { length in
-                        Text(length.title).tag(length)
+                        Text(tr(length.title)).tag(length)
                     }
                 }
             } header: {
@@ -133,7 +133,7 @@ struct DeckGeneratorView: View {
                     Text("InkPad, without AI").tag(DeckGenerator.Writer.offline)
                 }
                 if options.writer == .connected, let problem = ai.problem {
-                    Label(problem, systemImage: "exclamationmark.circle")
+                    Label(trMessage(problem), systemImage: "exclamationmark.circle")
                         .font(.footnote)
                         .foregroundStyle(.orange)
                 }
@@ -182,7 +182,7 @@ struct DeckGeneratorView: View {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(isSelected ? Color.inkAccent : Color.secondary.opacity(0.25), lineWidth: isSelected ? 3 : 1)
                     )
-                Text(theme.title)
+                Text(tr(theme.title))
                     .font(.caption)
                     .foregroundStyle(isSelected ? Color.inkAccent : Color.primary)
             }
@@ -198,7 +198,7 @@ struct DeckGeneratorView: View {
             VStack(spacing: 16) {
                 ProgressView()
                     .controlSize(.large)
-                Text(stage)
+                Text(trMessage(stage))
                     .font(.headline)
                     .multilineTextAlignment(.center)
                 Text("This can take a minute for long or handwritten notes.")
@@ -254,7 +254,7 @@ struct NotePicker: View {
                         Image(systemName: note.isText ? "doc.text" : "pencil.and.scribble")
                             .foregroundStyle(.secondary)
                             .frame(width: 24)
-                        Text(note.title)
+                        Text(tr(note.title))
                             .foregroundStyle(.primary)
                         if store.aiAccess(of: note.id) != .allowed {
                             AIAccessBadge(access: store.aiAccess(of: note.id))

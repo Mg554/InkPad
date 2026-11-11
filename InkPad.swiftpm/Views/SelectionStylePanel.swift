@@ -31,7 +31,7 @@ struct SelectionStylePanel: View {
                             .overlay(Capsule().stroke(selection.dash == style ? Color.inkAccent : Color.clear, lineWidth: 2))
                     }
                     .buttonStyle(PressableStyle())
-                    .accessibilityLabel(style.rawValue.capitalized)
+                    .accessibilityLabel(tr(style.rawValue.capitalized))
                 }
             }
 
