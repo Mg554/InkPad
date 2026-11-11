@@ -486,11 +486,15 @@ final class AmbientSound: @unchecked Sendable {
             let index = current.withLock { $0 }
             let cases = FlowLook.Ambient.allCases
             let ambient = index < cases.count ? cases[index] : .off
-            let buffers = UnsafeMutableAudioBufferListPointer(bufferList)
+            // Swift Playgrounds has no UnsafeMutableAudioBufferListPointer:
+            // walk the buffers by hand.
+            let count = Int(bufferList.pointee.mNumberBuffers)
+            let offset: Int = MemoryLayout<AudioBufferList>.offset(of: \AudioBufferList.mBuffers) ?? 8
+            let first = UnsafeMutableRawPointer(bufferList).advanced(by: offset).assumingMemoryBound(to: AudioBuffer.self)
             for frame in 0..<Int(frameCount) {
                 let sample = generator.next(ambient)
-                for buffer in buffers {
-                    let pointer = buffer.mData?.assumingMemoryBound(to: Float.self)
+                for bufferIndex in 0..<count {
+                    let pointer = first[bufferIndex].mData?.assumingMemoryBound(to: Float.self)
                     pointer?[frame] = sample
                 }
             }

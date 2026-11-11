@@ -65,6 +65,10 @@ carefully for Swift pitfalls that have bitten before:
 - This Mac has 16 GB: run only one of Simulator, Swift Playground or
   xcodebuild at a time, and quit it when done.
 - `foregroundStyle(cond ? .a : .b)`: write `Color.a`.
+- Swift Playgrounds lacks some SDK overlay helpers Xcode finds (e.g.
+  `UnsafeMutableAudioBufferListPointer`); its build error shows as a red
+  X on the iPad with no detail. Open the package in Swift Playground on
+  the Mac to see the message.
 - Notification center (`UNUserNotificationCenter`) crashes apps run inside
   Swift Playgrounds; it works in the installed app.
 - `@preconcurrency` on a conformance to an already main-actor protocol
