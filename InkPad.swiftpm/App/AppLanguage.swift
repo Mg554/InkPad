@@ -48,7 +48,7 @@ final class LanguageSettings: ObservableObject {
         let saved = UserDefaults.standard.string(forKey: AppLanguage.storageKey) ?? ""
         language = AppLanguage(rawValue: saved) ?? .english
         Localizer.setArabic(language == .arabic)
-        Localizer.install()
+        if language == .arabic { Localizer.install() }
         Self.applyUIKitDirection(language)
     }
 
@@ -63,6 +63,7 @@ final class LanguageSettings: ObservableObject {
         guard new != language else { return }
         UserDefaults.standard.set(new.rawValue, forKey: AppLanguage.storageKey)
         Localizer.setArabic(new == .arabic)
+        if new == .arabic { Localizer.install() }
         Self.applyUIKitDirection(new)
         language = new
         revision += 1
@@ -84,7 +85,7 @@ func trMessage(_ english: String) -> String {
 }
 
 /// Looks InkPad's labels up in the Arabic table. `Bundle.main` is given a
-/// subclass, so `Text`, `Label`, `Button` and the rest find the Arabic
+/// run-time subclass, so `Text`, `Label`, `Button` and the rest find the Arabic
 /// words without a strings file (Swift Playgrounds builds none).
 enum Localizer {
     private static let lock = NSRecursiveLock()
@@ -92,53 +93,92 @@ enum Localizer {
     private static var table: [String: String]?
     private static var cache: [String: String] = [:]
 
+    private static var installed = false
+
+    /// Runs only once Arabic is chosen, so English never touches the bundle.
+    /// `Bundle.main` gets a subclass made at run time from its real class
+    /// (Swift Playgrounds gives it a class of its own), and every lookup
+    /// that isn't in the Arabic table goes on to that class unchanged.
     static func install() {
-        guard !(Bundle.main is LocalizedMainBundle) else { return }
-        // SwiftUI looks labels up through several methods (for a locale,
-        // with Markdown); each answers from the Arabic table first.
-        hookString("localizedStringForKey:value:table:localization:")
-        hookString("localizedStringForKey:value:table:localizations:")
-        hookString("_localizedStringForKey:value:table:localizations:")
-        hookAttributed("localizedAttributedStringForKey:value:table:")
-        hookAttributed4("localizedAttributedStringForKey:value:table:localization:")
-        object_setClass(Bundle.main, LocalizedMainBundle.self)
-    }
-
-    private typealias String4 = @convention(c) (AnyObject, Selector, NSString, NSString?, NSString?, AnyObject?) -> NSString
-    private typealias Attributed3 = @convention(c) (AnyObject, Selector, NSString, NSString?, NSString?) -> NSAttributedString
-    private typealias Attributed4 = @convention(c) (AnyObject, Selector, NSString, NSString?, NSString?, AnyObject?) -> NSAttributedString
-
-    private static func hookString(_ name: String) {
-        let selector = NSSelectorFromString(name)
-        guard let method = class_getInstanceMethod(Bundle.self, selector) else { return }
-        let original = unsafeBitCast(method_getImplementation(method), to: String4.self)
-        let block: @convention(block) (AnyObject, NSString, NSString?, NSString?, AnyObject?) -> NSString = { bundle, key, value, table, extra in
-            if let arabic = translate(key as String) { return arabic as NSString }
-            return original(bundle, selector, key, value, table, extra)
+        guard !installed else { return }
+        installed = true
+        let bundle = Bundle.main
+        guard let base: AnyClass = object_getClass(bundle) else { return }
+        let name = "InkPadLocalized_" + NSStringFromClass(base)
+        var subclass: AnyClass? = NSClassFromString(name)
+        if subclass == nil, let made = objc_allocateClassPair(base, name, 0) {
+            hookString3("localizedStringForKey:value:table:", base: base, into: made)
+            let selectors = [
+                "localizedStringForKey:value:table:localization:",
+                "localizedStringForKey:value:table:localizations:",
+                "_localizedStringForKey:value:table:localizations:"
+            ]
+            for selector in selectors { hookString(selector, base: base, into: made) }
+            hookAttributed("localizedAttributedStringForKey:value:table:", base: base, into: made)
+            hookAttributed4("localizedAttributedStringForKey:value:table:localization:", base: base, into: made)
+            objc_registerClassPair(made)
+            subclass = made
         }
-        class_addMethod(LocalizedMainBundle.self, selector, imp_implementationWithBlock(block), method_getTypeEncoding(method))
+        if let subclass { object_setClass(bundle, subclass) }
     }
 
-    private static func hookAttributed(_ name: String) {
+    private typealias String4 = @convention(c) (AnyObject, Selector, NSString?, NSString?, NSString?, AnyObject?) -> NSString?
+    private typealias Attributed3 = @convention(c) (AnyObject, Selector, NSString?, NSString?, NSString?) -> NSAttributedString?
+    private typealias Attributed4 = @convention(c) (AnyObject, Selector, NSString?, NSString?, NSString?, AnyObject?) -> NSAttributedString?
+
+    private typealias String3 = @convention(c) (AnyObject, Selector, NSString?, NSString?, NSString?) -> NSString?
+
+    private static func hookString3(_ name: String, base: AnyClass, into subclass: AnyClass) {
         let selector = NSSelectorFromString(name)
-        guard let method = class_getInstanceMethod(Bundle.self, selector) else { return }
-        let original = unsafeBitCast(method_getImplementation(method), to: Attributed3.self)
-        let block: @convention(block) (AnyObject, NSString, NSString?, NSString?) -> NSAttributedString = { bundle, key, value, table in
-            if let arabic = translate(key as String) { return LocalizedMainBundle.attributed(arabic) }
+        guard let method = class_getInstanceMethod(base, selector) else { return }
+        let original = unsafeBitCast(method_getImplementation(method), to: String3.self)
+        let block: @convention(block) (AnyObject, NSString?, NSString?, NSString?) -> NSString? = { bundle, key, value, table in
+            if let key, let arabic = translate(key as String) { return arabic as NSString }
             return original(bundle, selector, key, value, table)
         }
-        class_addMethod(LocalizedMainBundle.self, selector, imp_implementationWithBlock(block), method_getTypeEncoding(method))
+        class_addMethod(subclass, selector, imp_implementationWithBlock(block), method_getTypeEncoding(method))
     }
 
-    private static func hookAttributed4(_ name: String) {
+    /// The four-argument string lookups (for a locale or a list of them).
+    private static func hookString(_ name: String, base: AnyClass, into subclass: AnyClass) {
         let selector = NSSelectorFromString(name)
-        guard let method = class_getInstanceMethod(Bundle.self, selector) else { return }
-        let original = unsafeBitCast(method_getImplementation(method), to: Attributed4.self)
-        let block: @convention(block) (AnyObject, NSString, NSString?, NSString?, AnyObject?) -> NSAttributedString = { bundle, key, value, table, extra in
-            if let arabic = translate(key as String) { return LocalizedMainBundle.attributed(arabic) }
+        guard let method = class_getInstanceMethod(base, selector) else { return }
+        let original = unsafeBitCast(method_getImplementation(method), to: String4.self)
+        let block: @convention(block) (AnyObject, NSString?, NSString?, NSString?, AnyObject?) -> NSString? = { bundle, key, value, table, extra in
+            if let key, let arabic = translate(key as String) { return arabic as NSString }
             return original(bundle, selector, key, value, table, extra)
         }
-        class_addMethod(LocalizedMainBundle.self, selector, imp_implementationWithBlock(block), method_getTypeEncoding(method))
+        class_addMethod(subclass, selector, imp_implementationWithBlock(block), method_getTypeEncoding(method))
+    }
+
+    private static func hookAttributed(_ name: String, base: AnyClass, into subclass: AnyClass) {
+        let selector = NSSelectorFromString(name)
+        guard let method = class_getInstanceMethod(base, selector) else { return }
+        let original = unsafeBitCast(method_getImplementation(method), to: Attributed3.self)
+        let block: @convention(block) (AnyObject, NSString?, NSString?, NSString?) -> NSAttributedString? = { bundle, key, value, table in
+            if let key, let arabic = translate(key as String) { return attributed(arabic) }
+            return original(bundle, selector, key, value, table)
+        }
+        class_addMethod(subclass, selector, imp_implementationWithBlock(block), method_getTypeEncoding(method))
+    }
+
+    private static func hookAttributed4(_ name: String, base: AnyClass, into subclass: AnyClass) {
+        let selector = NSSelectorFromString(name)
+        guard let method = class_getInstanceMethod(base, selector) else { return }
+        let original = unsafeBitCast(method_getImplementation(method), to: Attributed4.self)
+        let block: @convention(block) (AnyObject, NSString?, NSString?, NSString?, AnyObject?) -> NSAttributedString? = { bundle, key, value, table, extra in
+            if let key, let arabic = translate(key as String) { return attributed(arabic) }
+            return original(bundle, selector, key, value, table, extra)
+        }
+        class_addMethod(subclass, selector, imp_implementationWithBlock(block), method_getTypeEncoding(method))
+    }
+
+    static func attributed(_ text: String) -> NSAttributedString {
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        if let parsed = try? AttributedString(markdown: text, options: options) {
+            return NSAttributedString(parsed)
+        }
+        return NSAttributedString(string: text)
     }
 
     static func setArabic(_ on: Bool) {
@@ -235,21 +275,6 @@ enum Localizer {
         }
         result += rest
         return result
-    }
-}
-
-final class LocalizedMainBundle: Bundle, @unchecked Sendable {
-    override func localizedString(forKey key: String, value: String?, table tableName: String?) -> String {
-        if let arabic = Localizer.translate(key) { return arabic }
-        return super.localizedString(forKey: key, value: value, table: tableName)
-    }
-
-    static func attributed(_ text: String) -> NSAttributedString {
-        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        if let parsed = try? AttributedString(markdown: text, options: options) {
-            return NSAttributedString(parsed)
-        }
-        return NSAttributedString(string: text)
     }
 }
 
