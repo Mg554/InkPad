@@ -42,18 +42,19 @@ final class FingerGestures: NSObject, UIGestureRecognizerDelegate {
         showHUD(done ? "Redo" : "Nothing to Redo", symbol: "arrow.uturn.forward")
     }
 
-    nonisolated func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
-        true
+    // Plain, not nonisolated: with the nonisolated witness Swift Playgrounds
+    // on iPadOS 27 failed to build InkPad (a red X with no message).
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        return true
     }
 
     private func showHUD(_ text: String, symbol: String) {
         guard let host = hudHost else { return }
         hud?.removeFromSuperview()
         let label = PaddedLabel()
-        let attachment = NSTextAttachment(image: UIImage(systemName: symbol)?.withTintColor(.white, renderingMode: .alwaysOriginal) ?? UIImage())
-        let line = NSMutableAttributedString(attachment: attachment)
-        line.append(NSAttributedString(string: "  " + tr(text)))
-        label.attributedText = line
+        let symbolName: String = symbol
+        label.text = "\u{21BA}  " + tr(text)
+        if symbolName.hasSuffix("forward") { label.text = "\u{21BB}  " + tr(text) }
         label.font = .preferredFont(forTextStyle: .headline)
         label.textColor = .white
         label.backgroundColor = UIColor.black.withAlphaComponent(0.68)
@@ -66,12 +67,11 @@ final class FingerGestures: NSObject, UIGestureRecognizerDelegate {
         label.isUserInteractionEnabled = false
         host.addSubview(label)
         hud = label
-        UIView.animate(withDuration: 0.12) { label.alpha = 1 }
-        UIView.animate(withDuration: 0.3, delay: 0.7, options: [.beginFromCurrentState]) {
-            label.alpha = 0
-        } completion: { _ in
-            label.removeFromSuperview()
-        }
+        let appear: () -> Void = { label.alpha = 1 }
+        let fade: () -> Void = { label.alpha = 0 }
+        let remove: (Bool) -> Void = { _ in label.removeFromSuperview() }
+        UIView.animate(withDuration: 0.12, animations: appear)
+        UIView.animate(withDuration: 0.3, delay: 0.7, options: [.beginFromCurrentState], animations: fade, completion: remove)
     }
 }
 

@@ -29,14 +29,14 @@ struct NoteCanvas: UIViewRepresentable {
             }
         }
         host.fingerGestures.onUndo = { [weak controller] in
-            guard let controller else { return false }
+            guard let controller = controller else { return false }
             controller.refreshUndoState()
             guard controller.canUndo else { return false }
             controller.undo()
             return true
         }
         host.fingerGestures.onRedo = { [weak controller] in
-            guard let controller else { return false }
+            guard let controller = controller else { return false }
             controller.refreshUndoState()
             guard controller.canRedo else { return false }
             controller.redo()

@@ -69,6 +69,11 @@ carefully for Swift pitfalls that have bitten before:
   `UnsafeMutableAudioBufferListPointer`); its build error shows as a red
   X on the iPad with no detail. Open the package in Swift Playground on
   the Mac to see the message.
+- No `nonisolated` on delegate methods (e.g. a `UIGestureRecognizerDelegate`
+  method in a `@MainActor` class): Swift Playgrounds on iPadOS 27 failed
+  to build with it (red X, no message) while Xcode and the Mac accepted it.
+  When the iPad shows a bare red X, bisect with test branches
+  (github.com/Mg554/InkPad/archive/refs/heads/<branch>.zip).
 - Notification center (`UNUserNotificationCenter`) crashes apps run inside
   Swift Playgrounds; it works in the installed app.
 - `@preconcurrency` on a conformance to an already main-actor protocol
