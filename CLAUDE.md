@@ -120,6 +120,12 @@ InkPad.swiftpm/
 
 ## Open threads
 
+- Install on the iPad (iPadOS 27, Developer Mode on, free team 9M8CWNS46T
+  in Package.swift): with the iPad on the cable, build with
+  `xcodebuild -scheme InkPad -destination 'id=00008112-001E213A1E93A01E' -allowProvisioningUpdates build`,
+  then `xcrun devicectl device install app --device FB9997CE-4771-5D00-8F3D-1C300CD8ABBE <InkPad.app>`.
+  The free signature lasts 7 days; reinstall then. Crash logs:
+  `xcrun devicectl device info files ... --domain-type systemCrashLogs`.
 - Keyboard: the owner sees no on-screen keyboard anywhere, even with
   finger taps, and uses a third-party stylus (not Apple Pencil). Likely a
   Bluetooth device iPadOS treats as a hardware keyboard. KeyboardWatcher
