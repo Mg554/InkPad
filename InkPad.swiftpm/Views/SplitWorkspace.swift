@@ -112,8 +112,10 @@ final class SplitController: ObservableObject {
         if let session { session.save(thumbnail: true) }
         let fresh = EditorSession()
         fresh.load(noteID: id, store: store)
+        if let otherID { SyncEngine.shared.openNotes.remove(otherID) }
         session = fresh
         otherID = id
+        SyncEngine.shared.openNotes.insert(id)
         active = .other
         maximized = nil
         SplitMemory.shared.remember(id, beside: mainID)
@@ -122,6 +124,7 @@ final class SplitController: ObservableObject {
     func close(beside mainID: UUID?) {
         session?.audio.stopAll()
         session?.save(thumbnail: true)
+        if let otherID { SyncEngine.shared.openNotes.remove(otherID) }
         session = nil
         otherID = nil
         active = .main

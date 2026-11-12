@@ -195,7 +195,7 @@
       outside knowledge); Explain / Translate / math steps from the lasso;
       search by meaning (on-device by default, the connected AI when
       allowed by the AI Firewall); folder and tag suggestions.
-   5. **Sync** — a free sync folder in iCloud Drive chosen in Files (no
+   5. **Sync** (done, 12 Nov 2026, needs testing between the Playgrounds copy and the installed app) — a free sync folder in iCloud Drive chosen in Files (no
       CloudKit, which needs the paid program), first between the Swift
       Playgrounds copy and the Xcode-installed copy on the same iPad.
    Postponed: layers and an infinite canvas. Real-time collaboration is

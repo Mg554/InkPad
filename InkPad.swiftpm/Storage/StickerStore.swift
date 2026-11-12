@@ -180,6 +180,9 @@ final class StickerStore: ObservableObject {
         load()
     }
 
+    /// Reads the list again (after a sync).
+    func reload() { load() }
+
     private func load() {
         guard let data = try? Data(contentsOf: indexURL),
               let index = try? JSONDecoder().decode(Index.self, from: data) else { return }

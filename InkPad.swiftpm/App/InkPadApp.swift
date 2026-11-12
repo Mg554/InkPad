@@ -29,10 +29,18 @@ struct InkPadApp: App {
                 .environmentObject(workspace)
                 .preferredColorScheme(appearance.colorScheme)
                 // Automatic backups run when InkPad opens or comes back.
-                .task { await store.makeAutomaticBackupIfDue() }
+                .task {
+                    SyncEngine.shared.start(store: store, workspace: workspace)
+                    SyncEngine.shared.soon(delay: 3)
+                    await store.makeAutomaticBackupIfDue()
+                }
                 .onChange(of: scenePhase) {
                     if scenePhase == .active {
                         Task { await store.makeAutomaticBackupIfDue() }
+                        SyncEngine.shared.soon(delay: 2)
+                    } else if scenePhase == .background {
+                        // Notes are saved on the way out; send them.
+                        SyncEngine.shared.soon(delay: 1)
                     }
                 }
         }

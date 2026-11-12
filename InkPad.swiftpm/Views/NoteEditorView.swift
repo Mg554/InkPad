@@ -191,7 +191,10 @@ struct NoteEditorView: View {
                 .environmentObject(store)
                 .environmentObject(workspace)
         }
-        .onAppear { focus.openEditors += 1 }
+        .onAppear {
+            focus.openEditors += 1
+            SyncEngine.shared.openNotes.insert(noteID)
+        }
         .task {
             session.load(noteID: noteID, store: store)
             canvas.onThink = { text, rect, mode in
@@ -287,6 +290,9 @@ struct NoteEditorView: View {
         .namePrompt($workspacePrompt)
         .onDisappear {
             split.session?.save(thumbnail: true)
+            SyncEngine.shared.openNotes.remove(noteID)
+            // After the note is saved, send it.
+            SyncEngine.shared.soon(delay: 4)
             // A new note that's unfiled or untitled: offer a title, folder and tags.
             if session.wasEdited {
                 let id = noteID

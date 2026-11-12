@@ -30,6 +30,7 @@ struct SidebarView: View {
     var body: some View {
         List(selection: $scope) {
             Section("Library") {
+                SidebarSyncRow()
                 Label("All Notes", systemImage: "tray.full")
                     .tag(LibraryScope.allNotes)
                 Label("Unfiled", systemImage: "tray")

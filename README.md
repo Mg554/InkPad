@@ -90,6 +90,16 @@ Done:
   a title, a folder and tags (on the iPad, or by AI when the Firewall
   allows); View › Organize My Library… suggests for every such note and
   proposes new folders for notes that belong together
+- Sync (Settings › Sync): pick a folder in iCloud Drive in each copy of
+  InkPad (the Swift Playgrounds copy and the installed app, or another
+  iPad); free, with no account. Choose what syncs (notes, folders and
+  Recently Deleted; Planner, flashcards, maps and focus; stickers and
+  focus sounds; settings). Syncs when InkPad opens, after leaving a note,
+  going to the background and every five minutes, or with Sync Now (also
+  from the sidebar status). Notes edited on both copies keep both; Compare
+  shows the changed lines like git, can ask AI what changed, and keeps
+  this copy, the other or both. A sync log and a weekly backup in the
+  sync folder
 - Sticky notes (+ › Sticky Note): colored notes on the page with typed
   text and handwriting, a group name, folding to a small square; tap one
   with a finger to open it; turn it into a Planner task linked to its

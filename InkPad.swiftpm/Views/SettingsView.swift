@@ -31,6 +31,16 @@ struct SettingsView: View {
                         proBanner
                     }
                 }
+                Section {
+                    NavigationLink {
+                        SyncSettingsView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Label("Sync", systemImage: "icloud")
+                            SyncStatusLine()
+                        }
+                    }
+                }
                 aiSection
                 appearanceSection
                 writingSection

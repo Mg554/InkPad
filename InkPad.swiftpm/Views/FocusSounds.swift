@@ -169,6 +169,13 @@ final class OwnSoundStore: ObservableObject {
         if let data = try? JSONEncoder().encode(sounds) { try? data.write(to: indexURL, options: .atomic) }
     }
 
+    /// Reads the list again (after a sync).
+    func reload() {
+        if let data = try? Data(contentsOf: indexURL), let saved = try? JSONDecoder().decode([OwnSound].self, from: data) {
+            sounds = saved
+        }
+    }
+
     /// Copies an audio file in; returns the new sound.
     @discardableResult
     func add(fileAt url: URL, name: String) -> OwnSound? {
