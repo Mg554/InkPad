@@ -69,6 +69,8 @@ struct NoteEditorView: View {
                         Divider()
                         PageSidebar(
                             canvas: canvas,
+                            session: session,
+                            noteID: noteID,
                             content: snapshot,
                             revision: session.snapshotRevision,
                             background: background,
@@ -278,6 +280,11 @@ struct NoteEditorView: View {
             .overlay(alignment: .bottomTrailing) {
                 PageNavigator(canvas: canvas) { isShowingPages.toggle() }
                     .padding(16)
+            }
+            .overlay(alignment: .trailing) {
+                if !isShowingPages {
+                    PageTabStrip(session: session, canvas: canvas)
+                }
             }
             .safeAreaInset(edge: .top, spacing: 0) { dockedToolbar(.top, area: proxy.size) }
             .safeAreaInset(edge: .bottom, spacing: 0) { dockedToolbar(.bottom, area: proxy.size) }

@@ -11,6 +11,7 @@ struct SidebarView: View {
     @State private var showsBackup = false
     @State private var showsRecentlyDeleted = false
     @State private var showsThemes = false
+    @State private var editedCollection: SmartCollection?
     /// Applied once the Themes sheet has closed (applying rebuilds the app).
     @State private var themeToApply: ThemeRecipe?
     @AppStorage(BackupView.lastBackupKey) private var lastBackupAt: Double = 0
@@ -32,6 +33,15 @@ struct SidebarView: View {
                     .tag(LibraryScope.allNotes)
                 Label("Unfiled", systemImage: "tray")
                     .tag(LibraryScope.unfiled)
+                HStack {
+                    Label("Favorites", systemImage: "star")
+                    Spacer()
+                    let count = store.notes.filter(\.favorite).count
+                    if count > 0 {
+                        Text("\(count)").foregroundStyle(.secondary)
+                    }
+                }
+                .tag(LibraryScope.favorites)
                 Button {
                     let today = workspace.tasks
                         .filter { task in task.status != .done && (task.dueDate.map(Calendar.current.isDateInToday) ?? false) }
@@ -58,6 +68,41 @@ struct SidebarView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                }
+            }
+
+            Section {
+                ForEach(BuiltInCollection.allCases) { collection in
+                    Label(tr(collection.title), systemImage: collection.systemImage)
+                        .tag(LibraryScope.builtIn(collection))
+                }
+                ForEach(store.collections) { collection in
+                    Label { Text(verbatim: collection.name) } icon: { Image(systemName: "sparkles.rectangle.stack") }
+                        .tag(LibraryScope.collection(collection.id))
+                        .contextMenu {
+                            Button {
+                                editedCollection = collection
+                            } label: {
+                                Label("Edit Rules…", systemImage: "slider.horizontal.3")
+                            }
+                            Button(role: .destructive) {
+                                if scope == .collection(collection.id) { scope = .allNotes }
+                                store.deleteCollection(collection.id)
+                            } label: {
+                                Label("Delete Collection", systemImage: "trash")
+                            }
+                        }
+                }
+            } header: {
+                HStack {
+                    Text("Smart Collections")
+                    Spacer()
+                    Button {
+                        editedCollection = SmartCollection(name: "")
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("New Smart Collection")
                 }
             }
 
@@ -165,6 +210,10 @@ struct SidebarView: View {
         }
         .sheet(isPresented: $showsRecentlyDeleted) {
             RecentlyDeletedView()
+        }
+        .sheet(item: $editedCollection) { collection in
+            CollectionEditor(collection: collection)
+                .environmentObject(store)
         }
         .namePrompt($prompt)
         .confirmationDialog(

@@ -290,6 +290,8 @@ enum LibraryBackup {
                     copy.tags = note.tags
                     copy.hiddenFromAI = note.hiddenFromAI
                     copy.aiOnDeviceOnly = note.aiOnDeviceOnly
+                    copy.cover = note.cover
+                    copy.isFavorite = note.isFavorite
                     try fileManager.moveItem(at: source, to: noteFolder(copy.id, in: root))
                     index.notes.append(copy)
                     result.copied += 1

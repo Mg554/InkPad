@@ -1,5 +1,6 @@
 import Foundation
 import PencilKit
+import CoreGraphics
 
 enum PageTemplate: String, Codable, CaseIterable, Identifiable {
     case blank
@@ -101,12 +102,98 @@ struct NotebookPageLink: Codable, Equatable {
     var bookPages: [Int]
 }
 
+/// A paper page's size in PDF points (1/72 inch). Only its shape shows
+/// on screen: every page is drawn the same width.
+struct PaperSize: Codable, Equatable, Hashable {
+    var width: Double
+    var height: Double
+
+    /// The size of plain `.paper` pages (A4 portrait).
+    static let standard = PaperSize(width: 595.28, height: 841.89)
+
+    var isLandscape: Bool { width > height }
+
+    var swapped: PaperSize { PaperSize(width: height, height: width) }
+
+    /// Screen height for a page `PageLayout.pageWidth` wide.
+    var layoutHeight: CGFloat {
+        guard width > 0, height > 0 else { return PageLayout.templatePageSize.height }
+        let ratio: Double = height / width
+        return PageLayout.pageWidth * CGFloat(min(max(ratio, 0.2), 5))
+    }
+}
+
+/// Ready-made page sizes; `custom` takes any width and height.
+enum PaperPreset: String, CaseIterable, Identifiable {
+    case a4, letter, a5, square, wide, screen, custom
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .a4: "A4"
+        case .letter: "US Letter"
+        case .a5: "A5"
+        case .square: "Square"
+        case .wide: "Wide (16:9)"
+        case .screen: "iPad Screen"
+        case .custom: "Custom"
+        }
+    }
+
+    /// Portrait size (custom has none).
+    var size: PaperSize? {
+        switch self {
+        case .a4: PaperSize.standard
+        case .letter: PaperSize(width: 612, height: 792)
+        case .a5: PaperSize(width: 419.53, height: 595.28)
+        case .square: PaperSize(width: 595.28, height: 595.28)
+        case .wide: PaperSize(width: 595.28, height: 1058.27)
+        case .screen: PaperSize(width: 595.28, height: 793.71)
+        case .custom: nil
+        }
+    }
+
+    /// The preset a size matches, in either orientation.
+    static func matching(_ size: PaperSize) -> PaperPreset {
+        for preset in allCases {
+            guard let base = preset.size else { continue }
+            if abs(base.width - size.width) < 1, abs(base.height - size.height) < 1 { return preset }
+            if abs(base.height - size.width) < 1, abs(base.width - size.height) < 1 { return preset }
+        }
+        return .custom
+    }
+}
+
 /// What one page shows underneath the ink.
 enum PageSource: Codable, Equatable {
     /// A page of the note's PDF (zero-based).
     case pdf(Int)
-    /// Template paper.
+    /// Template paper, A4.
     case paper
+    /// Template paper of another size.
+    case sizedPaper(PaperSize)
+
+    var isPaper: Bool {
+        switch self {
+        case .pdf: false
+        case .paper, .sizedPaper: true
+        }
+    }
+
+    /// The paper size, or nil for a PDF page.
+    var paperSize: PaperSize? {
+        switch self {
+        case .pdf: nil
+        case .paper: PaperSize.standard
+        case let .sizedPaper(size): size
+        }
+    }
+
+    /// Paper of this size (plain `.paper` for A4, which older versions read).
+    static func paper(of size: PaperSize) -> PageSource {
+        size == PaperSize.standard ? .paper : .sizedPaper(size)
+    }
 }
 
 /// Per-note settings stored next to the drawing (`note.json`).

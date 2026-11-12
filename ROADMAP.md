@@ -150,7 +150,8 @@
    Rule: each feature also speeds up and hardens the part of the app it
    touches ("both together"), and every change still builds in Swift
    Playgrounds as well as the Xcode-installed app. Batches, in order:
-   1. **Library + pages** — favorites, pinning, sorting (name, created,
+   1. **Library + pages** (done, 12 Nov 2026; dragging pages onto a
+      note comes with the split workspace) — favorites, pinning, sorting (name, created,
       edited, custom order); smart collections (recently edited, PDFs,
       notes with audio, unfinished tasks, untitled, by tag); notebook
       covers (colors, gradients) and a grid/list switch; page management

@@ -15,6 +15,19 @@ struct NotesGridView: View {
     @State private var studyNote: NoteSummary?
     @State private var reminderRequest: NoteReminderRequest?
     @State private var historyNote: NoteSummary?
+    @State private var coverNote: NoteSummary?
+    @AppStorage(NoteSort.storageKey) private var sortRaw = NoteSort.edited.rawValue
+    @AppStorage(LibraryLayout.storageKey) private var layoutRaw = LibraryLayout.grid.rawValue
+
+    private var sort: NoteSort { NoteSort(rawValue: sortRaw) ?? .edited }
+    private var layout: LibraryLayout { LibraryLayout(rawValue: layoutRaw) ?? .grid }
+    private var sortBinding: Binding<NoteSort> {
+        Binding(get: { sort }, set: { sortRaw = $0.rawValue })
+    }
+
+    private var arrangement: (pinned: [NoteSummary], others: [NoteSummary]) {
+        store.arranged(visibleNotes, sort: sort, scope: scope)
+    }
 
     private var visibleNotes: [NoteSummary] {
         let notes = store.notes(in: scope)
@@ -36,6 +49,9 @@ struct NotesGridView: View {
         case .graph: "Graph"
         case .pdfTools: "PDF Tools"
         case .gps: "Knowledge GPS"
+        case .favorites: "Favorites"
+        case let .builtIn(collection): collection.title
+        case let .collection(id): store.collections.first(where: { $0.id == id })?.name ?? "Collection"
         case let .tag(tag): "#\(tag)"
         case let .folder(id): store.folder(id)?.name ?? "Folder"
         }
@@ -44,7 +60,8 @@ struct NotesGridView: View {
     private var targetFolderID: UUID? {
         switch scope {
         case let .folder(id): return id
-        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .pdfTools, .gps, .tag: return nil
+        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .pdfTools, .gps, .tag,
+             .favorites, .builtIn, .collection: return nil
         }
     }
 
@@ -64,24 +81,24 @@ struct NotesGridView: View {
                     .padding(.top, 40)
                     .frame(maxWidth: .infinity)
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: ThemeSettings.current.cardSize.range.min, maximum: ThemeSettings.current.cardSize.range.max), spacing: 24)], spacing: 28) {
-                    ForEach(visibleNotes) { note in
-                        Button {
-                            openNote(note.id)
-                        } label: {
-                            NoteCard(note: note)
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu { menu(for: note) }
+                let arranged = arrangement
+                if !arranged.pinned.isEmpty {
+                    sectionTitle("Pinned", systemImage: "pin.fill")
+                    notesLayout(arranged.pinned, reorderable: false)
+                    if !arranged.others.isEmpty {
+                        sectionTitle("Notes", systemImage: "square.grid.2x2")
                     }
                 }
-                .padding(24)
+                notesLayout(arranged.others, reorderable: sort == .custom)
             }
         }
         .themedBackground()
         .navigationTitle(tr(title))
         .searchable(text: $searchText, prompt: "Search titles, text, handwriting and #tags")
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                arrangeMenu
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     templateButtons
@@ -132,6 +149,10 @@ struct NotesGridView: View {
             .ignoresSafeArea()
         }
         .namePrompt($prompt)
+        .sheet(item: $coverNote) { note in
+            CoverEditor(note: note)
+                .environmentObject(store)
+        }
         .sheet(item: $historyNote) { note in
             NoteHistoryView(note: note)
                 .environmentObject(store)
@@ -152,8 +173,118 @@ struct NotesGridView: View {
         }
     }
 
+    // MARK: Layout
+
+    private var gridColumns: [GridItem] {
+        let range = ThemeSettings.current.cardSize.range
+        return [GridItem(.adaptive(minimum: range.min, maximum: range.max), spacing: 24)]
+    }
+
+    @ViewBuilder
+    private func notesLayout(_ notes: [NoteSummary], reorderable: Bool) -> some View {
+        if layout == .list {
+            VStack(spacing: 0) {
+                NoteListHeader(sort: sortBinding)
+                Divider()
+                ForEach(notes) { note in
+                    item(note, reorderable: reorderable) { NoteRow(note: note) }
+                    Divider().padding(.leading, 72)
+                }
+            }
+            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+        } else {
+            LazyVGrid(columns: gridColumns, spacing: 28) {
+                ForEach(notes) { note in
+                    item(note, reorderable: reorderable) { NoteCard(note: note) }
+                }
+            }
+            .padding(24)
+        }
+    }
+
+    /// A card or row: opens the note, has its menu, and in Custom Order can
+    /// be dragged onto another note to go before it.
+    @ViewBuilder
+    private func item<Content: View>(_ note: NoteSummary, reorderable: Bool, @ViewBuilder content: () -> Content) -> some View {
+        let button = Button {
+            openNote(note.id)
+        } label: {
+            content()
+        }
+        .buttonStyle(.plain)
+        .contextMenu { menu(for: note) }
+        if reorderable {
+            button
+                .draggable(note.id.uuidString)
+                .dropDestination(for: String.self) { items, _ in
+                    guard let first = items.first, let moved = UUID(uuidString: first) else { return false }
+                    let shown: [UUID] = arrangement.others.map(\.id)
+                    withAnimation(.snappy) {
+                        store.moveInCustomOrder(moved, before: note.id, shown: shown, scope: scope)
+                    }
+                    return true
+                }
+        } else {
+            button
+        }
+    }
+
+    private func sectionTitle(_ title: LocalizedStringKey, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.headline)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+    }
+
+    /// Sorting and grid or list.
+    private var arrangeMenu: some View {
+        Menu {
+            Picker("Sort By", selection: sortBinding) {
+                ForEach(NoteSort.allCases) { option in
+                    Label(tr(option.title), systemImage: option.systemImage).tag(option)
+                }
+            }
+            Section {
+                Picker("View", selection: $layoutRaw) {
+                    Label("Grid", systemImage: "square.grid.2x2").tag(LibraryLayout.grid.rawValue)
+                    Label("List", systemImage: "list.bullet").tag(LibraryLayout.list.rawValue)
+                }
+            }
+            if sort == .custom {
+                Section {
+                    Text("Drag a note onto another to put it before that one.")
+                }
+            }
+        } label: {
+            Label("Sort and View", systemImage: layout == .list ? "list.bullet" : "square.grid.2x2")
+        }
+    }
+
     @ViewBuilder
     private func menu(for note: NoteSummary) -> some View {
+        Button {
+            store.setPinned(!note.isPinned, for: note.id)
+        } label: {
+            Label(note.isPinned ? "Unpin" : "Pin to Top", systemImage: note.isPinned ? "pin.slash" : "pin")
+        }
+
+        Button {
+            store.setFavorite(!note.favorite, for: note.id)
+        } label: {
+            Label(note.favorite ? "Remove from Favorites" : "Add to Favorites", systemImage: note.favorite ? "star.slash" : "star")
+        }
+
+        Button {
+            coverNote = note
+        } label: {
+            Label("Cover…", systemImage: "book.closed")
+        }
+
+        Divider()
+
         Button {
             prompt = NamePrompt(
                 title: "Rename Note",

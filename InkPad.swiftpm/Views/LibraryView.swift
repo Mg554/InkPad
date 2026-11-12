@@ -247,9 +247,21 @@ struct LibraryView: View {
         }
     }
 
+    private func syncOpenTaskNotes() {
+        let ids: Set<UUID> = Set(workspace.tasks.filter { $0.status != .done }.compactMap(\.noteID))
+        if store.openTaskNotes != ids { store.openTaskNotes = ids }
+    }
+
+    /// Notes with unfinished Planner tasks, for the Unfinished Tasks collection.
+    private var withTaskSync: some View {
+        withCommands
+            .task { syncOpenTaskNotes() }
+            .onChange(of: workspace.tasks) { syncOpenTaskNotes() }
+    }
+
     /// Living Notes keeps its index of concepts up to date.
     private var withLiving: some View {
-        withCommands
+        withTaskSync
             .task { LivingNotes.shared.refresh(store: store) }
             .onChange(of: store.notes) { LivingNotes.shared.refresh(store: store) }
             .onChange(of: store.textIndex) { LivingNotes.shared.refresh(store: store) }

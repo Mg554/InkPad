@@ -86,6 +86,10 @@ final class LibraryStore: ObservableObject {
     /// deleted for good, by hand or after `trashDays` days.
     @Published private(set) var trashedNotes: [NoteSummary] = []
     static let trashDays = 30
+    /// Custom Order, per list (`LibraryScope.orderKey`).
+    @Published private(set) var customOrders: [String: [UUID]] = [:]
+    /// The owner's smart collections.
+    @Published private(set) var collections: [SmartCollection] = []
 
     /// `Documents/InkPad/`, the whole library (also read by backups).
     let rootURL: URL
@@ -105,6 +109,63 @@ final class LibraryStore: ObservableObject {
         // The text of every note is read after the library shows, so
         // InkPad opens quickly however many notes there are.
         loadTextsInBackground()
+        refreshFactsInBackground()
+    }
+
+    /// Reads each handwritten note's page count, PDF and recordings off the
+    /// main thread (for collections and the list view), and keeps them in
+    /// the index without changing when the notes were edited.
+    private func refreshFactsInBackground() {
+        let items: [(UUID, URL)] = notes.filter { !$0.isText }.map { ($0.id, noteDirectory($0.id)) }
+        guard !items.isEmpty else { return }
+        Task {
+            let read = await Task.detached(priority: .utility) { Self.readFacts(items) }.value
+            var changed = false
+            for (id, facts) in read {
+                guard let index = notes.firstIndex(where: { $0.id == id }) else { continue }
+                if apply(facts, to: index) { changed = true }
+            }
+            if changed, !isReadOnly { saveIndex() }
+        }
+    }
+
+    private nonisolated static func readFacts(_ items: [(UUID, URL)]) -> [(UUID, NoteFacts)] {
+        var result: [(UUID, NoteFacts)] = []
+        for (id, directory) in items {
+            let url = directory.appendingPathComponent(NoteFiles.metadataFile)
+            guard let data = try? Data(contentsOf: url),
+                  let metadata = try? JSONDecoder.inkpad.decode(NoteMetadata.self, from: data)
+            else { continue }
+            var noteFacts = facts(of: metadata)
+            // Older notes list their PDF pages only in the PDF itself.
+            if metadata.pages == nil, let file = metadata.pdfFile, isPlainFileName(file),
+               let pdf = CGPDFDocument(directory.appendingPathComponent(file) as CFURL) {
+                noteFacts.pageCount = pdf.numberOfPages + metadata.pageCount
+            }
+            result.append((id, noteFacts))
+        }
+        return result
+    }
+
+    private nonisolated static func facts(of metadata: NoteMetadata) -> NoteFacts {
+        let pages: [PageSource]? = metadata.pages
+        let pdfPages: Int = pages?.count ?? 0
+        let count: Int = pages != nil ? pdfPages : metadata.pageCount
+        return NoteFacts(
+            hasAudio: !(metadata.recordings ?? []).isEmpty,
+            hasPDF: metadata.pdfFile != nil,
+            pageCount: max(count, 1)
+        )
+    }
+
+    /// Returns whether anything changed.
+    private func apply(_ facts: NoteFacts, to index: Int) -> Bool {
+        let note = notes[index]
+        guard note.hasAudio != facts.hasAudio || note.hasPDF != facts.hasPDF || note.pageCount != facts.pageCount else { return false }
+        notes[index].hasAudio = facts.hasAudio
+        notes[index].hasPDF = facts.hasPDF
+        notes[index].pageCount = facts.pageCount
+        return true
     }
 
     /// Reads text notes and the recognized text of handwritten notes off
@@ -153,11 +214,14 @@ final class LibraryStore: ObservableObject {
         textIndex = [:]
         recognizedText = [:]
         trashedNotes = []
+        customOrders = [:]
+        collections = []
         isReadOnly = false
         loadIndex()
         loadTextIndex()
         loadRecognizedText()
         removeExpiredTrash()
+        refreshFactsInBackground()
         libraryGeneration += 1
     }
 
@@ -177,12 +241,150 @@ final class LibraryStore: ObservableObject {
         case .allNotes: matching = notes
         case .unfiled: matching = notes.filter { $0.folderID == nil }
         case .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .pdfTools, .gps: matching = []
+        case .favorites: matching = notes.filter(\.favorite)
+        case let .builtIn(collection): matching = notes.filter { matches($0, builtIn: collection) }
+        case let .collection(id):
+            if let collection = collections.first(where: { $0.id == id }) {
+                matching = notes.filter { matches($0, collection: collection) }
+            } else {
+                matching = []
+            }
         case let .tag(tag):
             let key = NoteLinks.key(tag)
             matching = notes.filter { tags(of: $0).contains { NoteLinks.key($0) == key } }
         case let .folder(id): matching = notes.filter { $0.folderID == id }
         }
         return matching.sorted { $0.modifiedAt > $1.modifiedAt }
+    }
+
+    // MARK: Organizing
+
+    /// Notes linked to unfinished Planner tasks (set by the library view).
+    @Published var openTaskNotes: Set<UUID> = []
+
+    /// A note with tasks still to do: open `- [ ]` items in a text note, or
+    /// an unfinished Planner task linked to it.
+    func hasOpenTasks(_ note: NoteSummary) -> Bool {
+        if openTaskNotes.contains(note.id) { return true }
+        guard let text = textIndex[note.id]?.text else { return false }
+        return text.contains("- [ ]")
+    }
+
+    func matches(_ note: NoteSummary, builtIn collection: BuiltInCollection) -> Bool {
+        switch collection {
+        case .recent:
+            return note.modifiedAt > Date().addingTimeInterval(-7 * 24 * 3600)
+        case .pdfs:
+            return note.hasPDF == true
+        case .audio:
+            return note.hasAudio == true
+        case .tasks:
+            return hasOpenTasks(note)
+        case .untitled:
+            let title = note.title.trimmingCharacters(in: .whitespaces)
+            return title.isEmpty || title.hasPrefix("Untitled") || title.hasPrefix("Note ")
+        }
+    }
+
+    func matches(_ note: NoteSummary, collection: SmartCollection) -> Bool {
+        switch collection.kind {
+        case .any: break
+        case .handwritten: if note.isText || note.hasPDF == true { return false }
+        case .pdf: if note.hasPDF != true { return false }
+        case .text: if !note.isText { return false }
+        }
+        if let tag = collection.tag, !tag.isEmpty {
+            let key = NoteLinks.key(tag)
+            if !tags(of: note).contains(where: { NoteLinks.key($0) == key }) { return false }
+        }
+        if let days = collection.editedWithinDays, days > 0 {
+            let since = Date().addingTimeInterval(-Double(days) * 24 * 3600)
+            if note.modifiedAt < since { return false }
+        }
+        if collection.needsAudio, note.hasAudio != true { return false }
+        if collection.needsOpenTasks, !hasOpenTasks(note) { return false }
+        if collection.onlyFavorites, !note.favorite { return false }
+        return true
+    }
+
+    /// The notes of a list in the chosen order, pinned notes split off.
+    func arranged(_ list: [NoteSummary], sort: NoteSort, scope: LibraryScope) -> (pinned: [NoteSummary], others: [NoteSummary]) {
+        let ordered = ordered(list, sort: sort, scope: scope)
+        let pinned = ordered.filter(\.isPinned)
+            .sorted { ($0.pinnedAt ?? .distantPast) < ($1.pinnedAt ?? .distantPast) }
+        let others = ordered.filter { !$0.isPinned }
+        return (pinned, others)
+    }
+
+    func ordered(_ list: [NoteSummary], sort: NoteSort, scope: LibraryScope) -> [NoteSummary] {
+        switch sort {
+        case .edited:
+            return list.sorted { $0.modifiedAt > $1.modifiedAt }
+        case .created:
+            return list.sorted { $0.createdAt > $1.createdAt }
+        case .name:
+            return list.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case .pages:
+            return list.sorted { lhs, rhs in
+                let left: Int = lhs.pageCount ?? 0
+                let right: Int = rhs.pageCount ?? 0
+                if left != right { return left > right }
+                return lhs.modifiedAt > rhs.modifiedAt
+            }
+        case .custom:
+            // Notes not placed yet come first, newest first, then the saved order.
+            let order: [UUID] = customOrders[scope.orderKey] ?? []
+            var position: [UUID: Int] = [:]
+            for (index, id) in order.enumerated() { position[id] = index }
+            let unplaced = list.filter { position[$0.id] == nil }.sorted { $0.modifiedAt > $1.modifiedAt }
+            let placed = list.filter { position[$0.id] != nil }.sorted { (position[$0.id] ?? 0) < (position[$1.id] ?? 0) }
+            return unplaced + placed
+        }
+    }
+
+    /// Custom Order: puts `id` just before `target` in the list as shown.
+    func moveInCustomOrder(_ id: UUID, before target: UUID, shown: [UUID], scope: LibraryScope) {
+        guard canWrite(), id != target else { return }
+        var order = shown.filter { $0 != id }
+        let index = order.firstIndex(of: target) ?? order.count
+        order.insert(id, at: index)
+        customOrders[scope.orderKey] = order
+        saveIndex()
+    }
+
+    func setFavorite(_ favorite: Bool, for id: UUID) {
+        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes[index].isFavorite = favorite ? true : nil
+        saveIndex()
+    }
+
+    func setPinned(_ pinned: Bool, for id: UUID) {
+        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes[index].pinnedAt = pinned ? Date() : nil
+        saveIndex()
+    }
+
+    func setCover(_ cover: NoteCover?, for id: UUID) {
+        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes[index].cover = cover
+        saveIndex()
+    }
+
+    func saveCollection(_ collection: SmartCollection) {
+        guard canWrite() else { return }
+        if let index = collections.firstIndex(where: { $0.id == collection.id }) {
+            collections[index] = collection
+        } else {
+            collections.append(collection)
+        }
+        saveIndex()
+    }
+
+    func deleteCollection(_ id: UUID) {
+        guard canWrite() else { return }
+        collections.removeAll { $0.id == id }
+        customOrders[LibraryScope.collection(id).orderKey] = nil
+        saveIndex()
     }
 
     /// Library tags plus, for text notes, the #tags in the text.
@@ -658,6 +860,11 @@ final class LibraryStore: ObservableObject {
         case .success:
             if let index = notes.firstIndex(where: { $0.id == id }) {
                 notes[index].modifiedAt = Date()
+                var facts = Self.facts(of: content.metadata)
+                if let pdf = content.pdf, content.metadata.pages == nil {
+                    facts.pageCount = pdf.pageCount + content.metadata.pageCount
+                }
+                _ = apply(facts, to: index)
                 saveIndex()
             }
             return true
@@ -838,6 +1045,8 @@ final class LibraryStore: ObservableObject {
             notes = index.notes
             customTemplates = index.textTemplates ?? []
             trashedNotes = (index.trash ?? []).sorted { ($0.deletedAt ?? .distantPast) > ($1.deletedAt ?? .distantPast) }
+            customOrders = index.customOrders ?? [:]
+            collections = index.collections ?? []
         } catch {
             isReadOnly = true
             errorMessage = "Your library could not be read (\(error.localizedDescription)). "
@@ -851,7 +1060,9 @@ final class LibraryStore: ObservableObject {
             folders: folders,
             notes: notes,
             textTemplates: customTemplates.isEmpty ? nil : customTemplates,
-            trash: trashedNotes.isEmpty ? nil : trashedNotes
+            trash: trashedNotes.isEmpty ? nil : trashedNotes,
+            customOrders: customOrders.isEmpty ? nil : customOrders,
+            collections: collections.isEmpty ? nil : collections
         )
         do {
             try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)

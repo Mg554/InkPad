@@ -18,6 +18,9 @@ struct NoteBackground: Equatable {
         self.pages = pages
         self.pdf = pdf
         layout = PageLayout(pageSizes: pages.map { source in
+            if case let .sizedPaper(paper) = source {
+                return CGSize(width: PageLayout.pageWidth, height: paper.layoutHeight)
+            }
             guard case let .pdf(index) = source, let size = pdf?.displaySize(ofPage: index),
                   size.width > 0, size.height > 0
             else { return PageLayout.templatePageSize }
@@ -65,6 +68,9 @@ struct NoteBackground: Equatable {
     func exportSize(ofPage index: Int) -> CGSize {
         if let pdf, let pdfIndex = pdfPage(at: index) {
             return pdf.displaySize(ofPage: pdfIndex)
+        }
+        if pages.indices.contains(index), case let .sizedPaper(paper) = pages[index] {
+            return CGSize(width: paper.width, height: paper.height)
         }
         return Self.templateExportSize
     }

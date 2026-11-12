@@ -81,18 +81,96 @@ final class EditorSession: ObservableObject {
 
     var pageCount: Int { background?.layout.pageRects.count ?? 0 }
 
-    /// Inserts a paper page after `index`, moving later ink and elements down.
-    func insertPage(after index: Int) {
+    /// Inserts a paper page after `index` (the size of that page when it is
+    /// paper, else A4), moving later ink and elements down.
+    func insertPage(after index: Int, size: PaperSize? = nil) {
         guard let content = baseContent, let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
         var pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
-        pages.insert(.paper, at: index + 1)
+        guard pages.indices.contains(index) else { return }
+        let paper: PaperSize = size ?? pages[index].paperSize ?? PaperSize.standard
+        pages.insert(PageSource.paper(of: paper), at: index + 1)
         canvas.shiftContent(
             below: rects[index].maxY + PageLayout.pageGap / 2,
-            by: PageLayout.templatePageSize.height + PageLayout.pageGap,
+            by: paper.layoutHeight + PageLayout.pageGap,
             removing: nil
         )
+        remapTabs { $0 > index ? $0 + 1 : $0 }
         setPages(pages)
         scrollAfterLayout(to: index + 1)
+    }
+
+    /// Changes a paper page's size; later pages move with what is written on them.
+    func setPageSize(at index: Int, to size: PaperSize) {
+        guard let content = baseContent, let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
+        var pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
+        guard pages.indices.contains(index), pages[index].isPaper else { return }
+        let delta: CGFloat = size.layoutHeight - rects[index].height
+        pages[index] = PageSource.paper(of: size)
+        if abs(delta) > 0.5 {
+            canvas.shiftContent(below: rects[index].maxY + PageLayout.pageGap / 2, by: delta, removing: nil)
+        }
+        setPages(pages)
+    }
+
+    /// The size of a paper page (nil for a PDF page).
+    func paperSize(at index: Int) -> PaperSize? {
+        guard let content = baseContent else { return nil }
+        let pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
+        return pages.indices.contains(index) ? pages[index].paperSize : nil
+    }
+
+    /// Puts a copy of the page, with what is written on it, right after it.
+    func duplicatePage(at index: Int) {
+        guard let content = baseContent, let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
+        var pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
+        guard pages.indices.contains(index) else { return }
+        let rect = rects[index]
+        let step: CGFloat = rect.height + PageLayout.pageGap
+        pages.insert(pages[index], at: index + 1)
+        canvas.shiftContent(below: rect.maxY + PageLayout.pageGap / 2, by: step, removing: nil)
+        canvas.duplicateContent(in: rect, by: step)
+        remapTabs { $0 > index ? $0 + 1 : $0 }
+        setPages(pages)
+        scrollAfterLayout(to: index + 1)
+    }
+
+    // MARK: Page tabs
+
+    /// Tabs (colored, named page markers) are the note's bookmarks.
+    var tabs: [NoteBookmark] { (metadata?.bookmarks ?? []).sorted { $0.page < $1.page } }
+
+    func tab(onPage page: Int) -> NoteBookmark? {
+        metadata?.bookmarks?.first { $0.page == page }
+    }
+
+    func setTab(onPage page: Int, title: String, color: FolderColor) {
+        var marks = metadata?.bookmarks ?? []
+        marks.removeAll { $0.page == page }
+        let name = title.trimmingCharacters(in: .whitespaces)
+        marks.append(NoteBookmark(page: page, title: name.isEmpty ? tr("Page") + " \(page + 1)" : name, color: color))
+        setBookmarks(marks)
+    }
+
+    func removeTab(onPage page: Int) {
+        var marks = metadata?.bookmarks ?? []
+        marks.removeAll { $0.page == page }
+        setBookmarks(marks)
+    }
+
+    /// Keeps tabs on their pages when pages are added, removed or moved;
+    /// `map` gives a page's new index, or nil when it is gone.
+    private func remapTabs(_ map: (Int) -> Int?) {
+        guard let marks = baseContent?.metadata.bookmarks, !marks.isEmpty else { return }
+        let moved: [NoteBookmark] = marks.compactMap { mark in
+            guard let page = map(mark.page) else { return nil }
+            var copy = mark
+            copy.page = page
+            return copy
+        }
+        guard moved != marks, var content = baseContent else { return }
+        content.metadata.bookmarks = moved
+        baseContent = content
+        metadata = content.metadata
     }
 
     /// Deletes a page and what is written on it; later pages move up.
@@ -109,6 +187,7 @@ final class EditorSession: ObservableObject {
             by: -(rect.height + gap),
             removing: (rect.minY - gap / 2)...(rect.maxY + gap / 2)
         )
+        remapTabs { page in page == index ? nil : (page > index ? page - 1 : page) }
         setPages(pages)
         scrollAfterLayout(to: min(index, pages.count - 1))
     }
@@ -134,6 +213,9 @@ final class EditorSession: ObservableObject {
             let page = rects.firstIndex { y < $0.maxY + gap / 2 } ?? rects.count - 1
             return newTop[page] - rects[page].minY
         }
+        var newIndex: [Int: Int] = [:]
+        for (position, oldIndex) in order.enumerated() { newIndex[oldIndex] = position }
+        remapTabs { newIndex[$0] }
         setPages(order.map { pages[$0] })
         scrollAfterLayout(to: destination)
     }
@@ -162,7 +244,14 @@ final class EditorSession: ObservableObject {
         var metadata = content.metadata
         metadata.pdfFile = fileName
         metadata.pages = pages
-        metadata.pageCount = pages.filter { $0 == .paper }.count
+        if let marks = metadata.bookmarks {
+            metadata.bookmarks = marks.map { mark in
+                var copy = mark
+                if copy.page > after { copy.page += inserted.count }
+                return copy
+            }
+        }
+        metadata.pageCount = pages.filter(\.isPaper).count
         let updated = NoteContent(metadata: metadata, drawing: content.drawing, pdf: pdf, directory: content.directory)
         let newRects = updated.makeBackground().layout.pageRects
 
@@ -219,7 +308,7 @@ final class EditorSession: ObservableObject {
     private func setPages(_ pages: [PageSource]) {
         updateMetadata {
             $0.pages = pages
-            $0.pageCount = pages.filter { $0 == .paper }.count
+            $0.pageCount = pages.filter(\.isPaper).count
         }
         snapshot = currentContent()
     }

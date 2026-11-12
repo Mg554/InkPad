@@ -106,12 +106,24 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     var hiddenFromAI: Bool?
     /// AI Firewall: only Apple Intelligence on the iPad may read it.
     var aiOnDeviceOnly: Bool?
+    /// Starred: listed under Favorites.
+    var isFavorite: Bool?
+    /// When it was pinned; pinned notes come first in every list.
+    var pinnedAt: Date?
+    /// A cover shown instead of the first page.
+    var cover: NoteCover?
+    /// Read from the note's files (see `NoteFacts`); `nil` until known.
+    var hasAudio: Bool?
+    var hasPDF: Bool?
+    var pageCount: Int?
 
     var aiAccess: AIAccess {
         hiddenFromAI == true ? .never : aiOnDeviceOnly == true ? .onDeviceOnly : .allowed
     }
 
     var isText: Bool { kind == .text }
+    var favorite: Bool { isFavorite == true }
+    var isPinned: Bool { pinnedAt != nil }
 }
 
 /// A reusable starting text for new text notes. `{{title}}`, `{{date}}`
@@ -212,6 +224,10 @@ struct LibraryIndex: Codable {
     var textTemplates: [TextTemplate]?
     /// Deleted notes, kept for `LibraryStore.trashDays` days.
     var trash: [NoteSummary]?
+    /// Custom Order, per list (see `LibraryScope.orderKey`).
+    var customOrders: [String: [UUID]]?
+    /// The owner's smart collections.
+    var collections: [SmartCollection]?
 }
 
 /// What the library sidebar can select.
@@ -239,6 +255,12 @@ enum LibraryScope: Hashable {
     case pdfTools
     /// Knowledge GPS: maps of what to learn.
     case gps
+    /// Starred notes.
+    case favorites
+    /// A collection that fills itself.
+    case builtIn(BuiltInCollection)
+    /// One of the owner's smart collections.
+    case collection(UUID)
 }
 
 /// A folder positioned in the folder tree, for sidebars and menus.

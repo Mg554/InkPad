@@ -9,7 +9,9 @@ struct NoteCard: View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topLeading) {
                 Color.white
-                if note.isText {
+                if let cover = note.cover {
+                    NoteCoverView(cover: cover, title: note.title)
+                } else if note.isText {
                     // Text notes show their opening lines.
                     Text(store.textIndex[note.id]?.preview ?? "")
                         .font(.system(size: 9))
@@ -30,6 +32,7 @@ struct NoteCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
             .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
+            .overlay(alignment: .topTrailing) { badges }
 
             HStack(spacing: 4) {
                 Text(tr(note.title))
@@ -53,7 +56,25 @@ struct NoteCard: View {
         }
         .contentShape(Rectangle())
         .task(id: note.modifiedAt) {
-            if !note.isText { thumbnail = await store.cardThumbnail(for: note.id, modifiedAt: note.modifiedAt) }
+            if !note.isText, note.cover == nil { thumbnail = await store.cardThumbnail(for: note.id, modifiedAt: note.modifiedAt) }
+        }
+    }
+
+    @ViewBuilder
+    private var badges: some View {
+        if note.isPinned || note.favorite {
+            HStack(spacing: 4) {
+                if note.isPinned {
+                    Image(systemName: "pin.fill").foregroundStyle(Color.orange)
+                }
+                if note.favorite {
+                    Image(systemName: "star.fill").foregroundStyle(Color.yellow)
+                }
+            }
+            .font(.caption)
+            .padding(6)
+            .background(.regularMaterial, in: Capsule())
+            .padding(6)
         }
     }
 }

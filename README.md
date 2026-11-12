@@ -11,6 +11,21 @@ Done:
 
 - Library: nested folders with colors, notes grid with thumbnails, title
   search, quick actions (New Note, Import a File, Find a Template)
+- Organizing: Favorites (sidebar) and pinned notes at the top of every
+  list; sort by last edited, created, name, pages or a Custom Order you
+  drag (kept per folder); grid or a detailed list (preview, folder, tags,
+  pages, audio, edited; tap a column to sort); optional covers per note
+  (color, gradient or pattern with the title in a font); Smart
+  Collections that fill themselves (Recently Edited, PDFs, With Audio,
+  Unfinished Tasks, Untitled) plus your own from rules (kind, tag, edited
+  recently, audio, tasks, favorites)
+- Pages: in the pages panel, Select several pages to move, duplicate or
+  delete them; Move to Another Note… keeps the writing editable (ink,
+  text boxes, images, PDF pages and sizes), at the start, the end or
+  after a page, or copies them; Duplicate Page; named, colored page tabs
+  shown on the page edge as a jump list; any page size per page (A4,
+  Letter, A5, square, 16:9, iPad screen or custom in mm, portrait or
+  landscape), and exported PDFs keep each page's size
 - Floating toolbar combining Notability and Apple Notes: realistic pens
   (quill, fountain pen, pen, monoline, pencil, crayon, watercolor, marker,
   highlighter), eraser (pixel or whole stroke), text, lasso, insert menu,

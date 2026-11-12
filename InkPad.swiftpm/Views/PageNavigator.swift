@@ -46,6 +46,8 @@ struct PageNavigator: View {
 /// current one highlighted, with insert and delete in each page's menu.
 struct PageSidebar: View {
     @ObservedObject var canvas: CanvasController
+    @ObservedObject var session: EditorSession
+    let noteID: UUID
     let content: NoteContent
     let revision: Int
     let background: NoteBackground
@@ -61,14 +63,33 @@ struct PageSidebar: View {
     }
     /// The page being dragged to a new place.
     @State private var draggedPage: Int?
+    @State private var isSelecting = false
+    @State private var selected: Set<Int> = []
+    @State private var sizeRequest: SizeRequest?
+    @State private var tabPage: Int?
+    @State private var movePages: [Int]?
+
+    /// A page size being chosen: for an existing page, or a new one after it.
+    private struct SizeRequest: Identifiable {
+        let page: Int
+        let insertsNew: Bool
+        var id: String { "\(page)-\(insertsNew)" }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("All Pages")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+            HStack {
+                Text(isSelecting ? "\(selected.count) selected" : "All Pages")
+                    .font(.headline)
+                Spacer()
+                Button(isSelecting ? "Done" : "Select") {
+                    isSelecting.toggle()
+                    selected = []
+                }
+                .font(.subheadline.weight(.semibold))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             Divider()
             ScrollViewReader { proxy in
                 ScrollView {
@@ -85,9 +106,39 @@ struct PageSidebar: View {
                     withAnimation { proxy.scrollTo(canvas.currentPage, anchor: .center) }
                 }
             }
+            if isSelecting {
+                Divider()
+                selectionBar
+            }
         }
         .frame(width: 210)
         .background(.regularMaterial)
+        .sheet(item: $sizeRequest) { request in
+            PageSizeSheet(
+                title: request.insertsNew ? "New Page Size" : "Page Size",
+                initial: session.paperSize(at: request.page) ?? PaperSize.standard
+            ) { size in
+                if request.insertsNew {
+                    session.insertPage(after: request.page, size: size)
+                } else {
+                    session.setPageSize(at: request.page, to: size)
+                }
+            }
+        }
+        .sheet(item: Binding(get: { tabPage.map { TabPageID(page: $0) } }, set: { tabPage = $0?.page })) { item in
+            PageTabSheet(
+                page: item.page,
+                existing: session.tab(onPage: item.page),
+                save: { session.setTab(onPage: item.page, title: $0, color: $1) },
+                remove: { session.removeTab(onPage: item.page) }
+            )
+        }
+        .sheet(item: Binding(get: { movePages.map { MovePagesID(pages: $0) } }, set: { movePages = $0?.pages })) { item in
+            MovePagesSheet(session: session, pages: item.pages, currentNoteID: noteID) {
+                selected = []
+                isSelecting = false
+            }
+        }
         .confirmationDialog(
             deleteTitle,
             isPresented: Binding(get: { pageToDelete != nil }, set: { if !$0 { pageToDelete = nil } }),
@@ -100,20 +151,101 @@ struct PageSidebar: View {
         }
     }
 
+    /// Actions for the selected pages.
+    private var selectionBar: some View {
+        let chosen: [Int] = selected.sorted()
+        return HStack(spacing: 18) {
+            Button {
+                movePages = chosen
+            } label: {
+                Image(systemName: "arrow.right.doc.on.clipboard")
+            }
+            .accessibilityLabel("Move to Another Note…")
+            Button {
+                for page in chosen.sorted(by: >) { session.duplicatePage(at: page) }
+                selected = []
+            } label: {
+                Image(systemName: "plus.square.on.square")
+            }
+            .accessibilityLabel("Duplicate")
+            Button(role: .destructive) {
+                for page in chosen.sorted(by: >) where session.pageCount > 1 { session.deletePage(at: page) }
+                selected = []
+            } label: {
+                Image(systemName: "trash")
+            }
+            .accessibilityLabel("Delete Pages")
+        }
+        .font(.title3)
+        .disabled(chosen.isEmpty)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+    }
+
     private func pageRow(_ index: Int) -> some View {
         let isCurrent = index == canvas.currentPage
+        let tab: NoteBookmark? = session.tab(onPage: index)
         return VStack(spacing: 6) {
             PageThumbnail(index: index, content: content, background: background, revision: revision)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
                         .stroke(isCurrent ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: isCurrent ? 3 : 1)
                 )
+                .overlay(alignment: .topTrailing) {
+                    if let tab {
+                        Text(verbatim: tab.title)
+                            .font(.caption2.weight(.bold))
+                            .lineLimit(1)
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(tab.color.color, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6))
+                            .frame(maxWidth: 110, alignment: .trailing)
+                            .padding(.top, 10)
+                    }
+                }
+                .overlay(alignment: .topLeading) {
+                    if isSelecting {
+                        Image(systemName: selected.contains(index) ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(Color.white, selected.contains(index) ? Color.inkAccent : Color.gray)
+                            .padding(6)
+                    }
+                }
                 .overlay(alignment: .bottomLeading) {
                     Menu {
                         Button {
                             insertPage(index)
                         } label: {
                             Label("Insert Blank Page After", systemImage: "doc.badge.plus")
+                        }
+                        Button {
+                            sizeRequest = SizeRequest(page: index, insertsNew: true)
+                        } label: {
+                            Label("Insert Page of Another Size…", systemImage: "doc.badge.gearshape")
+                        }
+                        Button {
+                            session.duplicatePage(at: index)
+                        } label: {
+                            Label("Duplicate Page", systemImage: "plus.square.on.square")
+                        }
+                        if session.paperSize(at: index) != nil {
+                            Button {
+                                sizeRequest = SizeRequest(page: index, insertsNew: false)
+                            } label: {
+                                Label("Page Size…", systemImage: "aspectratio")
+                            }
+                        }
+                        Button {
+                            tabPage = index
+                        } label: {
+                            Label(tab == nil ? "Add Tab…" : "Edit Tab…", systemImage: "bookmark")
+                        }
+                        Button {
+                            movePages = [index]
+                        } label: {
+                            Label("Move to Another Note…", systemImage: "arrow.right.doc.on.clipboard")
                         }
                         let last = background.layout.pageRects.count - 1
                         Button {
@@ -152,7 +284,13 @@ struct PageSidebar: View {
                     }
                 }
                 .contentShape(Rectangle())
-                .onTapGesture { canvas.scrollToPage(index) }
+                .onTapGesture {
+                    if isSelecting {
+                        if selected.contains(index) { selected.remove(index) } else { selected.insert(index) }
+                    } else {
+                        canvas.scrollToPage(index)
+                    }
+                }
                 // Long-press and drag a page onto another to move it there.
                 .onDrag {
                     draggedPage = index
@@ -169,6 +307,16 @@ struct PageSidebar: View {
                 .foregroundStyle(isCurrent ? Color.inkAccent : Color.secondary)
         }
     }
+}
+
+private struct TabPageID: Identifiable {
+    let page: Int
+    var id: Int { page }
+}
+
+private struct MovePagesID: Identifiable {
+    let pages: [Int]
+    var id: String { pages.map(String.init).joined(separator: ",") }
 }
 
 private struct PageThumbnail: View {

@@ -444,6 +444,28 @@ final class CanvasController: NSObject, ObservableObject {
         contentDidChange()
     }
 
+    /// Copies the ink and elements on a page (`rect`, with half the gap
+    /// around it) down by `delta`, for a duplicated page.
+    func duplicateContent(in rect: CGRect, by delta: CGFloat) {
+        guard let host else { return }
+        let gap = PageLayout.pageGap / 2
+        let range = (rect.minY - gap)...(rect.maxY + gap)
+        let move = CGAffineTransform(translationX: 0, y: delta)
+        var strokes = host.canvas.drawing.strokes
+        for var stroke in host.canvas.drawing.strokes where range.contains(stroke.renderBounds.midY) {
+            stroke.transform = stroke.transform.concatenating(move)
+            strokes.append(stroke)
+        }
+        host.canvas.drawing = PKDrawing(strokes: strokes)
+        host.canvas.undoManager?.removeAllActions()
+        let current = host.elementLayer.elements
+        let copies: [PageElement] = current.filter { range.contains($0.frame.midY) }.map { element in
+            PageElement(id: UUID(), frame: element.frame.offsetBy(dx: 0, dy: delta), content: element.content)
+        }
+        if !copies.isEmpty { host.elementLayer.load(current + copies) }
+        contentDidChange()
+    }
+
     /// Places text (an AI answer) on the page below `rect`.
     func placeText(_ text: NSAttributedString, below rect: CGRect) {
         host?.elementLayer.addTextBox(text, below: rect)
