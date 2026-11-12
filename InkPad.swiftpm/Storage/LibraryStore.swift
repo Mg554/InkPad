@@ -875,12 +875,13 @@ final class LibraryStore: ObservableObject {
     }
 
     /// Stores an image for placing on a page. Returns its file name and pixel size.
-    func addImage(_ data: Data, to id: UUID) async -> (file: String, size: CGSize)? {
+    /// `keepsTransparency` stores a PNG (stickers) instead of a JPEG.
+    func addImage(_ data: Data, to id: UUID, keepsTransparency: Bool = false) async -> (file: String, size: CGSize)? {
         guard canWrite(), note(id) != nil else { return nil }
         let directory = noteDirectory(id).appendingPathComponent("images", isDirectory: true)
         let result: Result<(String, CGSize), Error> = await withCheckedContinuation { continuation in
             writeQueue.async {
-                continuation.resume(returning: Result { try Self.writeImage(data, to: directory) })
+                continuation.resume(returning: Result { try Self.writeImage(data, to: directory, keepsTransparency: keepsTransparency) })
             }
         }
         switch result {
@@ -1016,7 +1017,7 @@ final class LibraryStore: ObservableObject {
     }
 
     /// Downscales large photos so pages stay responsive; keeps the aspect ratio.
-    private nonisolated static func writeImage(_ data: Data, to directory: URL) throws -> (String, CGSize) {
+    private nonisolated static func writeImage(_ data: Data, to directory: URL, keepsTransparency: Bool) throws -> (String, CGSize) {
         guard let image = UIImage(data: data) else { throw StoreError.unreadableImage }
         let maxSide: CGFloat = 2048
         let pixelSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
@@ -1024,13 +1025,15 @@ final class LibraryStore: ObservableObject {
         let size = CGSize(width: (pixelSize.width * factor).rounded(), height: (pixelSize.height * factor).rounded())
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
+        format.opaque = !keepsTransparency
         let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
-        guard let jpeg = resized.jpegData(compressionQuality: 0.85) else { throw StoreError.unreadableImage }
+        let encoded: Data? = keepsTransparency ? resized.pngData() : resized.jpegData(compressionQuality: 0.85)
+        guard let encoded else { throw StoreError.unreadableImage }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let file = UUID().uuidString + ".jpg"
-        try jpeg.write(to: directory.appendingPathComponent(file), options: .atomic)
+        let file = UUID().uuidString + (keepsTransparency ? ".png" : ".jpg")
+        try encoded.write(to: directory.appendingPathComponent(file), options: .atomic)
         return (file, size)
     }
 

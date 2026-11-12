@@ -169,11 +169,18 @@
       size, portrait or landscape); the list view has detailed rows
       (preview, title, folder, tags, pages, audio, edited), sortable by
       column; Custom Order is drag-to-reorder, kept per folder.
-   2. **Writing** — pen presets and named color palettes; configurable
+   2. **Writing** (done, 12 Nov 2026, needs iPad testing) — pen presets and named color palettes; configurable
       gestures (double tap, two- and three-finger taps); a clean reading
       mode; sticky notes (colors, pinned to pages, turn into Planner tasks
       linked to their page, into pages, grouped) and a sticker studio
       (image packs and saved handwriting, folders, favorites, recents).
+      Decided (interview, 12 Nov 2026): presets as a row of chips in the
+      toolbar, palettes in the color row's palette button; every gesture
+      can be undo/redo, a tool switch, toolbar/Reading Mode or a quick
+      command (⌘K, add a sticky, next/previous page); stickies take both
+      handwriting and typing; stickers come from built-in packs, saved
+      handwriting (lasso), and Photos/Files with on-device background
+      removal, organized in folders with favorites and recents.
    3. **Split workspace** — any two notes or PDFs side by side, dragging
       between them.
    4. **AI** — Ask This Page with page and paragraph citations (marking

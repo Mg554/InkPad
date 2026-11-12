@@ -49,6 +49,12 @@ struct NoteEditorView: View {
     /// Focus Mode in this note.
     @ObservedObject private var focus = FocusSession.shared
     @State private var showsCompanion = false
+    /// Writing tools: sticky notes, stickers and Reading Mode.
+    @State private var stickyRequest: StickyRequest?
+    @State private var isShowingStickies = false
+    @State private var isShowingStickers = false
+    @State private var isReading = false
+    @State private var toolbarWasHiddenBeforeReading = false
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -192,6 +198,7 @@ struct NoteEditorView: View {
                 let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 reminderRequest = NoteReminderRequest(noteID: noteID, title: title.isEmpty ? self.title : title)
             }
+            connectWritingTools()
         }
         .overlay {
             FloatingPlacement(key: "livingBubble", x: 0.05, y: 0.92) {
@@ -218,6 +225,34 @@ struct NoteEditorView: View {
             noteID: noteID,
             end: endFocus
         ))
+        .modifier(WritingSheets(
+            stickyRequest: $stickyRequest,
+            isShowingStickies: $isShowingStickies,
+            isShowingStickers: $isShowingStickers,
+            stickyGroups: { stickyGroups },
+            stickyItems: { stickyItems },
+            finishSticky: finishSticky,
+            openSticky: openSticky,
+            insertSticker: insertSticker,
+            insertInk: insertInk
+        ))
+        .toolbar(isReading ? .hidden : .automatic, for: .navigationBar)
+        .statusBarHidden(isReading)
+        .overlay(alignment: .topTrailing) {
+            if isReading {
+                Button {
+                    setReading(false)
+                } label: {
+                    Label("Done Reading", systemImage: "book.closed")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial, in: Capsule())
+                        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                }
+                .padding(16)
+            }
+        }
         .modifier(NotebookSendDialog(request: $notebookSend) { request, asText in
             sendToNotebook(request, asText: asText)
         })
@@ -296,7 +331,7 @@ struct NoteEditorView: View {
                 }
             }
             .overlay(alignment: toolbarPlacement.frameAlignment) {
-                if isToolbarHidden {
+                if isToolbarHidden && !isReading {
                     showToolbarButton
                 }
             }
@@ -522,6 +557,22 @@ struct NoteEditorView: View {
                         keywords: ["tools", "ادوات"]) {
                 setToolbarHidden(!isToolbarHidden)
             },
+            PaletteItem(id: "ink-reading", title: isReading ? "End Reading Mode" : "Reading Mode", subtitle: "A clean page: no tools, nothing written by accident",
+                        systemImage: "book", section: .thisNote, keywords: ["read", "clean", "قراءة"]) {
+                setReading(!isReading)
+            },
+            PaletteItem(id: "ink-sticky", title: "Add a Sticky Note", systemImage: "note.text.badge.plus", tint: .yellow, section: .thisNote,
+                        keywords: ["sticky", "post-it", "لاصقة", "ملاحظة"]) {
+                addSticky()
+            },
+            PaletteItem(id: "ink-stickies", title: "Sticky Notes in This Note", systemImage: "note.text", section: .thisNote,
+                        keywords: ["sticky", "لاصقة"]) {
+                isShowingStickies = true
+            },
+            PaletteItem(id: "ink-stickers", title: "Stickers…", systemImage: "seal", tint: .pink, section: .thisNote,
+                        keywords: ["sticker", "emoji", "ملصق"]) {
+                isShowingStickers = true
+            },
             PaletteItem(id: "ink-ruler", title: "Ruler", systemImage: "ruler", section: .thisNote, keywords: ["مسطرة"]) {
                 canvas.isRulerActive.toggle()
             },
@@ -529,6 +580,159 @@ struct NoteEditorView: View {
                 prompt = NamePrompt(title: "Rename Note", initialText: title, confirmTitle: "Rename") { store.renameNote(noteID, to: $0) }
             },
         ]
+    }
+
+    // MARK: Writing tools
+
+    private func connectWritingTools() {
+        canvas.onStickyTapped = { id, note in
+            let rects = session.background?.layout.pageRects ?? []
+            stickyRequest = StickyRequest(id: id, note: note, page: canvas.page(ofElement: id, pageRects: rects))
+        }
+        canvas.onEditorAction = { action in handleEditorAction(action) }
+        canvas.onSaveSticker = { drawing in
+            if StickerStore.shared.add(ink: drawing, name: tr("Handwriting"), folder: nil) != nil {
+                CommandCenter.shared.say(tr("Saved to My Stickers"))
+            }
+        }
+        if let page = CommandCenter.shared.takePendingPage(for: noteID) {
+            Task {
+                try? await Task.sleep(for: .milliseconds(400))
+                canvas.scrollToPage(page)
+            }
+        }
+    }
+
+    private func handleEditorAction(_ action: GestureAction) {
+        switch action {
+        case .toggleToolbar:
+            if isReading { setReading(false) } else { setToolbarHidden(!isToolbarHidden) }
+        case .readingMode:
+            setReading(!isReading)
+        case .commandPalette:
+            CommandCenter.shared.show()
+        case .addSticky:
+            addSticky()
+        default:
+            break
+        }
+    }
+
+    /// Reading Mode: hides the tools and the bars; the page can't be written on.
+    private func setReading(_ reading: Bool) {
+        guard reading != isReading else { return }
+        if reading {
+            toolbarWasHiddenBeforeReading = isToolbarHidden
+            setToolbarHidden(true)
+            isShowingPages = false
+        } else {
+            setToolbarHidden(toolbarWasHiddenBeforeReading)
+        }
+        withAnimation(.snappy(duration: 0.25)) { isReading = reading }
+        canvas.setReading(reading)
+    }
+
+    private func addSticky() {
+        if isReading { setReading(false) }
+        guard let id = canvas.addSticky() else { return }
+        stickyRequest = StickyRequest(id: id, note: StickyNote(), page: canvas.currentPage)
+    }
+
+    private var stickyItems: [StickyItem] {
+        canvas.stickies(pageRects: session.background?.layout.pageRects ?? [])
+    }
+
+    private var stickyGroups: [String] {
+        var names: [String] = []
+        for item in stickyItems {
+            if let group = item.note.group, !names.contains(group) { names.append(group) }
+        }
+        return names
+    }
+
+    private func openSticky(_ id: UUID, page: Int) {
+        canvas.scrollToPage(page)
+        guard let item = stickyItems.first(where: { $0.id == id }) else { return }
+        Task {
+            // After the list sheet has gone.
+            try? await Task.sleep(for: .milliseconds(450))
+            stickyRequest = StickyRequest(id: id, note: item.note, page: page)
+        }
+    }
+
+    private func finishSticky(_ request: StickyRequest, _ outcome: StickyOutcome) {
+        switch outcome {
+        case let .save(note):
+            canvas.updateSticky(request.id, with: note)
+        case .delete:
+            canvas.removeElement(request.id)
+        case let .makeTask(note):
+            var task = PlanTask(title: note.headline.isEmpty ? trMessage("Sticky note on page \(request.page + 1)") : note.headline)
+            task.notes = note.text
+            task.noteID = noteID
+            task.notePage = request.page
+            workspace.save(task)
+            var linked = note
+            linked.taskID = task.id
+            canvas.updateSticky(request.id, with: linked)
+            CommandCenter.shared.say(tr("Added to the Planner"))
+        case let .turnIntoPage(note):
+            canvas.removeElement(request.id)
+            turnIntoPage(note, after: request.page)
+        }
+    }
+
+    /// A new page after `page` with the sticky note's text and handwriting.
+    private func turnIntoPage(_ note: StickyNote, after page: Int) {
+        session.insertPage(after: page)
+        let rects = session.background?.layout.pageRects ?? []
+        guard rects.indices.contains(page + 1) else { return }
+        let rect = rects[page + 1]
+        var top: CGFloat = rect.minY + 48
+        let text = note.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty {
+            let font = UIFont(name: "Noteworthy-Light", size: 22) ?? UIFont.systemFont(ofSize: 20)
+            let attributed = NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: UIColor.black])
+            canvas.placeText(attributed, below: CGRect(x: rect.minX + 48, y: top - 12, width: rect.width - 96, height: 0))
+            let lines: CGFloat = CGFloat(text.split(separator: "\n").count + text.count / 40)
+            top += lines * 32 + 40
+        }
+        if let drawing = note.drawing, !drawing.strokes.isEmpty {
+            let side: CGFloat = min(rect.width - 96, 480)
+            let scale: CGFloat = side / StickyNote.inkSize.width
+            let place = CGAffineTransform(scaleX: scale, y: scale)
+                .concatenating(CGAffineTransform(translationX: rect.minX + 48, y: top))
+            let strokes: [PKStroke] = drawing.strokes.map { stroke in
+                var copy = stroke
+                copy.transform = copy.transform.concatenating(place)
+                return copy
+            }
+            canvas.addStrokes(strokes)
+        }
+    }
+
+    private func insertSticker(_ image: UIImage) {
+        guard let data = image.pngData() else { return }
+        Task {
+            guard let added = await store.addImage(data, to: noteID, keepsTransparency: true),
+                  let directory = session.imageDirectory,
+                  let saved = UIImage(contentsOfFile: directory.appendingPathComponent(added.file).path)
+            else { return }
+            canvas.insertImage(file: added.file, image: saved, pixelSize: added.size)
+        }
+    }
+
+    /// Saved handwriting goes back on the page as ink, in the middle of the view.
+    private func insertInk(_ drawing: PKDrawing) {
+        guard let center = canvas.visibleCenter else { return }
+        let bounds = drawing.bounds
+        let move = CGAffineTransform(translationX: center.x - bounds.midX, y: center.y - bounds.midY)
+        let strokes: [PKStroke] = drawing.strokes.map { stroke in
+            var copy = stroke
+            copy.transform = copy.transform.concatenating(move)
+            return copy
+        }
+        canvas.addStrokes(strokes)
     }
 
     private func setToolbarHidden(_ hidden: Bool) {
@@ -564,6 +768,16 @@ struct NoteEditorView: View {
             canvas.applyTool()
         } label: {
             Label("Text Box", systemImage: "textformat")
+        }
+        Button {
+            addSticky()
+        } label: {
+            Label("Sticky Note", systemImage: "note.text.badge.plus")
+        }
+        Button {
+            isShowingStickers = true
+        } label: {
+            Label("Stickers…", systemImage: "seal")
         }
         Divider()
         Button {
@@ -649,6 +863,18 @@ struct NoteEditorView: View {
                         isSendingPages = true
                     } label: {
                         Label("Send Pages to a New Note…", systemImage: "doc.badge.plus")
+                    }
+                }
+                Section {
+                    Button {
+                        setReading(true)
+                    } label: {
+                        Label("Reading Mode", systemImage: "book")
+                    }
+                    Button {
+                        isShowingStickies = true
+                    } label: {
+                        Label("Sticky Notes…", systemImage: "note.text")
                     }
                 }
                 Section {
@@ -1076,5 +1302,36 @@ private struct DockedToolbarHost<Bar: View>: View {
                 }
             }
         }
+    }
+}
+
+/// The sheets for sticky notes and stickers, kept apart so the editor's
+/// body stays quick to type-check.
+private struct WritingSheets: ViewModifier {
+    @EnvironmentObject private var workspace: WorkspaceStore
+    @Binding var stickyRequest: StickyRequest?
+    @Binding var isShowingStickies: Bool
+    @Binding var isShowingStickers: Bool
+    let stickyGroups: () -> [String]
+    let stickyItems: () -> [StickyItem]
+    let finishSticky: (StickyRequest, StickyOutcome) -> Void
+    let openSticky: (UUID, Int) -> Void
+    let insertSticker: (UIImage) -> Void
+    let insertInk: (PKDrawing) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(item: $stickyRequest) { request in
+                StickyNoteEditor(request: request, groups: stickyGroups()) { outcome in
+                    finishSticky(request, outcome)
+                }
+                .environmentObject(workspace)
+            }
+            .sheet(isPresented: $isShowingStickies) {
+                StickyListView(items: stickyItems(), open: openSticky)
+            }
+            .sheet(isPresented: $isShowingStickers) {
+                StickerStudioView(insertImage: insertSticker, insertInk: insertInk)
+            }
     }
 }

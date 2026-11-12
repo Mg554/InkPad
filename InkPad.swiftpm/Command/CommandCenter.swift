@@ -75,6 +75,18 @@ final class CommandCenter: ObservableObject {
     /// Set by the library view.
     var navigate: (LibraryScope) -> Void = { _ in }
     var openNote: (UUID) -> Void = { _ in }
+    /// A page to show when a note opens (a task made from a sticky note).
+    private var pendingPages: [UUID: Int] = [:]
+
+    func openNote(_ id: UUID, page: Int) {
+        pendingPages[id] = page
+        openNote(id)
+    }
+
+    /// The page asked for when this note was opened, once.
+    func takePendingPage(for id: UUID) -> Int? {
+        pendingPages.removeValue(forKey: id)
+    }
 
     private static let recentKey = "paletteRecent"
     private(set) var recent: [String] = UserDefaults.standard.stringArray(forKey: recentKey) ?? []

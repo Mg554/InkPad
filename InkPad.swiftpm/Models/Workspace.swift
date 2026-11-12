@@ -50,6 +50,8 @@ struct PlanTask: Codable, Identifiable, Equatable {
     /// Study-linked: the note (or book) and chapter it is about.
     var noteID: UUID?
     var chapterTitle: String?
+    /// The page it came from (a sticky note), zero-based.
+    var notePage: Int?
     /// When done, schedule spaced reviews (1, 3, then 7 days later).
     var schedulesReviews: Bool?
     /// 0 for the task itself, 1–3 for its reviews.

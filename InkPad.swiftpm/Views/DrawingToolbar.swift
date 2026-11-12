@@ -25,6 +25,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
     @State private var customColor = Color.black
     @State private var isAdjustingWidth = false
     @State private var isCustomizing = false
+    @State private var isNamingPalette = false
+    @State private var paletteName = ""
     /// Why the keyboard didn't come up after "Show Keyboard", if it didn't.
     @State private var keyboardHelp: String?
 
@@ -100,6 +102,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     ForEach(palette.toolbarTools) { tool in
                         toolButton(tool)
                     }
+                    barDivider
+                    presetButtons
                     barDivider
                     actionButtons
                 }
@@ -219,6 +223,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     palette.selectCustomColor(InkColor(customColor))
                     canvas.applyTool()
                 }
+            paletteMenu
             barDivider
             widthButtons(style)
 
@@ -249,10 +254,78 @@ struct DrawingToolbar<InsertMenu: View>: View {
             case .image:
                 hint("Drag to move. Use the corner handle to resize.")
                 deleteButton
+            case .sticky:
+                hint("Drag the sticky note to move it, or the corner to resize. Tap it to write in it.")
+                deleteButton
             case nil:
                 textInputModeButton
                 hint("Tap the page to add a text box. Tap a box or image to edit it.")
             }
+        }
+    }
+
+    // MARK: Pen presets and palettes
+
+    /// Saved pens, then + to save the current one.
+    @ViewBuilder
+    private var presetButtons: some View {
+        let active = palette.activePresetID
+        ForEach(palette.presets) { preset in
+            Button {
+                palette.apply(preset)
+                canvas.applyTool()
+            } label: {
+                PenPresetChip(preset: preset, isSelected: preset.id == active)
+                    .frame(width: 38, height: isVertical ? 36 : 38)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(tr(preset.tool.title)))
+            .contextMenu {
+                Button(role: .destructive) {
+                    palette.removePreset(preset.id)
+                } label: {
+                    Label("Delete Preset", systemImage: "trash")
+                }
+            }
+        }
+        Button {
+            palette.saveCurrentAsPreset()
+        } label: {
+            icon("plus.square.dashed")
+        }
+        .disabled(!palette.tool.isInking || active != nil)
+        .accessibilityLabel("Save Pen as Preset")
+    }
+
+    /// Named palettes for the current pen's colors.
+    private var paletteMenu: some View {
+        Menu {
+            Section("Use a Palette") {
+                ForEach(palette.allPalettes) { item in
+                    Button {
+                        palette.applyPalette(item)
+                        canvas.applyTool()
+                    } label: {
+                        Text(verbatim: item.displayName)
+                    }
+                }
+            }
+            Section {
+                Button {
+                    paletteName = ""
+                    isNamingPalette = true
+                } label: {
+                    Label("Save These Colors as a Palette…", systemImage: "square.and.arrow.down")
+                }
+            }
+        } label: {
+            icon("swatchpalette")
+        }
+        .accessibilityLabel("Color Palettes")
+        .alert("New Palette", isPresented: $isNamingPalette) {
+            TextField("Palette name", text: $paletteName)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") { palette.saveColorsAsPalette(named: paletteName) }
         }
     }
 

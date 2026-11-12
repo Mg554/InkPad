@@ -10,6 +10,8 @@ final class ElementLayerView: UIView {
     var onSelectionChange: ((PageElementView?) -> Void)?
     /// Called when the caret or text selection moves, so formatting buttons can update.
     var onTextStateChange: (() -> Void)?
+    /// Called when a sticky note is tapped, to open it.
+    var onStickyTap: ((StickyNoteView) -> Void)?
 
     private(set) weak var selected: PageElementView?
     private var renderScale: CGFloat = 2
@@ -58,6 +60,8 @@ final class ElementLayerView: UIView {
                     continue
                 }
                 add(ImageElementView(id: element.id, frame: element.frame, file: file, image: image))
+            case let .sticky(note):
+                add(StickyNoteView(id: element.id, frame: element.frame, note: note))
             }
         }
     }
@@ -98,6 +102,43 @@ final class ElementLayerView: UIView {
         selectElement(view)
         elementsDidChange()
         return frame
+    }
+
+    // MARK: Sticky notes
+
+    /// A new sticky note centered at `center`.
+    @discardableResult
+    func addSticky(_ note: StickyNote, centeredAt center: CGPoint) -> StickyNoteView {
+        let size = StickyNote.defaultSize
+        let frame = CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2, width: size.width, height: size.height)
+        let view = StickyNoteView(id: UUID(), frame: frame, note: note)
+        add(view)
+        elementsDidChange()
+        return view
+    }
+
+    func sticky(_ id: UUID) -> StickyNoteView? {
+        subviews.first(where: { ($0 as? StickyNoteView)?.id == id }) as? StickyNoteView
+    }
+
+    /// The top sticky note under `point` (layer coordinates).
+    func sticky(at point: CGPoint) -> StickyNoteView? {
+        for case let view as StickyNoteView in subviews.reversed() where view.frame.contains(point) {
+            return view
+        }
+        return nil
+    }
+
+    func updateSticky(_ id: UUID, with note: StickyNote) {
+        guard let view = sticky(id) else { return }
+        view.update(note)
+        bringSubviewToFront(view)
+        elementsDidChange()
+    }
+
+    func removeElement(_ id: UUID) {
+        guard let view = subviews.first(where: { ($0 as? PageElementView)?.id == id }) as? PageElementView else { return }
+        remove(view)
     }
 
     private func add(_ view: PageElementView) {

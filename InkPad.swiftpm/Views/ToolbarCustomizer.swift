@@ -25,6 +25,19 @@ struct ToolbarCustomizer: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        PenPresetsEditor()
+                    } label: {
+                        Label("Pens & Palettes", systemImage: "swatchpalette")
+                    }
+                    NavigationLink {
+                        GestureSettingsView()
+                    } label: {
+                        Label("Gestures", systemImage: "hand.tap")
+                    }
+                }
+
+                Section {
                     Button("Reset to Default", role: .destructive) {
                         palette.resetToolbar()
                         onChange()

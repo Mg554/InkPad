@@ -1,12 +1,13 @@
 import UIKit
 
 /// The usual finger shortcuts on a page, like Notability and GoodNotes:
-/// a two-finger tap undoes, a three-finger tap redoes. A small label shows
-/// what happened. Pinching and scrolling still belong to the canvas.
+/// by default a two-finger tap undoes, a three-finger tap redoes; each can
+/// be given another action (Gestures settings). A small label shows what
+/// happened. Pinching and scrolling still belong to the canvas.
 @MainActor
 final class FingerGestures: NSObject, UIGestureRecognizerDelegate {
-    var onUndo: () -> Bool = { false }
-    var onRedo: () -> Bool = { false }
+    /// Performs the gesture's action; returns the label to show, if any.
+    var onTrigger: (GestureTrigger) -> String? = { _ in nil }
 
     private let twoFingerTap = UITapGestureRecognizer()
     private let threeFingerTap = UITapGestureRecognizer()
@@ -33,13 +34,11 @@ final class FingerGestures: NSObject, UIGestureRecognizerDelegate {
     }
 
     @objc private func handleTwoFingers() {
-        let done = onUndo()
-        showHUD(done ? "Undo" : "Nothing to Undo", symbol: "arrow.uturn.backward")
+        if let text = onTrigger(.twoFingerTap) { showHUD(text) }
     }
 
     @objc private func handleThreeFingers() {
-        let done = onRedo()
-        showHUD(done ? "Redo" : "Nothing to Redo", symbol: "arrow.uturn.forward")
+        if let text = onTrigger(.threeFingerTap) { showHUD(text) }
     }
 
     // Plain, not nonisolated: with the nonisolated witness Swift Playgrounds
@@ -48,13 +47,12 @@ final class FingerGestures: NSObject, UIGestureRecognizerDelegate {
         return true
     }
 
-    private func showHUD(_ text: String, symbol: String) {
+    /// A short label near the top of the page (already translated).
+    func showHUD(_ text: String) {
         guard let host = hudHost else { return }
         hud?.removeFromSuperview()
         let label = PaddedLabel()
-        let symbolName: String = symbol
-        label.text = "\u{21BA}  " + tr(text)
-        if symbolName.hasSuffix("forward") { label.text = "\u{21BB}  " + tr(text) }
+        label.text = text
         label.font = .preferredFont(forTextStyle: .headline)
         label.textColor = .white
         label.backgroundColor = UIColor.black.withAlphaComponent(0.68)

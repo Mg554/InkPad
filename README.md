@@ -26,6 +26,24 @@ Done:
   shown on the page edge as a jump list; any page size per page (A4,
   Letter, A5, square, 16:9, iPad screen or custom in mm, portrait or
   landscape), and exported PDFs keep each page's size
+- Writing: pen presets (a pen, color and width saved as a chip in the
+  toolbar, + to save the current pen) and named color palettes (Classic,
+  Study, Pastel, Earth, Neon, or your own) from the palette button next
+  to the colors; Gestures (Customize Toolbar › Gestures) set what the
+  Apple Pencil double tap and two- and three-finger taps do (undo, redo,
+  switch tools, hide the toolbar, Reading Mode, ⌘K, add a sticky note,
+  next or previous page); Reading Mode (⋯ menu) hides every tool and bar
+  so nothing is written by accident
+- Sticky notes (+ › Sticky Note): colored notes on the page with typed
+  text and handwriting, a group name, folding to a small square; tap one
+  with a finger to open it; turn it into a Planner task linked to its
+  page (the task opens that page) or into a new page; ⋯ › Sticky Notes…
+  lists them by group
+- Stickers (+ › Stickers…): built-in packs (study labels, marks, emoji,
+  arrows and shapes), your own from Photos or Files with the background
+  cut out on the device, and handwriting saved from the lasso (Save as
+  Sticker) that goes back as editable ink; folders, favorites and
+  recently used
 - Floating toolbar combining Notability and Apple Notes: realistic pens
   (quill, fountain pen, pen, monoline, pencil, crayon, watercolor, marker,
   highlighter), eraser (pixel or whole stroke), text, lasso, insert menu,

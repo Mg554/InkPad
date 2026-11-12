@@ -187,6 +187,8 @@ final class ToolPalette: ObservableObject {
         var toolbarOrder: [DrawingTool]?
         var hiddenTools: [DrawingTool]?
         var laserLeavesTail: Bool?
+        var presets: [PenPreset]?
+        var palettes: [ColorPalette]?
     }
 
     private static let defaultsKey = "toolPalette"
@@ -206,6 +208,10 @@ final class ToolPalette: ObservableObject {
     /// The laser leaves a short tail that follows the pencil; otherwise the
     /// whole line stays until you lift the pencil, then fades away.
     @Published var laserLeavesTail = false { didSet { save() } }
+    /// Saved pens shown in the toolbar (PenPresets.swift).
+    @Published var presets: [PenPreset] = [] { didSet { save() } }
+    /// The owner's named color palettes; built-in ones are added on top.
+    @Published var palettes: [ColorPalette] = [] { didSet { save() } }
 
     private var pendingSave: DispatchWorkItem?
 
@@ -224,6 +230,8 @@ final class ToolPalette: ObservableObject {
             toolbarOrder = Self.completeOrder(saved.toolbarOrder ?? DrawingTool.allCases)
             hiddenTools = Set(saved.hiddenTools ?? [])
             laserLeavesTail = saved.laserLeavesTail ?? false
+            presets = saved.presets ?? []
+            palettes = saved.palettes ?? []
         }
     }
 
@@ -280,6 +288,20 @@ final class ToolPalette: ObservableObject {
         select(tool == .eraser ? (previousTool == .eraser ? .pen : previousTool) : .eraser)
     }
 
+    /// Switches to `other`, or back to the previous tool when already on it.
+    func toggle(_ other: DrawingTool) {
+        if tool == other {
+            select(previousTool == other ? .pen : previousTool)
+        } else {
+            select(other)
+        }
+    }
+
+    /// Back to the tool used before this one.
+    func switchToPrevious() {
+        select(previousTool == tool ? .pen : previousTool)
+    }
+
     /// Back to the tool used before the eraser.
     func returnFromEraser() {
         guard tool == .eraser else { return }
@@ -306,6 +328,16 @@ final class ToolPalette: ObservableObject {
             style.colors.append(color)
         }
         style.selectedColor = color
+        styles[tool] = style
+    }
+
+    /// Replaces the current tool's color row (a palette), keeping the
+    /// selected color when the new row has it.
+    func setColors(_ colors: [InkColor]) {
+        guard let first = colors.first else { return }
+        var style = style(for: tool)
+        style.colors = colors
+        if !colors.contains(style.selectedColor) { style.selectedColor = first }
         styles[tool] = style
     }
 
@@ -377,7 +409,9 @@ final class ToolPalette: ObservableObject {
             returnsAfterErasing: returnsAfterErasing,
             toolbarOrder: toolbarOrder,
             hiddenTools: Array(hiddenTools),
-            laserLeavesTail: laserLeavesTail
+            laserLeavesTail: laserLeavesTail,
+            presets: presets,
+            palettes: palettes
         )
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: Self.defaultsKey)

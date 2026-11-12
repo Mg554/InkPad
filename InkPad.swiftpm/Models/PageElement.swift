@@ -1,13 +1,15 @@
 import Foundation
 import UIKit
 
-/// A text box or image placed on the pages, in canvas coordinates.
+/// A text box, image or sticky note placed on the pages, in canvas coordinates.
 struct PageElement: Codable, Identifiable, Equatable {
     enum Content: Codable, Equatable {
         /// Rich text stored as RTF.
         case text(rtf: Data)
         /// An image file in the note's `images` folder.
         case image(file: String)
+        /// A sticky note (StickyNote.swift).
+        case sticky(StickyNote)
     }
 
     let id: UUID

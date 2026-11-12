@@ -28,19 +28,9 @@ struct NoteCanvas: UIViewRepresentable {
                 controller?.pageDidChange(current: current, count: count)
             }
         }
-        host.fingerGestures.onUndo = { [weak controller] in
-            guard let controller = controller else { return false }
-            controller.refreshUndoState()
-            guard controller.canUndo else { return false }
-            controller.undo()
-            return true
-        }
-        host.fingerGestures.onRedo = { [weak controller] in
-            guard let controller = controller else { return false }
-            controller.refreshUndoState()
-            guard controller.canRedo else { return false }
-            controller.redo()
-            return true
+        host.fingerGestures.onTrigger = { [weak controller] trigger in
+            guard let controller = controller else { return nil }
+            return controller.perform(GestureSettingsStore.shared.action(for: trigger))
         }
         controller.attach(host, palette: palette)
         return host

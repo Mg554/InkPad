@@ -23,6 +23,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     var onRemind: ((String) -> Void)?
     /// Text from Area: a picture of the lassoed area (page and ink), and where it is.
     var onReadArea: ((UIImage, CGRect) -> Void)?
+    /// Save as Sticker: the selected ink, moved to start at 0,0.
+    var onSaveSticker: ((PKDrawing) -> Void)?
     /// Send to Notebook (books with a notebook beside them).
     var onSendArea: ((UIImage, CGRect) -> Void)?
     /// A lassoed area with no ink or PDF text in it (for example a scan).
@@ -345,6 +347,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
                     self?.readSelectedInk { text in self?.onRemind?(text) }
                 },
                 UIAction(title: "Copy as Text", image: UIImage(systemName: "text.viewfinder")) { [weak self] _ in self?.copyInkAsText() },
+                UIAction(title: "Save as Sticker", image: UIImage(systemName: "seal")) { [weak self] _ in self?.saveAsSticker() },
                 UIAction(title: "Duplicate", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in self?.duplicateSelection() },
                 UIAction(title: "Cut", image: UIImage(systemName: "scissors")) { [weak self] _ in self?.cutSelection() },
                 UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in self?.copySelection() },
@@ -455,6 +458,19 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     }
 
     /// Reads the selected handwriting with Vision and copies it as text.
+    private func saveAsSticker() {
+        guard !selected.isEmpty else { return }
+        let solid = selected.flatMap { Self.dashed($0, style: dash) }
+        let bounds = solid.reduce(CGRect.null) { $0.union($1.renderBounds) }
+        let move = CGAffineTransform(translationX: -bounds.minX, y: -bounds.minY)
+        let moved: [PKStroke] = solid.map { stroke in
+            var copy = stroke
+            copy.transform = copy.transform.concatenating(move)
+            return copy
+        }
+        onSaveSticker?(PKDrawing(strokes: moved))
+    }
+
     private func copyInkAsText() {
         readSelectedInk { text in
             if !text.isEmpty { UIPasteboard.general.string = text }

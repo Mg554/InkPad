@@ -450,9 +450,17 @@ private struct TaskEditor: View {
                 Button {
                     workspace.save(savedTask())
                     dismiss()
-                    CommandCenter.shared.openNote(noteID)
+                    if let page = task.notePage {
+                        CommandCenter.shared.openNote(noteID, page: page)
+                    } else {
+                        CommandCenter.shared.openNote(noteID)
+                    }
                 } label: {
-                    Label("Open the Note", systemImage: "book")
+                    if let page = task.notePage {
+                        Label("Open Page \(page + 1) of the Note", systemImage: "book")
+                    } else {
+                        Label("Open the Note", systemImage: "book")
+                    }
                 }
             }
         } header: {

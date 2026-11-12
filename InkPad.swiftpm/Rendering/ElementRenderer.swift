@@ -28,6 +28,8 @@ enum ElementRenderer {
                       let image = UIImage(contentsOfFile: imageDirectory.appendingPathComponent(file).path)
                 else { continue }
                 image.draw(in: element.frame)
+            case let .sticky(note):
+                note.draw(in: StickyNote.visibleFrame(element.frame, folded: note.isFolded), context: context)
             }
         }
     }

@@ -32,6 +32,10 @@ final class NoteCanvasHostView: UIView {
     private var suspendedRecognizers: [UIGestureRecognizer] = []
     /// Two-finger tap to undo, three-finger tap to redo.
     let fingerGestures = FingerGestures()
+    /// Opens a sticky note tapped outside the Text tool (finger, or the
+    /// pencil while it isn't drawing).
+    private lazy var stickyTap = UITapGestureRecognizer(target: self, action: #selector(handleStickyTap(_:)))
+    private let stickyTapDelegate = StickyTapDelegate()
 
     /// Reports the page in the middle of the screen and the page count.
     var onVisiblePageChange: ((_ current: Int, _ count: Int) -> Void)?
@@ -66,6 +70,10 @@ final class NoteCanvasHostView: UIView {
         addSubview(laserOverlay)
         laser = LaserPointer(gestureView: canvas, overlay: laserOverlay)
         fingerGestures.install(on: canvas, hudHost: self)
+        stickyTapDelegate.host = self
+        stickyTap.delegate = stickyTapDelegate
+        stickyTap.cancelsTouchesInView = true
+        canvas.addGestureRecognizer(stickyTap)
     }
 
     required init?(coder: NSCoder) {
@@ -118,6 +126,8 @@ final class NoteCanvasHostView: UIView {
         /// The pencil (or a finger, with finger drawing on) points with a
         /// fading laser; scrolling moves to fingers (or two fingers).
         case laser
+        /// Reading: nothing draws or edits; fingers and the pencil scroll.
+        case read
     }
 
     private(set) var mode: Mode = .draw
@@ -143,7 +153,7 @@ final class NoteCanvasHostView: UIView {
             canvas.panGestureRecognizer.minimumNumberOfTouches = savedPanMinimumTouches
             lasso.setEnabled(false, pencilOnly: canvas.drawingPolicy == .pencilOnly)
             laser.setEnabled(false, pencilOnly: canvas.drawingPolicy == .pencilOnly)
-        case .draw:
+        case .draw, .read:
             break
         }
 
@@ -172,7 +182,7 @@ final class NoteCanvasHostView: UIView {
             savedPanTouchTypes = canvas.panGestureRecognizer.allowedTouchTypes
             savedPanMinimumTouches = canvas.panGestureRecognizer.minimumNumberOfTouches
             applyLassoTouches()
-        case .draw:
+        case .draw, .read:
             break
         }
         canvas.drawingGestureRecognizer.isEnabled = newMode == .draw
@@ -206,6 +216,11 @@ final class NoteCanvasHostView: UIView {
             return hit
         }
         return super.hitTest(point, with: event)
+    }
+
+    @objc private func handleStickyTap(_ gesture: UITapGestureRecognizer) {
+        guard let view = elementLayer.sticky(at: gesture.location(in: elementLayer)) else { return }
+        elementLayer.onStickyTap?(view)
     }
 
     @objc private func handleTextTap(_ gesture: UITapGestureRecognizer) {
@@ -360,5 +375,41 @@ final class NoteCanvasHostView: UIView {
         let middleY = (canvas.contentOffset.y + canvas.bounds.height / 2) / canvas.zoomScale
         let current = rects.lastIndex { $0.minY <= middleY } ?? 0
         onVisiblePageChange?(current, rects.count)
+    }
+}
+
+extension NoteCanvasHostView {
+    /// Whether the sticky-note tap may start here.
+    func stickyTapShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
+        // With the Text tool the sticky note handles its own taps.
+        guard mode != .text else { return false }
+        return elementLayer.sticky(at: gesture.location(in: elementLayer)) != nil
+    }
+
+    func stickyTapAccepts(_ touch: UITouch) -> Bool {
+        // The pencil draws in drawing mode; a finger tap opens the note.
+        if touch.type == .pencil { return mode != .draw }
+        return mode != .draw || canvas.drawingPolicy == .pencilOnly
+    }
+}
+
+/// Lets the sticky-note tap start only on a sticky note.
+@MainActor
+final class StickyTapDelegate: NSObject, UIGestureRecognizerDelegate {
+    weak var host: NoteCanvasHostView?
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        return host?.stickyTapShouldBegin(gestureRecognizer) ?? false
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        return host?.stickyTapAccepts(touch) ?? false
+    }
+
+    // PencilKit's own one-finger tap (its Select All / Insert Space menu)
+    // waits, so tapping a sticky note doesn't also show that menu.
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
+        guard let tap = other as? UITapGestureRecognizer else { return false }
+        return tap.numberOfTouchesRequired == 1
     }
 }

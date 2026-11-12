@@ -8,6 +8,7 @@ final class CanvasController: NSObject, ObservableObject {
     enum Selection: Equatable {
         case text
         case image
+        case sticky
     }
 
     @Published private(set) var canUndo = false
@@ -25,6 +26,13 @@ final class CanvasController: NSObject, ObservableObject {
     var onEdit: (() -> Void)?
     /// Called when ink from the open recording is tapped, with when it was written.
     var onInkTapped: ((Date) -> Void)?
+    /// Lasso › Save as Sticker: the selected ink.
+    var onSaveSticker: ((PKDrawing) -> Void)?
+    /// A sticky note was tapped: open it.
+    var onStickyTapped: ((UUID, StickyNote) -> Void)?
+    /// A gesture's action the note editor handles (toolbar, reading mode,
+    /// ⌘K, sticky notes).
+    var onEditorAction: ((GestureAction) -> Void)?
     /// Lasso › Think: the selected writing as text, and where it is.
     var onThink: ((String, CGRect) -> Void)?
     /// Lasso › Remind Me: the selected writing as text.
@@ -80,6 +88,7 @@ final class CanvasController: NSObject, ObservableObject {
         host.lasso.onChange = { [weak self] in self?.contentDidChange() }
         host.lasso.onThink = { [weak self] text, rect in self?.onThink?(text, rect) }
         host.lasso.onRemind = { [weak self] text in self?.onRemind?(text) }
+        host.lasso.onSaveSticker = { [weak self] drawing in self?.onSaveSticker?(drawing) }
         host.lasso.onReadArea = { [weak self] image, rect in self?.onReadArea?(image, rect) }
         if onSendToNotebook != nil {
             host.lasso.onSendArea = { [weak self] image, rect in self?.onSendToNotebook?(image, rect) }
@@ -88,7 +97,10 @@ final class CanvasController: NSObject, ObservableObject {
             self?.formattingRevision += 1
         }
         host.elementLayer.onSelectionChange = { [weak self] view in
-            self?.selection = view is TextBoxView ? .text : view is ImageElementView ? .image : nil
+            self?.selection = Self.selection(of: view)
+        }
+        host.elementLayer.onStickyTap = { [weak self] view in
+            self?.onStickyTapped?(view.id, view.note)
         }
         let holdTracker = StrokeHoldTracker()
         holdTracker.coordinateView = host.elementLayer
@@ -147,8 +159,21 @@ final class CanvasController: NSObject, ObservableObject {
         onEdit?()
     }
 
+    /// Reading Mode: the page can't be written on.
+    @Published private(set) var isReading = false
+
+    func setReading(_ reading: Bool) {
+        guard reading != isReading else { return }
+        isReading = reading
+        applyTool()
+    }
+
     func applyTool() {
         guard let host, let palette else { return }
+        if isReading {
+            host.setMode(.read)
+            return
+        }
         switch palette.tool {
         case .text: host.setMode(.text)
         case .lasso: host.setMode(.lasso)
@@ -466,6 +491,66 @@ final class CanvasController: NSObject, ObservableObject {
         contentDidChange()
     }
 
+    private static func selection(of view: PageElementView?) -> Selection? {
+        if view is TextBoxView { return .text }
+        if view is ImageElementView { return .image }
+        if view is StickyNoteView { return .sticky }
+        return nil
+    }
+
+    // MARK: Sticky notes
+
+    /// A new sticky note in the middle of what is shown; returns its id.
+    @discardableResult
+    func addSticky(_ note: StickyNote = StickyNote()) -> UUID? {
+        guard let host else { return nil }
+        return host.elementLayer.addSticky(note, centeredAt: host.visibleCenter).id
+    }
+
+    func updateSticky(_ id: UUID, with note: StickyNote) {
+        host?.elementLayer.updateSticky(id, with: note)
+    }
+
+    func removeElement(_ id: UUID) {
+        host?.elementLayer.removeElement(id)
+    }
+
+    /// Every sticky note in the note, with the page it is on.
+    func stickies(pageRects: [CGRect]) -> [StickyItem] {
+        let elements = self.elements ?? []
+        var result: [StickyItem] = []
+        for element in elements {
+            guard case let .sticky(note) = element.content else { continue }
+            let middle = element.frame.minY + 10
+            let page = pageRects.lastIndex(where: { $0.minY - PageLayout.pageGap <= middle }) ?? 0
+            result.append(StickyItem(id: element.id, note: note, page: page))
+        }
+        return result
+    }
+
+    /// The page a sticky note is on.
+    func page(ofElement id: UUID, pageRects: [CGRect]) -> Int {
+        guard let element = (elements ?? []).first(where: { $0.id == id }) else { return currentPage }
+        let middle = element.frame.minY + 10
+        return pageRects.lastIndex(where: { $0.minY - PageLayout.pageGap <= middle }) ?? currentPage
+    }
+
+    /// Adds ink (in canvas coordinates) with an undo step.
+    func addStrokes(_ strokes: [PKStroke]) {
+        guard let host, !strokes.isEmpty else { return }
+        let before = host.canvas.drawing
+        var after = before
+        after.strokes.append(contentsOf: strokes)
+        host.canvas.drawing = after
+        host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
+            canvas.drawing = before
+        }
+        contentDidChange()
+    }
+
+    /// The middle of what is shown, in canvas coordinates.
+    var visibleCenter: CGPoint? { host?.visibleCenter }
+
     /// Places text (an AI answer) on the page below `rect`.
     func placeText(_ text: NSAttributedString, below rect: CGRect) {
         host?.elementLayer.addTextBox(text, below: rect)
@@ -488,8 +573,14 @@ final class CanvasController: NSObject, ObservableObject {
 }
 
 extension CanvasController: UIPencilInteractionDelegate {
-    /// Apple Pencil (2nd generation / Pro) double-tap, following the system setting.
+    /// Apple Pencil (2nd generation / Pro) double-tap: the action chosen in
+    /// Gestures, or the system setting.
     func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
+        let action = GestureSettingsStore.shared.action(for: .pencilDoubleTap)
+        guard action == .system else {
+            if let text = perform(action) { host?.fingerGestures.showHUD(text) }
+            return
+        }
         switch UIPencilInteraction.preferredTapAction {
         case .switchEraser, .switchPrevious:
             palette?.toggleEraser()
@@ -497,5 +588,54 @@ extension CanvasController: UIPencilInteractionDelegate {
         default:
             break
         }
+    }
+}
+
+extension CanvasController {
+    /// Does what a gesture is set to do. Returns the label to show.
+    func perform(_ action: GestureAction) -> String? {
+        if action.isEditorAction {
+            onEditorAction?(action)
+            return action == .commandPalette || action == .addSticky ? nil : tr(action.title)
+        }
+        switch action {
+        case .system, .none:
+            return nil
+        case .undo:
+            refreshUndoState()
+            guard canUndo else { return tr("Nothing to Undo") }
+            undo()
+            return "\u{21BA}  " + tr("Undo")
+        case .redo:
+            refreshUndoState()
+            guard canRedo else { return tr("Nothing to Redo") }
+            redo()
+            return "\u{21BB}  " + tr("Redo")
+        case .toggleEraser:
+            return switchTool { $0.toggle(.eraser) }
+        case .toggleLasso:
+            return switchTool { $0.toggle(.lasso) }
+        case .toggleHighlighter:
+            return switchTool { $0.toggle(.highlighter) }
+        case .previousTool:
+            return switchTool { $0.switchToPrevious() }
+        case .nextPage:
+            guard currentPage + 1 < pageCount else { return tr("Last Page") }
+            scrollToPage(currentPage + 1)
+            return nil
+        case .previousPage:
+            guard currentPage > 0 else { return tr("First Page") }
+            scrollToPage(currentPage - 1)
+            return nil
+        case .toggleToolbar, .readingMode, .commandPalette, .addSticky:
+            return nil
+        }
+    }
+
+    private func switchTool(_ change: (ToolPalette) -> Void) -> String? {
+        guard let palette else { return nil }
+        change(palette)
+        applyTool()
+        return tr(palette.tool.title)
     }
 }
