@@ -181,6 +181,14 @@
       handwriting and typing; stickers come from built-in packs, saved
       handwriting (lasso), and Photos/Files with on-device background
       removal, organized in folders with favorites and recents.
+   Fixes before batch 3 (done, 12 Nov 2026, needs iPad testing): the
+      Gestures screen opens and saves; recordings to text with Apple's
+      server and AI fallbacks; Settings with About and an InkPad Pro page;
+      richer covers (old leather, fonts, decorations, 3D tilt); To-Do in
+      the Planner and sidebar with steps; Select for many notes; library
+      shapes (icons, compact, bubbles, circle, tree, shelf, timeline);
+      GPS islands open their chapter; Focus Mode across notes with nature
+      sounds and the owner's own music.
    3. **Split workspace** — any two notes or PDFs side by side, dragging
       between them.
    4. **AI** — Ask This Page with page and paragraph citations (marking

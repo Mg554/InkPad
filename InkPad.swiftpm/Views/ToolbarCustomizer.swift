@@ -8,8 +8,13 @@ struct ToolbarCustomizer: View {
     /// Called after a change, so the canvas picks up a newly selected tool.
     let onChange: () -> Void
 
+    /// Pages pushed from here. Buttons, not NavigationLinks: the list is
+    /// always in edit mode (to reorder tools), which turns links off.
+    enum Page: Hashable { case pens, gestures }
+    @State private var path: [Page] = []
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 Section {
                     ForEach(palette.toolbarOrder) { tool in
@@ -25,16 +30,8 @@ struct ToolbarCustomizer: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        PenPresetsEditor()
-                    } label: {
-                        Label("Pens & Palettes", systemImage: "swatchpalette")
-                    }
-                    NavigationLink {
-                        GestureSettingsView()
-                    } label: {
-                        Label("Gestures", systemImage: "hand.tap")
-                    }
+                    pageButton("Pens & Palettes", systemImage: "swatchpalette", page: .pens)
+                    pageButton("Gestures", systemImage: "hand.tap", page: .gestures)
                 }
 
                 Section {
@@ -45,6 +42,15 @@ struct ToolbarCustomizer: View {
                 }
             }
             .environment(\.editMode, .constant(.active))
+            .navigationDestination(for: Page.self) { page in
+                Group {
+                    switch page {
+                    case .pens: PenPresetsEditor()
+                    case .gestures: GestureSettingsView()
+                    }
+                }
+                .environment(\.editMode, .constant(.inactive))
+            }
             .navigationTitle("Customize Toolbar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -53,6 +59,22 @@ struct ToolbarCustomizer: View {
                 }
             }
         }
+    }
+
+    private func pageButton(_ title: LocalizedStringKey, systemImage: String, page: Page) -> some View {
+        Button {
+            path.append(page)
+        } label: {
+            HStack {
+                Label(title, systemImage: systemImage)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .foregroundStyle(Color.primary)
     }
 
     private func row(_ tool: DrawingTool) -> some View {

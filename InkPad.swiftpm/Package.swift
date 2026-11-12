@@ -33,6 +33,7 @@ let package = Package(
             ],
             capabilities: [
                 .microphone(purposeString: "InkPad records audio with your notes so you can play it back in step with your writing."),
+                .mediaLibrary(purposeString: "InkPad plays songs from your music library as background sound while you focus."),
                 .speechRecognition(purposeString: "InkPad turns your recordings into text on this iPad, so you can search them and jump to each part."),
                 .reminders(purposeString: "InkPad shows and edits your Reminders, and links reminders to your notes."),
                 .camera(purposeString: "InkPad scans paper documents with the camera into notes.")
@@ -43,7 +44,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "AppModule",
-            path: "."
+            path: ".",
+            resources: [
+                .copy("Sounds")
+            ]
         )
     ]
 )

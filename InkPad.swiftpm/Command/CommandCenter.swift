@@ -88,6 +88,18 @@ final class CommandCenter: ObservableObject {
         pendingPages.removeValue(forKey: id)
     }
 
+    /// A book's PDF page (zero-based) to show when it opens (Knowledge GPS).
+    private var pendingPDFPages: [UUID: Int] = [:]
+
+    func openNote(_ id: UUID, pdfPage: Int) {
+        pendingPDFPages[id] = pdfPage
+        openNote(id)
+    }
+
+    func takePendingPDFPage(for id: UUID) -> Int? {
+        pendingPDFPages.removeValue(forKey: id)
+    }
+
     private static let recentKey = "paletteRecent"
     private(set) var recent: [String] = UserDefaults.standard.stringArray(forKey: recentKey) ?? []
     private var toastTask: Task<Void, Never>?

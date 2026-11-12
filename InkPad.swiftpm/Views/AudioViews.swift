@@ -47,6 +47,16 @@ struct AudioPlaybackBar: View {
     private static let rates: [Float] = [0.75, 1, 1.25, 1.5, 2]
     @State private var showsTimeline = false
 
+    private func showTimelineIfAsked() {
+        guard audio.asksForTimeline else { return }
+        audio.asksForTimeline = false
+        Task {
+            // Once the bar has appeared, so the popover has somewhere to point.
+            try? await Task.sleep(for: .milliseconds(400))
+            showsTimeline = true
+        }
+    }
+
     /// 1×, 1.25×, 0.75×.
     private static func rateLabel(_ rate: Float) -> String {
         rate == rate.rounded() ? "\(Int(rate))×" : "\(rate)×"
@@ -56,6 +66,8 @@ struct AudioPlaybackBar: View {
         if let current = audio.current {
             bar(current)
                 .transition(.move(edge: .top).combined(with: .opacity))
+                .onAppear { showTimelineIfAsked() }
+                .onChange(of: audio.asksForTimeline) { showTimelineIfAsked() }
         }
     }
 

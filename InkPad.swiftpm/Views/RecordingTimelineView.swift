@@ -11,7 +11,8 @@ struct RecordingTimelineView: View {
     let noteID: UUID
 
     @State private var transcript: AudioTranscript?
-    @State private var language = Transcriber.languages.first?.identifier ?? Locale.current.identifier
+    @State private var language = Transcriber.allLanguages.first?.identifier ?? Locale.current.identifier
+    @AppStorage("transcriptionMethod") private var method: TranscriptionMethod = .automatic
     @State private var stage: String?
     @State private var error: String?
     @State private var search = ""
@@ -62,33 +63,40 @@ struct RecordingTimelineView: View {
         Form {
             Section {
                 Label {
-                    Text("Turn this recording into text on this iPad, with chapters you can jump to. The audio never leaves the iPad.")
+                    Text("Turn this recording into text, with chapters you can jump to and words you can search.")
                 } icon: {
                     Image(systemName: "waveform.badge.magnifyingglass")
                         .foregroundStyle(.purple)
                 }
             }
             Section("Language Spoken") {
-                let languages = Transcriber.languages
-                if languages.isEmpty {
-                    Text("No language can be recognized on this iPad yet. Add one in Settings › General › Keyboard › Dictation Languages.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    Picker("Language", selection: $language) {
-                        ForEach(languages, id: \.identifier) { locale in
-                            Text(locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier)
-                                .tag(locale.identifier)
-                        }
+                Picker("Language", selection: $language) {
+                    ForEach(Transcriber.allLanguages, id: \.identifier) { locale in
+                        let name = locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier
+                        Text(Transcriber.worksOnDevice(locale) ? name + " · " + tr("on this iPad") : name)
+                            .tag(locale.identifier)
                     }
                 }
             }
             Section {
+                Picker("How", selection: $method) {
+                    ForEach(TranscriptionMethod.allCases) { option in
+                        Text(tr(option.title)).tag(option)
+                    }
+                }
                 Button {
                     transcribe()
                 } label: {
                     Label("Make Timeline", systemImage: "list.bullet.below.rectangle")
                 }
-                .disabled(stage != nil || Transcriber.languages.isEmpty)
+                .disabled(stage != nil)
+            } header: {
+                Text("Transcription")
+            } footer: {
+                Text(methodFooter)
+            }
+            Section {
+                EmptyView()
             } footer: {
                 Text(aiMayWriteChapters
                     ? "Chapters are named by \(ai.provider.title)."
@@ -224,6 +232,55 @@ struct RecordingTimelineView: View {
         if !audio.isPlaying { audio.togglePlayback() }
     }
 
+    private var methodFooter: String {
+        switch method {
+        case .automatic: tr("On this iPad when the language is downloaded, otherwise Apple's free speech service, then your AI service (OpenAI, Groq or Gemini) if the AI Firewall allows this note.")
+        case .onDevice: tr("The audio never leaves the iPad. The language must be downloaded in Settings › General › Keyboard › Dictation Languages.")
+        case .apple: tr("Sent to Apple's speech service a minute at a time. Free; needs the internet.")
+        case .ai: tr("Sent to your AI service (Whisper on OpenAI or Groq, or Gemini). Most accurate for lectures; uses your API key.")
+        }
+    }
+
+    /// Tries the chosen way, or in Automatic each way in turn.
+    private func hear(_ url: URL, locale: Locale) async throws -> [AudioTranscript.Phrase] {
+        let ways: [TranscriptionMethod]
+        switch method {
+        case .automatic:
+            var list: [TranscriptionMethod] = []
+            if Transcriber.worksOnDevice(locale) { list.append(.onDevice) }
+            list.append(.apple)
+            if store.mayUseAI(noteID, onDevice: false), AITranscriber.available() != nil { list.append(.ai) }
+            ways = list
+        default:
+            ways = [method]
+        }
+        var lastError: Error = TranscriberError.nothingHeard
+        for way in ways {
+            do {
+                switch way {
+                case .onDevice, .automatic:
+                    stage = "Listening on this iPad…"
+                    return try await Transcriber.transcribe(url, locale: locale, onDevice: true, duration: recording.duration)
+                case .apple:
+                    stage = "Apple is listening…"
+                    return try await Transcriber.transcribe(url, locale: locale, onDevice: false, duration: recording.duration) { stage = $0 }
+                case .ai:
+                    guard store.mayUseAI(noteID, onDevice: false) else {
+                        throw AITranscriberError.failed(tr("the AI Firewall keeps this note on the iPad"))
+                    }
+                    guard let service = AITranscriber.available() else { throw AITranscriberError.noService }
+                    stage = trMessage("\(service.title) is listening…")
+                    return try await service.transcribe(url, language: locale.identifier, duration: recording.duration) { stage = $0 }
+                }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError
+    }
+
     private func transcribe() {
         error = nil
         stage = "Listening to the recording…"
@@ -231,7 +288,7 @@ struct RecordingTimelineView: View {
         let locale = Locale(identifier: language)
         task = Task {
             do {
-                let phrases = try await Transcriber.transcribe(url, locale: locale)
+                let phrases = try await hear(url, locale: locale)
                 var made = AudioTranscript(
                     language: locale.identifier,
                     phrases: phrases,
@@ -298,6 +355,22 @@ struct RecordingTimelineView: View {
         let folderID = store.note(noteID)?.folderID
         if let note = store.createTextNote(titled: "\(recording.title) (transcript)", in: folderID) {
             store.saveMarkdown(body.joined(separator: "\n\n"), for: note.id)
+        }
+    }
+}
+
+/// How a recording is turned into text.
+enum TranscriptionMethod: String, CaseIterable, Identifiable {
+    case automatic, onDevice, apple, ai
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .onDevice: "On This iPad"
+        case .apple: "Apple's Speech Service"
+        case .ai: "AI Service"
         }
     }
 }

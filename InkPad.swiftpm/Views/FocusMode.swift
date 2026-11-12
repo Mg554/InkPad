@@ -32,6 +32,9 @@ final class FocusSession: ObservableObject {
     private var cardsReviewed = 0
     /// The note's toolbar as it was before Focus Mode hid it.
     var toolbarWasHidden = false
+    /// Note editors on screen: the floating Focus pill shows when none is
+    /// (each note shows its own Focus bar).
+    @Published var openEditors = 0
 
     /// Seconds focused in this session.
     func elapsed(at date: Date) -> Int {
@@ -495,6 +498,14 @@ struct FocusScreenView: View {
                 GardenPlantCard(plant: plant, size: 110)
                 HStack(spacing: 14) {
                     Button {
+                        // The session keeps running; the Focus pill brings this back.
+                        dismiss()
+                    } label: {
+                        Label("Open My Notes", systemImage: "books.vertical")
+                    }
+                    .buttonStyle(.bordered)
+                    FocusSoundMenu()
+                    Button {
                         isCatching = true
                     } label: {
                         Label("Catch a Distraction", systemImage: "tray.and.arrow.down")
@@ -531,5 +542,103 @@ struct FocusScreenView: View {
 
     private func finish() {
         session.end(strokes: 0, concepts: [], workspace: workspace)
+    }
+}
+
+/// While a focus session runs outside a note: the time, the sound, back to
+/// the Focus screen, or end.
+struct FocusPill: View {
+    @EnvironmentObject private var workspace: WorkspaceStore
+    @ObservedObject private var session = FocusSession.shared
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button {
+                CommandCenter.shared.showsFocusScreen = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "scope").foregroundStyle(.green)
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(Flowmodoro.clock(session.elapsed(at: context.date)))
+                            .font(.headline.monospacedDigit())
+                    }
+                    Text(verbatim: session.title)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: 180)
+                }
+            }
+            .buttonStyle(.plain)
+            FocusSoundMenu()
+            Button {
+                CommandCenter.shared.sheet = .catchDistraction
+            } label: {
+                Image(systemName: "tray.and.arrow.down")
+            }
+            .accessibilityLabel("Catch a Distraction")
+            Button("End", role: .destructive) {
+                session.end(strokes: 0, concepts: [], workspace: workspace)
+            }
+            .font(.subheadline.weight(.semibold))
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .background(.regularMaterial, in: Capsule())
+        .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+    }
+}
+
+/// A quick sound switch while focusing.
+struct FocusSoundMenu: View {
+    @ObservedObject private var looks = FlowLookStore.shared
+    @ObservedObject private var own = OwnSoundStore.shared
+
+    var body: some View {
+        Menu {
+            Button {
+                choose(key: nil, ambient: .off)
+            } label: {
+                Label("Off", systemImage: "speaker.slash")
+            }
+            Section("Nature") {
+                ForEach(NatureSound.allCases) { sound in
+                    Button {
+                        choose(key: sound.key, ambient: looks.look.ambient)
+                    } label: {
+                        Label(tr(sound.title), systemImage: sound.systemImage)
+                    }
+                }
+            }
+            Section("Made on This iPad") {
+                ForEach(FlowLook.Ambient.allCases.filter { $0 != .off }) { ambient in
+                    Button {
+                        choose(key: nil, ambient: ambient)
+                    } label: {
+                        Label(tr(ambient.title), systemImage: ambient.systemImage)
+                    }
+                }
+            }
+            if !own.sounds.isEmpty {
+                Section("My Sounds") {
+                    ForEach(own.sounds) { sound in
+                        Button {
+                            choose(key: sound.key, ambient: looks.look.ambient)
+                        } label: {
+                            Label { Text(verbatim: sound.name) } icon: { Image(systemName: "music.note") }
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: FocusSounds.systemImage(of: looks.look))
+        }
+        .accessibilityLabel("Sound")
+    }
+
+    private func choose(key: String?, ambient: FlowLook.Ambient) {
+        looks.look.soundKey = key
+        looks.look.ambient = ambient
+        FocusSoundController.update()
     }
 }

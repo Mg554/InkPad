@@ -3,6 +3,7 @@ import SwiftUI
 /// Notion-style task planner: a board by status, a list by due date, and a calendar.
 struct PlannerView: View {
     enum Mode: String, CaseIterable, Identifiable {
+        case todo = "To-Do"
         case today = "Today"
         case board = "Board"
         case list = "List"
@@ -15,8 +16,10 @@ struct PlannerView: View {
 
     @EnvironmentObject private var workspace: WorkspaceStore
     @EnvironmentObject private var store: LibraryStore
-    @AppStorage("plannerMode") private var mode: Mode = .board
+    @AppStorage("plannerMode") private var mode: Mode = .todo
     @State private var editing: PlanTask?
+    /// A task just made, lit up in the To-Do list.
+    @State private var highlight: UUID?
     @State private var selectedDay = Date()
     @State private var targetedColumn: PlanTask.Status?
     @ObservedObject private var looks = FlowLookStore.shared
@@ -25,6 +28,7 @@ struct PlannerView: View {
     var body: some View {
         Group {
             switch mode {
+            case .todo: ToDoListView(edit: { editing = $0 }, highlight: $highlight)
             case .today: PlannerTodayView { editing = $0 }
             case .board: board
             case .list: list
@@ -60,7 +64,12 @@ struct PlannerView: View {
             }
         }
         .sheet(item: $editing) { task in
-            TaskEditor(task: task)
+            TaskEditor(task: task) { saved, isNew in
+                // A new task shows up right away, lit up in the To-Do list.
+                guard isNew else { return }
+                withAnimation(.snappy) { mode = .todo }
+                highlight = saved.id
+            }
         }
         .sheet(isPresented: $isCustomizing) {
             FlowStyleView()
@@ -483,7 +492,41 @@ private struct TaskEditor: View {
         return saved
     }
 
-    init(task: PlanTask) {
+    @State private var stepDraft = ""
+    /// Called after saving, with whether the task is new.
+    let onSave: (PlanTask, Bool) -> Void
+
+    private var stepsSection: some View {
+        Section {
+            ForEach(task.subtasks ?? []) { step in
+                HStack {
+                    Button {
+                        if let index = task.subtasks?.firstIndex(where: { $0.id == step.id }) {
+                            task.subtasks?[index].isDone.toggle()
+                        }
+                    } label: {
+                        Image(systemName: step.isDone ? "checkmark.square.fill" : "square")
+                            .foregroundStyle(step.isDone ? Color.green : Color.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    Text(verbatim: step.title).strikethrough(step.isDone)
+                }
+            }
+            .onDelete { offsets in task.subtasks?.remove(atOffsets: offsets) }
+            TextField("Add a step", text: $stepDraft)
+                .onSubmit {
+                    let trimmed = stepDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    task.subtasks = (task.subtasks ?? []) + [PlanTask.Subtask(title: trimmed)]
+                    stepDraft = ""
+                }
+        } header: {
+            Text("Steps")
+        }
+    }
+
+    init(task: PlanTask, onSave: @escaping (PlanTask, Bool) -> Void = { _, _ in }) {
+        self.onSave = onSave
         _task = State(initialValue: task)
         _hasDueDate = State(initialValue: task.dueDate != nil)
         _tagsText = State(initialValue: task.tags.joined(separator: ", "))
@@ -545,6 +588,7 @@ private struct TaskEditor: View {
                     Text("Focus on This starts Flowmodoro and logs the time here. InkPad learns how long your tasks really take.")
                 }
                 studySection
+                stepsSection
                 Section("Notes") {
                     TextField("Details", text: $task.notes, axis: .vertical)
                         .lineLimit(4...12)
@@ -558,7 +602,10 @@ private struct TaskEditor: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        workspace.save(savedTask())
+                        let saved = savedTask()
+                        let isNew = !workspace.tasks.contains { $0.id == saved.id }
+                        workspace.save(saved)
+                        onSave(saved, isNew)
                         dismiss()
                     }
                 }

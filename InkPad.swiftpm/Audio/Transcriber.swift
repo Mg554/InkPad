@@ -100,17 +100,75 @@ enum Transcriber {
         }
     }
 
-    static func transcribe(_ url: URL, locale: Locale) async throws -> [AudioTranscript.Phrase] {
+    /// Whether this language can be heard on the iPad itself.
+    static func worksOnDevice(_ locale: Locale) -> Bool {
+        SFSpeechRecognizer(locale: locale)?.supportsOnDeviceRecognition ?? false
+    }
+
+    /// Languages Apple's speech recognition knows (on the iPad or on Apple's
+    /// servers), the iPad's own first.
+    static var allLanguages: [Locale] {
+        var identifiers = [Locale.current.identifier]
+        identifiers += ["ar-SA", "ar-AE", "ar-EG", "en-US", "en-GB", "fr-FR", "de-DE", "es-ES", "tr-TR", "it-IT"]
+        var seen: Set<String> = []
+        return identifiers
+            .map { Locale(identifier: $0) }
+            .filter { locale in
+                guard let recognizer = SFSpeechRecognizer(locale: locale) else { return false }
+                return seen.insert(recognizer.locale.identifier).inserted
+            }
+    }
+
+    /// Hears a recording on the iPad (`onDevice`), or on Apple's servers,
+    /// which take about a minute at a time, so longer audio goes in pieces.
+    static func transcribe(
+        _ url: URL,
+        locale: Locale,
+        onDevice: Bool = true,
+        duration: TimeInterval = 0,
+        progress: @escaping @MainActor (String) -> Void = { _ in }
+    ) async throws -> [AudioTranscript.Phrase] {
         guard await authorize() else { throw TranscriberError.notAllowed }
         let name = locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier
-        guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.supportsOnDeviceRecognition else {
+        guard let recognizer = SFSpeechRecognizer(locale: locale) else {
             throw TranscriberError.unavailable(name)
         }
+        if onDevice {
+            guard recognizer.supportsOnDeviceRecognition else { throw TranscriberError.unavailable(name) }
+            let phrases = try await recognizeFile(url, with: recognizer, onDevice: true, language: name, offset: 0)
+            guard !phrases.isEmpty else { throw TranscriberError.nothingHeard }
+            return phrases
+        }
+        guard recognizer.isAvailable else {
+            throw TranscriberError.failed(language: name, reason: tr("Apple's speech service can't be reached; check the internet connection"))
+        }
+        let pieces = try await AudioChunker.pieces(of: url, length: 55, duration: duration)
+        defer { AudioChunker.remove(pieces) }
+        var phrases: [AudioTranscript.Phrase] = []
+        for (index, piece) in pieces.enumerated() {
+            try Task.checkCancellation()
+            await progress(trMessage("Apple is listening… part \(index + 1) of \(pieces.count)"))
+            do {
+                phrases += try await recognizeFile(piece.url, with: recognizer, onDevice: false, language: name, offset: piece.start)
+            } catch TranscriberError.nothingHeard {
+                continue
+            }
+        }
+        guard !phrases.isEmpty else { throw TranscriberError.nothingHeard }
+        return phrases
+    }
+
+    private static func recognizeFile(
+        _ url: URL,
+        with recognizer: SFSpeechRecognizer,
+        onDevice: Bool,
+        language: String,
+        offset: TimeInterval
+    ) async throws -> [AudioTranscript.Phrase] {
         let request = SFSpeechURLRecognitionRequest(url: url)
-        request.requiresOnDeviceRecognition = true
+        request.requiresOnDeviceRecognition = onDevice
         request.shouldReportPartialResults = false
         request.addsPunctuation = true
-
         let box = TaskBox()
         let segments: [SFTranscriptionSegment]
         do {
@@ -118,11 +176,16 @@ enum Transcriber {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            throw TranscriberError.failed(language: name, reason: error.localizedDescription)
+            // "No speech detected" comes back as an error.
+            let text = (error as NSError).localizedDescription.lowercased()
+            if text.contains("no speech") { throw TranscriberError.nothingHeard }
+            throw TranscriberError.failed(language: language, reason: error.localizedDescription)
         }
-        let phrases = Self.phrases(from: segments)
-        guard !phrases.isEmpty else { throw TranscriberError.nothingHeard }
-        return phrases
+        return phrases(from: segments).map { phrase in
+            var moved = phrase
+            moved.start += offset
+            return moved
+        }
     }
 
     private static func recognize(

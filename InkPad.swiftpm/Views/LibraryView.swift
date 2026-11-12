@@ -21,7 +21,9 @@ struct LibraryView: View {
 
     /// A note's focus session ended: its wrap-up (the Focus screen shows its own).
     private var noteWrapUp: FocusSummary? {
-        guard let summary = focusSession.summary, summary.noteID != nil else { return nil }
+        // The Focus screen shows its own wrap-up while it is open.
+        guard let summary = focusSession.summary else { return nil }
+        if summary.noteID == nil, CommandCenter.shared.showsFocusScreen { return nil }
         return summary
     }
     @State private var themeToApply: ThemeRecipe?
@@ -283,6 +285,13 @@ struct LibraryView: View {
                 FocusWrapUpView(summary: summary)
                     .environmentObject(store)
                     .environmentObject(workspace)
+            }
+            .overlay(alignment: .bottom) {
+                if focusSession.isActive, focusSession.openEditors == 0, !CommandCenter.shared.showsFocusScreen {
+                    FocusPill()
+                        .padding(.bottom, 24)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
             .fullScreenCover(isPresented: Binding(
                 get: { CommandCenter.shared.showsFocusScreen },

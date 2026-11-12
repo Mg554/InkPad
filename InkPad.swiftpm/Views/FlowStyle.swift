@@ -88,6 +88,9 @@ struct FlowLook: StoredLook {
     /// Ambient sound also during breaks.
     var ambientOnBreaks = false
     var chime = Chime.alarm
+    /// A recorded sound instead of the made one: "nature:birds" (comes with
+    /// the app) or "mine:<file>" (added from Files or Music). See FocusSounds.swift.
+    var soundKey: String?
 
     init() {}
 
@@ -102,6 +105,7 @@ struct FlowLook: StoredLook {
         volume = container.value(.volume, or: volume)
         ambientOnBreaks = container.value(.ambientOnBreaks, or: ambientOnBreaks)
         chime = container.value(.chime, or: chime)
+        soundKey = container.value(.soundKey, or: nil)
     }
 }
 
@@ -598,8 +602,14 @@ struct FlowStyleView: View {
                     BackdropPicker(backdrop: $store.look.backdrop)
                 }
                 Section {
-                    Picker("Ambient Sound", selection: $store.look.ambient) {
-                        ForEach(FlowLook.Ambient.allCases) { Label(tr($0.title), systemImage: $0.systemImage).tag($0) }
+                    NavigationLink {
+                        FocusSoundPicker()
+                    } label: {
+                        LabeledContent {
+                            Text(FocusSounds.title(of: store.look))
+                        } label: {
+                            Label("Sound", systemImage: FocusSounds.systemImage(of: store.look))
+                        }
                     }
                     LabeledSlider(title: "Volume", systemImage: "speaker.wave.2", value: $store.look.volume, range: 0...1, text: "\(Int(store.look.volume * 100))%")
                     Toggle("Also During Breaks", isOn: $store.look.ambientOnBreaks)
@@ -608,11 +618,11 @@ struct FlowStyleView: View {
                     } label: {
                         Label("Listen for 4 Seconds", systemImage: "play.circle")
                     }
-                    .disabled(store.look.ambient == .off)
+                    .disabled(store.look.ambient == .off && store.look.soundKey == nil)
                 } header: {
                     Text("Sound While Focusing")
                 } footer: {
-                    Text("Made on this iPad: rain, ocean and noise to cover distracting sounds.")
+                    Text("Nature recordings (birds, river, light rain, forest, waves, café, wind), sounds made on this iPad, or your own from Files or your music library.")
                 }
                 Section("Break Chime") {
                     Picker("Chime", selection: $store.look.chime) {
@@ -625,6 +635,8 @@ struct FlowStyleView: View {
                 }
             }
             .onChange(of: store.look.ambient) { FocusSoundController.update() }
+            .onChange(of: store.look.soundKey) { FocusSoundController.update() }
+            .onChange(of: store.look.volume) { FocusSounds.setVolume(Float(store.look.volume)) }
             .onChange(of: store.look.ambientOnBreaks) { FocusSoundController.update() }
             .navigationTitle("Customize Focus")
             .navigationBarTitleDisplayMode(.inline)
@@ -654,8 +666,7 @@ struct FlowStyleView: View {
     }
 
     private func preview() {
-        let look = store.look
-        AmbientSound.shared.play(look.ambient, volume: Float(look.volume))
+        FocusSounds.play(store.look)
         Task {
             try? await Task.sleep(for: .seconds(4))
             // Keep playing if a work session started meanwhile.
@@ -677,9 +688,9 @@ enum FocusSoundController {
         let breakRunning: Bool = timer?.phase == .onBreak && (breakEnd ?? .distantPast) > Date()
         let plays: Bool = timer?.phase == .working || (look.ambientOnBreaks && breakRunning)
         if plays {
-            AmbientSound.shared.play(look.ambient, volume: Float(look.volume))
+            FocusSounds.play(look)
         } else {
-            AmbientSound.shared.stop()
+            FocusSounds.stop()
         }
         // A break can end while Flowmodoro isn't open: stop the sound then.
         breakCheck?.cancel()

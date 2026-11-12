@@ -368,6 +368,9 @@ final class EditorSession: ObservableObject {
         recording.title = "Recording \(recordings.count + 1)"
         updateMetadata { $0.recordings = ($0.recordings ?? []) + [recording] }
         save(thumbnail: false)
+        // Offer to turn it into text straight away.
+        openRecording(recording)
+        audio.asksForTimeline = true
     }
 
     // MARK: Saving

@@ -34,6 +34,36 @@ Done:
   switch tools, hide the toolbar, Reading Mode, ⌘K, add a sticky note,
   next or previous page); Reading Mode (⋯ menu) hides every tool and bar
   so nothing is written by accident
+- Settings (gear in the sidebar, ⌘,): AI services and the AI Firewall,
+  appearance, language and themes, writing (finger drawing, Pencil in
+  text fields, pens and palettes, gestures, Refine Handwriting), focus
+  sound, how recordings become text, storage and backups, an InkPad Pro
+  page (plans shown for later; every feature is free) and About ⓘ
+- Library views (the view button): cards, small icons, compact list,
+  detailed list, bubbles sized by pages, a circle around the folder, a
+  `tree`-style outline of folders and notes, a bookshelf and a timeline
+  by month; Select to pick many notes and move, copy, favorite, pin, tag
+  or delete them at once
+- Covers: old leather book (gold title, ornate frame, metal corners,
+  ribbon), cloth, wood, marble, spiral notebook and kraft paper besides
+  colors and patterns; 18 fonts including Arabic (Naskh, Farah, Mishafi);
+  title size, place, ink (gold, silver...) and label; emblems and emoji,
+  frames, ribbon and band; tilt the preview with a finger, and the cover
+  swings open when a note opens
+- To-Do: a To-Do view in the Planner (quick add with Today / Tomorrow /
+  Someday and priority, Overdue / Today / Upcoming / Someday, steps with
+  progress, swipe to finish, move to tomorrow or delete, drag to reorder;
+  a new task is shown and lit up right away) and a To-Do section in the
+  sidebar
+- Recordings to text: on the iPad, else Apple's free speech service in
+  one-minute pieces, else Whisper (OpenAI, Groq) or Gemini when the AI
+  Firewall allows; the timeline opens right after a recording ends
+- Knowledge GPS: tapping an island opens the book at that chapter's first
+  page (long-press for progress)
+- Focus Mode keeps running while you move between notes (a floating
+  Focus pill outside notes); sounds: CC0 nature recordings (birds, dawn,
+  river, light rain, forest, waves, café, wind; Sounds/CREDITS.txt), the
+  made-on-iPad noises, or your own from Files or the music library
 - Sticky notes (+ › Sticky Note): colored notes on the page with typed
   text and handwriting, a group name, folding to a small square; tap one
   with a finger to open it; turn it into a Planner task linked to its

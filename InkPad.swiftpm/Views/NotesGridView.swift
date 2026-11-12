@@ -16,6 +16,13 @@ struct NotesGridView: View {
     @State private var reminderRequest: NoteReminderRequest?
     @State private var historyNote: NoteSummary?
     @State private var coverNote: NoteSummary?
+    /// The note whose cover is swinging open.
+    @State private var openingID: UUID?
+    /// Select mode: tap notes to pick them, then act on all at once.
+    @State private var isSelecting = false
+    @State private var selection: Set<UUID> = []
+    @State private var confirmsDelete = false
+    @State private var collapsedFolders: Set<UUID> = []
     @AppStorage(NoteSort.storageKey) private var sortRaw = NoteSort.edited.rawValue
     @AppStorage(LibraryLayout.storageKey) private var layoutRaw = LibraryLayout.grid.rawValue
 
@@ -82,6 +89,9 @@ struct NotesGridView: View {
                     .frame(maxWidth: .infinity)
                 }
                 let arranged = arrangement
+                if layout.isShape {
+                    notesLayout(arranged.pinned + arranged.others, reorderable: false)
+                } else {
                 if !arranged.pinned.isEmpty {
                     sectionTitle("Pinned", systemImage: "pin.fill")
                     notesLayout(arranged.pinned, reorderable: false)
@@ -89,13 +99,43 @@ struct NotesGridView: View {
                         sectionTitle("Notes", systemImage: "square.grid.2x2")
                     }
                 }
-                notesLayout(arranged.others, reorderable: sort == .custom)
+                notesLayout(arranged.others, reorderable: sort == .custom && !isSelecting)
+                }
             }
+            .padding(.bottom, isSelecting ? 80 : 0)
+        }
+        .overlay(alignment: .bottom) {
+            if isSelecting { selectionBar.transition(.move(edge: .bottom).combined(with: .opacity)) }
+        }
+        .animation(.snappy, value: isSelecting)
+        .onChange(of: scope) {
+            isSelecting = false
+            selection = []
+        }
+        .confirmationDialog(
+            trMessage("Delete \(selection.count) notes?"),
+            isPresented: $confirmsDelete,
+            titleVisibility: .visible
+        ) {
+            Button("Move to Recently Deleted", role: .destructive) {
+                withAnimation {
+                    for id in selection { store.deleteNote(id) }
+                }
+                endSelecting()
+            }
+        } message: {
+            Text("They stay in Recently Deleted for 30 days.")
         }
         .themedBackground()
         .navigationTitle(tr(title))
         .searchable(text: $searchText, prompt: "Search titles, text, handwriting and #tags")
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(isSelecting ? "Done" : "Select") {
+                    if isSelecting { endSelecting() } else { isSelecting = true }
+                }
+                .disabled(visibleNotes.isEmpty && !isSelecting)
+            }
             ToolbarItem(placement: .primaryAction) {
                 arrangeMenu
             }
@@ -182,6 +222,54 @@ struct NotesGridView: View {
 
     @ViewBuilder
     private func notesLayout(_ notes: [NoteSummary], reorderable: Bool) -> some View {
+        switch layout {
+        case .grid, .list:
+            cardsOrRows(notes, reorderable: reorderable)
+        case .icons:
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96, maximum: 110), spacing: 16)], spacing: 20) {
+                ForEach(notes) { note in
+                    item(note, reorderable: reorderable) { NoteIcon(note: note) }
+                }
+            }
+            .padding(24)
+        case .compact:
+            VStack(spacing: 0) {
+                ForEach(notes) { note in
+                    item(note, reorderable: reorderable) { NoteCompactRow(note: note) }
+                    Divider().padding(.leading, 44)
+                }
+            }
+            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+        case .bubbles:
+            BubbleFlow {
+                ForEach(notes) { note in
+                    item(note, reorderable: false) { NoteBubble(note: note) }
+                }
+            }
+            .padding(24)
+        case .circle:
+            ZStack {
+                RadialLayout {
+                    ForEach(notes) { note in
+                        item(note, reorderable: false) { NoteBubble(note: note).scaleEffect(0.75) }
+                    }
+                }
+                CircleHub(title: tr(title), count: notes.count)
+            }
+            .padding(.horizontal, 24)
+        case .tree:
+            treeView(notes)
+        case .shelf:
+            shelfView(notes)
+        case .timeline:
+            timelineView(notes)
+        }
+    }
+
+    @ViewBuilder
+    private func cardsOrRows(_ notes: [NoteSummary], reorderable: Bool) -> some View {
         if layout == .list {
             VStack(spacing: 0) {
                 NoteListHeader(sort: sortBinding)
@@ -209,9 +297,37 @@ struct NotesGridView: View {
     @ViewBuilder
     private func item<Content: View>(_ note: NoteSummary, reorderable: Bool, @ViewBuilder content: () -> Content) -> some View {
         let button = Button {
-            openNote(note.id)
+            if isSelecting {
+                if selection.contains(note.id) { selection.remove(note.id) } else { selection.insert(note.id) }
+                return
+            }
+            guard note.cover != nil else {
+                openNote(note.id)
+                return
+            }
+            // A cover swings open first.
+            openingID = note.id
+            Task {
+                try? await Task.sleep(for: .milliseconds(330))
+                openNote(note.id)
+                try? await Task.sleep(for: .milliseconds(400))
+                openingID = nil
+            }
         } label: {
             content()
+                .modifier(CoverOpening(isOpening: openingID == note.id))
+                .overlay(alignment: .topLeading) {
+                    if isSelecting {
+                        let picked = selection.contains(note.id)
+                        Image(systemName: picked ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .foregroundStyle(picked ? Color.inkAccent : Color.secondary)
+                            .background(Circle().fill(.background).padding(2))
+                            .padding(6)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .opacity(isSelecting && !selection.contains(note.id) ? 0.75 : 1)
         }
         .buttonStyle(.plain)
         .contextMenu { menu(for: note) }
@@ -249,8 +365,9 @@ struct NotesGridView: View {
             }
             Section {
                 Picker("View", selection: $layoutRaw) {
-                    Label("Grid", systemImage: "square.grid.2x2").tag(LibraryLayout.grid.rawValue)
-                    Label("List", systemImage: "list.bullet").tag(LibraryLayout.list.rawValue)
+                    ForEach(LibraryLayout.allCases) { option in
+                        Label(tr(option.title), systemImage: option.systemImage).tag(option.rawValue)
+                    }
                 }
             }
             if sort == .custom {
@@ -353,6 +470,252 @@ struct NotesGridView: View {
         } label: {
             Label("Delete", systemImage: "trash")
         }
+    }
+
+    // MARK: Select
+
+    private func endSelecting() {
+        isSelecting = false
+        selection = []
+    }
+
+    private var selectionBar: some View {
+        let ids = Array(selection)
+        let none = ids.isEmpty
+        return HStack(spacing: 18) {
+            Button(selection.count == visibleNotes.count ? "Select None" : "Select All") {
+                if selection.count == visibleNotes.count {
+                    selection = []
+                } else {
+                    selection = Set(visibleNotes.map(\.id))
+                }
+            }
+            Text("\(selection.count) selected")
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
+            Divider().frame(height: 24)
+            Menu {
+                Button("Unfiled") { moveSelected(to: nil) }
+                ForEach(store.folderTree()) { row in
+                    Button(String(repeating: "    ", count: row.depth) + row.folder.name) { moveSelected(to: row.folder.id) }
+                }
+            } label: {
+                Label("Move", systemImage: "folder")
+            }
+            .disabled(none)
+            Button {
+                for id in ids { store.duplicateNote(id) }
+                endSelecting()
+            } label: {
+                Label("Copy", systemImage: "plus.square.on.square")
+            }
+            .disabled(none)
+            Menu {
+                Button {
+                    for id in ids { store.setFavorite(true, for: id) }
+                } label: {
+                    Label("Add to Favorites", systemImage: "star")
+                }
+                Button {
+                    for id in ids { store.setFavorite(false, for: id) }
+                } label: {
+                    Label("Remove from Favorites", systemImage: "star.slash")
+                }
+                Button {
+                    for id in ids { store.setPinned(true, for: id) }
+                } label: {
+                    Label("Pin to Top", systemImage: "pin")
+                }
+                Button {
+                    for id in ids { store.setPinned(false, for: id) }
+                } label: {
+                    Label("Unpin", systemImage: "pin.slash")
+                }
+                Button {
+                    prompt = NamePrompt(title: "Add Tags", initialText: "", confirmTitle: "Add") { text in
+                        let added = NoteLinks.parseTagList(text)
+                        for id in ids {
+                            let current: [String] = store.note(id)?.tags ?? []
+                            store.setTags(current + added.filter { !current.contains($0) }, for: id)
+                        }
+                    }
+                } label: {
+                    Label("Add Tags…", systemImage: "number")
+                }
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+            }
+            .disabled(none)
+            Button(role: .destructive) {
+                confirmsDelete = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .disabled(none)
+        }
+        .labelStyle(.titleAndIcon)
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(.regularMaterial, in: Capsule())
+        .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+        .padding(.bottom, 16)
+    }
+
+    private func moveSelected(to folderID: UUID?) {
+        withAnimation {
+            for id in selection { store.moveNote(id, to: folderID) }
+        }
+        endSelecting()
+    }
+
+    // MARK: Shapes
+
+    /// Folders and notes drawn like `tree` in a terminal.
+    private func treeView(_ notes: [NoteSummary]) -> some View {
+        let lines = treeLines(notes)
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "folder.fill").foregroundStyle(Color.inkAccent)
+                Text(verbatim: tr(title)).font(.system(.body, design: .monospaced).weight(.bold))
+                Text("(\(notes.count))").font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+            }
+            .padding(.bottom, 4)
+            ForEach(lines) { line in
+                TreeLine(ancestors: line.ancestors, isLast: line.isLast) {
+                    switch line.kind {
+                    case let .folder(folder):
+                        Button {
+                            withAnimation(.snappy) {
+                                if collapsedFolders.contains(folder.id) { collapsedFolders.remove(folder.id) } else { collapsedFolders.insert(folder.id) }
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: collapsedFolders.contains(folder.id) ? "folder" : "folder.fill")
+                                    .foregroundStyle((folder.color ?? .blue).color)
+                                Text(verbatim: folder.name + "/").font(.system(.body, design: .monospaced).weight(.semibold))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    case let .note(note):
+                        item(note, reorderable: false) {
+                            HStack(spacing: 6) {
+                                Image(systemName: note.isText ? "doc.text" : note.hasPDF == true ? "doc.richtext" : "doc")
+                                    .foregroundStyle(.secondary)
+                                Text(verbatim: note.title).font(.system(.body, design: .monospaced))
+                                if note.favorite { Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+    }
+
+    private struct TreeEntry: Identifiable {
+        enum Kind {
+            case folder(Folder)
+            case note(NoteSummary)
+        }
+        let id: String
+        let kind: Kind
+        let ancestors: [Bool]
+        let isLast: Bool
+    }
+
+    private func treeLines(_ notes: [NoteSummary]) -> [TreeEntry] {
+        var result: [TreeEntry] = []
+        let rootFolder: UUID?
+        switch scope {
+        case let .folder(id): rootFolder = id
+        case .allNotes: rootFolder = nil
+        default:
+            // Other lists have no folders: just the notes.
+            for (index, note) in notes.enumerated() {
+                result.append(TreeEntry(id: note.id.uuidString, kind: .note(note), ancestors: [], isLast: index == notes.count - 1))
+            }
+            return result
+        }
+        addTreeLevel(parent: rootFolder, notes: notes, ancestors: [], into: &result)
+        return result
+    }
+
+    private func addTreeLevel(parent: UUID?, notes: [NoteSummary], ancestors: [Bool], into result: inout [TreeEntry]) {
+        let folders: [Folder] = store.folders
+            .filter { $0.parentID == parent }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        let here: [NoteSummary] = notes.filter { $0.folderID == parent }
+        let total = folders.count + here.count
+        var position = 0
+        for folder in folders {
+            position += 1
+            let isLast = position == total
+            result.append(TreeEntry(id: folder.id.uuidString, kind: .folder(folder), ancestors: ancestors, isLast: isLast))
+            if !collapsedFolders.contains(folder.id) {
+                addTreeLevel(parent: folder.id, notes: notes, ancestors: ancestors + [!isLast], into: &result)
+            }
+        }
+        for note in here {
+            position += 1
+            result.append(TreeEntry(id: note.id.uuidString, kind: .note(note), ancestors: ancestors, isLast: position == total))
+        }
+    }
+
+    /// Notes as books on wooden shelves.
+    private func shelfView(_ notes: [NoteSummary]) -> some View {
+        let perShelf = 7
+        let shelves: [[NoteSummary]] = stride(from: 0, to: notes.count, by: perShelf).map { start in
+            Array(notes[start..<min(start + perShelf, notes.count)])
+        }
+        return VStack(spacing: 26) {
+            ForEach(Array(shelves.enumerated()), id: \.offset) { shelf in
+                VStack(spacing: 0) {
+                    HStack(alignment: .bottom, spacing: 14) {
+                        ForEach(shelf.element) { note in
+                            item(note, reorderable: false) { ShelfBook(note: note) }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 18)
+                    ShelfPlank()
+                }
+            }
+        }
+        .padding(24)
+    }
+
+    /// Notes by month, on a line, newest first.
+    private func timelineView(_ notes: [NoteSummary]) -> some View {
+        let sorted = notes.sorted { $0.modifiedAt > $1.modifiedAt }
+        let calendar = Calendar.current
+        var months: [(key: Date, notes: [NoteSummary])] = []
+        for note in sorted {
+            let month = calendar.date(from: calendar.dateComponents([.year, .month], from: note.modifiedAt)) ?? note.modifiedAt
+            if let last = months.last, last.key == month {
+                months[months.count - 1].notes.append(note)
+            } else {
+                months.append((month, [note]))
+            }
+        }
+        return VStack(alignment: .leading, spacing: 10) {
+            ForEach(months, id: \.key) { month in
+                Text(month.key, format: .dateTime.month(.wide).year())
+                    .font(.title3.bold())
+                    .padding(.top, 8)
+                ForEach(Array(month.notes.enumerated()), id: \.element.id) { entry in
+                    item(entry.element, reorderable: false) {
+                        TimelineEntry(note: entry.element, isLast: entry.offset == month.notes.count - 1)
+                    }
+                }
+            }
+        }
+        .padding(24)
     }
 
     /// Notability-style shortcut cards above the notes.

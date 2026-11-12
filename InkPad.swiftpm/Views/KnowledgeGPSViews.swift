@@ -293,7 +293,9 @@ struct KnowledgeMapView: View {
         let route = KnowledgeGPS.route(for: map, progress: progress, sessions: workspace.flowSessions)
         return HStack(alignment: .top, spacing: 0) {
             ScrollView {
-                KnowledgeMapCanvas(map: map, progress: progress, here: route.here) { selected = $0 }
+                KnowledgeMapCanvas(map: map, progress: progress, here: route.here, open: { selected = $0 }, go: { station in
+                    if !KnowledgeGPS.go(to: station) { selected = station }
+                })
                     .padding(.vertical, 20)
             }
             Divider()
@@ -365,7 +367,10 @@ private struct KnowledgeMapCanvas: View {
     let map: KnowledgeMap
     let progress: [StationProgress]
     let here: Int?
+    /// Shows the station's progress and actions.
     let open: (KnowledgeStation) -> Void
+    /// Goes straight to the chapter's pages.
+    let go: (KnowledgeStation) -> Void
 
     var body: some View {
         GeometryReader { geometry in
@@ -466,7 +471,7 @@ private struct KnowledgeMapCanvas: View {
         let state = progress[index]
         let isHere = index == here
         Button {
-            open(station)
+            go(station)
         } label: {
             switch map.style {
             case .islands: island(station, state: state, isHere: isHere)
@@ -475,6 +480,18 @@ private struct KnowledgeMapCanvas: View {
             }
         }
         .buttonStyle(PressableStyle())
+        .contextMenu {
+            Button {
+                go(station)
+            } label: {
+                Label(station.firstPage == nil ? "Open" : "Open at This Chapter", systemImage: "book")
+            }
+            Button {
+                open(station)
+            } label: {
+                Label("Progress & Details", systemImage: "chart.bar")
+            }
+        }
     }
 
     private func island(_ station: KnowledgeStation, state: StationProgress, isHere: Bool) -> some View {
@@ -723,12 +740,12 @@ private struct StationSheet: View {
             Form {
                 if let station {
                     Section {
-                        if let noteID = station.noteID {
+                        if station.noteID != nil {
                             Button {
                                 dismiss()
-                                CommandCenter.shared.openNote(noteID)
+                                _ = KnowledgeGPS.go(to: station)
                             } label: {
-                                Label("Open", systemImage: "book")
+                                Label(station.firstPage == nil ? "Open" : "Open at This Chapter", systemImage: "book")
                             }
                         }
                         Button {
@@ -882,5 +899,20 @@ private struct MapSettingsSheet: View {
         guard !title.isEmpty else { return }
         change { $0.stations.append(KnowledgeStation(title: title)) }
         newStation = ""
+    }
+}
+
+extension KnowledgeGPS {
+    /// Opens the station's note or book at its first page. Returns false
+    /// when the station has nothing to open (a hand-made stop).
+    @MainActor
+    static func go(to station: KnowledgeStation) -> Bool {
+        guard let noteID = station.noteID else { return false }
+        if let page = station.firstPage {
+            CommandCenter.shared.openNote(noteID, pdfPage: page)
+        } else {
+            CommandCenter.shared.openNote(noteID)
+        }
+        return true
     }
 }

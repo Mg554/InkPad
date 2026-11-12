@@ -10,6 +10,9 @@ import SwiftUI
 @MainActor
 final class AudioController: ObservableObject {
     @Published private(set) var isRecording = false
+    /// Set after a recording ends: the player opens its timeline so it can
+    /// be turned into text right away.
+    @Published var asksForTimeline = false
     @Published private(set) var recordingTime: TimeInterval = 0
     /// The recording open in the playback bar.
     @Published private(set) var current: AudioRecording?

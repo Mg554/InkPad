@@ -52,6 +52,28 @@ struct PlanTask: Codable, Identifiable, Equatable {
     var chapterTitle: String?
     /// The page it came from (a sticky note), zero-based.
     var notePage: Int?
+    /// Steps inside the task (To-Do list).
+    var subtasks: [Subtask]?
+    /// Order in the To-Do list (smaller first); nil sorts by date.
+    var sortIndex: Double?
+
+    struct Subtask: Codable, Identifiable, Equatable {
+        let id: UUID
+        var title: String
+        var isDone: Bool
+
+        init(title: String) {
+            id = UUID()
+            self.title = title
+            isDone = false
+        }
+    }
+
+    /// Steps done, out of all steps.
+    var stepProgress: (done: Int, total: Int)? {
+        guard let subtasks, !subtasks.isEmpty else { return nil }
+        return (subtasks.filter(\.isDone).count, subtasks.count)
+    }
     /// When done, schedule spaced reviews (1, 3, then 7 days later).
     var schedulesReviews: Bool?
     /// 0 for the task itself, 1–3 for its reviews.

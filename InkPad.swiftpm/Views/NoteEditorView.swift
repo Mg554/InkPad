@@ -185,6 +185,7 @@ struct NoteEditorView: View {
                 .environmentObject(store)
                 .environmentObject(workspace)
         }
+        .onAppear { focus.openEditors += 1 }
         .task {
             session.load(noteID: noteID, store: store)
             canvas.onThink = { text, rect in thinkRequest = ThinkRequest(text: text, anchor: rect) }
@@ -272,8 +273,9 @@ struct NoteEditorView: View {
             session.audio.stopAll()
             session.save(thumbnail: true)
             if notebook.isOpen { notebook.close() }
-            // Leaving the note ends its focus session; the toolbar comes back.
-            if isFocusingHere { endFocus() }
+            // The focus session carries on in other notes; the toolbar comes back.
+            if isFocusingHere { setToolbarHidden(focus.toolbarWasHidden) }
+            focus.openEditors = max(focus.openEditors - 1, 0)
             indexHandwriting()
         }
         .onChange(of: scenePhase) {
@@ -403,7 +405,9 @@ struct NoteEditorView: View {
 
     // MARK: Focus Mode
 
-    private var isFocusingHere: Bool { focus.isActive && focus.noteID == noteID }
+    /// A focus session runs (started here, in another note or on the Focus
+    /// screen): it carries on while moving between notes.
+    private var isFocusingHere: Bool { focus.isActive }
 
     private func startFocus() {
         // A session in another note ends first.
@@ -595,9 +599,23 @@ struct NoteEditorView: View {
                 CommandCenter.shared.say(tr("Saved to My Stickers"))
             }
         }
-        if let page = CommandCenter.shared.takePendingPage(for: noteID) {
+        var target: Int? = CommandCenter.shared.takePendingPage(for: noteID)
+        if let pdfPage = CommandCenter.shared.takePendingPDFPage(for: noteID), let metadata = session.metadata {
+            // The book page's place among the note's pages (paper pages may sit between).
+            let count: Int = session.snapshot?.pdf?.pageCount ?? 0
+            let pages = metadata.resolvedPages(pdfPageCount: count)
+            target = pages.firstIndex(where: { source in
+                if case let .pdf(index) = source { return index == pdfPage }
+                return false
+            }) ?? min(pdfPage, max(pages.count - 1, 0))
+        }
+        if let page = target {
             Task {
+                // Twice: once the canvas has laid out, and again after the
+                // page thumbnails settle, so it lands exactly on the page.
                 try? await Task.sleep(for: .milliseconds(400))
+                canvas.scrollToPage(page)
+                try? await Task.sleep(for: .milliseconds(500))
                 canvas.scrollToPage(page)
             }
         }

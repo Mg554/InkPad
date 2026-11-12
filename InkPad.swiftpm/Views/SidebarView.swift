@@ -11,6 +11,7 @@ struct SidebarView: View {
     @State private var showsBackup = false
     @State private var showsRecentlyDeleted = false
     @State private var showsThemes = false
+    @State private var showsSettings = false
     @State private var editedCollection: SmartCollection?
     /// Applied once the Themes sheet has closed (applying rebuilds the app).
     @State private var themeToApply: ThemeRecipe?
@@ -71,6 +72,7 @@ struct SidebarView: View {
                 }
             }
 
+            SidebarToDo(scope: $scope)
             Section {
                 ForEach(BuiltInCollection.allCases) { collection in
                     Label(tr(collection.title), systemImage: collection.systemImage)
@@ -191,7 +193,12 @@ struct SidebarView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                AppearanceMenu()
+                Button {
+                    showsSettings = true
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .keyboardShortcut(",", modifiers: .command)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 LanguageButton()
@@ -207,6 +214,9 @@ struct SidebarView: View {
             }
         }) {
             ThemeView { themeToApply = $0 }
+        }
+        .sheet(isPresented: $showsSettings) {
+            SettingsView()
         }
         .sheet(isPresented: $showsRecentlyDeleted) {
             RecentlyDeletedView()

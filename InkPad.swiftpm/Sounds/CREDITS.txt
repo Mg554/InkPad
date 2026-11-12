@@ -1,0 +1,10 @@
+Focus sounds (all CC0 1.0 / public domain), from Wikimedia Commons:
+birds.m4a     "Birds chirping in a garden.ogg"
+dawn.m4a      "Réveil des oiseaux.ogg" (LaSonotheque.org / Joseph Sardin)
+river.m4a     "433589 jackthemurray stream-river-water-up-close.wav"
+lightrain.m4a "Light Rain Distant Thunder July 5th 2016.wav"
+forest.m4a    "Forêt (Joseph SARDIN).wav" (LaSonotheque.org)
+waves.m4a     "DenisChardonnet - Vagues et Sternes.ogg"
+cafe.m4a      "Cafe ambiance.ogg" (first minutes)
+wind.m4a      "Howling wind.ogg"
+Converted to mono AAC; cafe trimmed.

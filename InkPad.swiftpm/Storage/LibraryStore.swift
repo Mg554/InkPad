@@ -727,6 +727,32 @@ final class LibraryStore: ObservableObject {
         }
     }
 
+    /// A copy of a note with all its files, next to it.
+    @discardableResult
+    func duplicateNote(_ id: UUID) -> NoteSummary? {
+        guard canWrite(), let original = note(id) else { return nil }
+        let newID = UUID()
+        do {
+            try fileManager.copyItem(at: noteDirectory(id), to: noteDirectory(newID))
+        } catch {
+            errorMessage = "Could not copy the note: \(error.localizedDescription)"
+            return nil
+        }
+        var copy = addNote(id: newID, title: trMessage("\(original.title) copy"), folderID: original.folderID, kind: original.kind)
+        copy.tags = original.tags
+        copy.cover = original.cover
+        copy.hasAudio = original.hasAudio
+        copy.hasPDF = original.hasPDF
+        copy.pageCount = original.pageCount
+        if let index = notes.firstIndex(where: { $0.id == newID }) { notes[index] = copy }
+        if original.isText,
+           let text = try? String(contentsOf: noteDirectory(newID).appendingPathComponent(NoteFiles.markdownFile), encoding: .utf8) {
+            textIndex[newID] = TextNoteInfo(text: text)
+        }
+        saveIndex()
+        return copy
+    }
+
     func moveNote(_ id: UUID, to folderID: UUID?) {
         guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
         notes[index].folderID = folderID

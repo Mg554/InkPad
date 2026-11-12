@@ -56,6 +56,53 @@ final class WorkspaceStore: ObservableObject {
         persist()
     }
 
+    // MARK: To-Do
+
+    /// Adds a task quickly (To-Do list, sidebar); returns it.
+    @discardableResult
+    func quickAdd(_ title: String, due: Date?, priority: PlanTask.Priority = .medium) -> PlanTask? {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        var task = PlanTask(title: trimmed, dueDate: due)
+        task.priority = priority
+        let first: Double = tasks.compactMap(\.sortIndex).min() ?? 0
+        task.sortIndex = first - 1
+        save(task)
+        return task
+    }
+
+    func toggleSubtask(_ subtaskID: UUID, in taskID: UUID) {
+        guard let index = tasks.firstIndex(where: { $0.id == taskID }),
+              let step = tasks[index].subtasks?.firstIndex(where: { $0.id == subtaskID }) else { return }
+        var task = tasks[index]
+        task.subtasks?[step].isDone.toggle()
+        save(task)
+    }
+
+    func addSubtask(_ title: String, to taskID: UUID) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let index = tasks.firstIndex(where: { $0.id == taskID }) else { return }
+        var task = tasks[index]
+        task.subtasks = (task.subtasks ?? []) + [PlanTask.Subtask(title: trimmed)]
+        save(task)
+    }
+
+    func deleteSubtask(_ subtaskID: UUID, in taskID: UUID) {
+        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else { return }
+        var task = tasks[index]
+        task.subtasks?.removeAll { $0.id == subtaskID }
+        save(task)
+    }
+
+    /// Gives the tasks, in this order, increasing sort indexes.
+    func reorder(_ ids: [UUID]) {
+        guard canWrite() else { return }
+        for (position, id) in ids.enumerated() {
+            if let index = tasks.firstIndex(where: { $0.id == id }) { tasks[index].sortIndex = Double(position) }
+        }
+        persist()
+    }
+
     func setStatus(_ status: PlanTask.Status, for id: UUID) {
         guard canWrite(), let index = tasks.firstIndex(where: { $0.id == id }) else { return }
         // Only a real change moves the completion date (drags may repeat it).
