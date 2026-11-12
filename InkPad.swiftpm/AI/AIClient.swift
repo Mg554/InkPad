@@ -230,6 +230,54 @@ struct AIClient: Sendable {
     }
 }
 
+extension AIClient {
+    /// One question with a picture (handwritten math, a diagram). Services
+    /// that can't see pictures (Apple Intelligence) get the words only.
+    func complete(system: String, prompt: String, image: Data?) async throws -> String {
+        guard let image else {
+            return try await complete(system: system, messages: [AIMessage(.user, prompt)])
+        }
+        let encoded = image.base64EncodedString()
+        switch kind.style {
+        case .onDevice:
+            return try await complete(system: system, messages: [AIMessage(.user, prompt)])
+        case .anthropic:
+            var request = try anthropicRequest(system: system, messages: [AIMessage(.user, prompt)], stream: false)
+            guard var body = request.httpBody.flatMap({ (try? JSONSerialization.jsonObject(with: $0)) as? [String: Any] }) else {
+                throw AIError.unreadable
+            }
+            let content: [[String: Any]] = [
+                ["type": "image", "source": ["type": "base64", "media_type": "image/jpeg", "data": encoded]],
+                ["type": "text", "text": prompt],
+            ]
+            body["messages"] = [["role": "user", "content": content]]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let json = try await send(request)
+            let blocks = json["content"] as? [[String: Any]] ?? []
+            let text = blocks.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }.joined()
+            guard !text.isEmpty else { throw AIError.empty }
+            return text
+        case .openAI:
+            var request = try openAIRequest(system: system, messages: [AIMessage(.user, prompt)], stream: false)
+            let content: [[String: Any]] = [
+                ["type": "text", "text": prompt],
+                ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64," + encoded]],
+            ]
+            let body: [String: Any] = [
+                "model": model,
+                "messages": [["role": "system", "content": system], ["role": "user", "content": content]],
+                "stream": false,
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let json = try await send(request)
+            let choices = json["choices"] as? [[String: Any]] ?? []
+            let message = choices.first?["message"] as? [String: Any]
+            guard let text = message?["content"] as? String, !text.isEmpty else { throw AIError.empty }
+            return text
+        }
+    }
+}
+
 /// Pulls the JSON object out of an AI answer, which may wrap it in prose or
 /// a ``` code fence.
 enum AIJSON {

@@ -155,9 +155,30 @@ enum StudyAI {
 
     // MARK: Write → Think → Build
 
-    static func thinkPrompt(_ mode: ThinkMode, passage: String, noteTitle: String) -> String {
+    static func thinkPrompt(_ mode: ThinkMode, passage: String, noteTitle: String, level: ExplainLevel = .student, language: String = "English") -> String {
         let task: String
+        var languageLine = "Use Markdown. Write in the same language as the passage."
         switch mode {
+        case .translate:
+            task = """
+                Translate it into \(language). Keep scientific and medical terms accurate; after each important term, \
+                put the original term in parentheses. Then add a short "### Key terms" list (term — translation — \
+                one-line meaning).
+                """
+            languageLine = "Use Markdown. Write in \(language)."
+        case .math:
+            task = """
+                It is math or a calculation (it may be handwritten; a picture may be attached). First write the problem \
+                as you read it. If it contains the writer's own working, check every step, say which steps are right, \
+                and show exactly where a mistake is and how to fix it. Otherwise solve it step by step, one step per \
+                numbered line, with a short reason for each step, and give the final answer in **bold**. Use plain \
+                text math (like x^2, sqrt(x), a/b).
+                """
+        case .summary:
+            task = """
+                Summarize it: a one-sentence gist, then 3 to 6 bullet points with the key facts, then "**Remember:**" \
+                with the single most important point.
+                """
         case .concepts:
             task = """
                 Find the key concepts in it. For each concept write a "### " heading with its name, a one or two \
@@ -170,9 +191,15 @@ enum StudyAI {
                 two to go deeper. Number them, and after each write "**Answer:**" and a short, complete answer.
                 """
         case .explain:
+            let audience: String
+            switch level {
+            case .simple: audience = "to a curious 12-year-old, with an everyday analogy and no jargon"
+            case .student: audience = "like a patient tutor to a university student"
+            case .expert: audience = "to an expert: precise, with mechanisms, edge cases and the evidence"
+            }
             task = """
-                Explain it like a patient tutor: what it means in plain words, why it matters, one worked example, \
-                and the mistakes people often make. Use "## " headings.
+                Explain it \(audience): what it means, why it matters, one worked example, and the mistakes people \
+                often make. Use "## " headings.
                 """
         case .flashcards:
             return flashcardsPrompt(notes: "From \"\(noteTitle)\":\n\(passage)", count: 8)
@@ -181,7 +208,7 @@ enum StudyAI {
             "Below is a passage from the note \"\(noteTitle)\". It was read from handwriting, so fix obvious "
                 + "recognition mistakes silently.",
             task,
-            "Use Markdown. Write in the same language as the passage.",
+            languageLine,
             "",
             "Passage:",
             passage,

@@ -135,3 +135,35 @@ final class PDFBackground {
         return angle < 0 ? angle + 360 : angle
     }
 }
+
+extension PDFBackground {
+    /// Every line of text on a PDF page with its box in canvas coordinates,
+    /// top to bottom (Ask This Page's paragraphs and citations).
+    func lines(onPage index: Int, pageRect: CGRect) -> [(text: String, rect: CGRect)] {
+        guard let page = textDocument?.page(at: index) else { return [] }
+        let size = displaySize(ofPage: index)
+        guard size.width > 0, pageRect.width > 0 else { return [] }
+        let scale = pageRect.width / size.width
+        let toDisplay = page.transform(for: .cropBox)
+        func canvasPoint(_ point: CGPoint) -> CGPoint {
+            let shown = point.applying(toDisplay)
+            return CGPoint(x: pageRect.minX + shown.x * scale, y: pageRect.maxY - shown.y * scale)
+        }
+        guard let selection = page.selection(for: page.bounds(for: .cropBox)) else { return [] }
+        var result: [(text: String, rect: CGRect)] = []
+        for line in selection.selectionsByLine() {
+            let text = (line.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { continue }
+            let bounds = line.bounds(for: page)
+            let points = [
+                canvasPoint(CGPoint(x: bounds.minX, y: bounds.minY)), canvasPoint(CGPoint(x: bounds.maxX, y: bounds.minY)),
+                canvasPoint(CGPoint(x: bounds.minX, y: bounds.maxY)), canvasPoint(CGPoint(x: bounds.maxX, y: bounds.maxY)),
+            ]
+            let xs = points.map(\.x)
+            let ys = points.map(\.y)
+            guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max() else { continue }
+            result.append((text, CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)))
+        }
+        return result.sorted { $0.rect.minY < $1.rect.minY }
+    }
+}

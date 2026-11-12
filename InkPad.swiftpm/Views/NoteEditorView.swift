@@ -49,6 +49,8 @@ struct NoteEditorView: View {
     /// Focus Mode in this note.
     @ObservedObject private var focus = FocusSession.shared
     @State private var showsCompanion = false
+    /// Ask This Page in the side panel.
+    @State private var showsAsk = false
     /// Writing tools: sticky notes, stickers and Reading Mode.
     @State private var stickyRequest: StickyRequest?
     @State private var isShowingStickies = false
@@ -183,7 +185,7 @@ struct NoteEditorView: View {
                 .environmentObject(store)
         }
         .sheet(item: $thinkRequest) { request in
-            ThinkView(noteID: noteID, text: request.text) { markdown, title in
+            ThinkView(noteID: noteID, text: request.text, mode: request.mode, image: request.image) { markdown, title in
                 canvas.placeText(TextBoxStyle.attributed(markdown: markdown, title: title), below: request.anchor)
             }
                 .environmentObject(store)
@@ -192,7 +194,11 @@ struct NoteEditorView: View {
         .onAppear { focus.openEditors += 1 }
         .task {
             session.load(noteID: noteID, store: store)
-            canvas.onThink = { text, rect in thinkRequest = ThinkRequest(text: text, anchor: rect) }
+            canvas.onThink = { text, rect, mode in
+                let chosen = ThinkMode(rawValue: mode) ?? .explain
+                let picture = canvas.picture(of: rect)?.jpegData(compressionQuality: 0.8)
+                thinkRequest = ThinkRequest(text: text, anchor: rect, mode: chosen, image: picture)
+            }
             canvas.livingNoteID = noteID
             canvas.onReadArea = { image, rect in areaRequest = AreaRequest(image: image, rect: rect) }
             canvas.onConcept = { CommandCenter.shared.sheet = .concept($0) }
@@ -211,6 +217,7 @@ struct NoteEditorView: View {
                 livingTab = tab
                 showsBookPanel = false
                 showsCompanion = false
+                showsAsk = false
                 isShowingLiving = true
             }
             }
@@ -225,6 +232,7 @@ struct NoteEditorView: View {
             showsCompanion: Binding(get: { showsCompanion && isShowingLiving }, set: { show in
                 showsCompanion = show
                 showsBookPanel = false
+                showsAsk = false
                 isShowingLiving = show
             }),
             noteID: noteID,
@@ -279,6 +287,11 @@ struct NoteEditorView: View {
         .namePrompt($workspacePrompt)
         .onDisappear {
             split.session?.save(thumbnail: true)
+            // A new note that's unfiled or untitled: offer a title, folder and tags.
+            if session.wasEdited {
+                let id = noteID
+                Task { await OrganizeAdvisor.shared.offer(after: id, store: store) }
+            }
             LivingNotes.shared.markSeen(noteID)
             // Stopping a recording stores it in the note before the save.
             session.audio.stopAll()
@@ -405,7 +418,11 @@ struct NoteEditorView: View {
 
     @ViewBuilder
     private var sidePanel: some View {
-        if showsCompanion {
+        if showsAsk {
+            AskPageView(noteID: noteID, session: session, canvas: canvas) { text, rect, asSticky in
+                placeAnswer(text, near: rect, asSticky: asSticky)
+            }
+        } else if showsCompanion {
             FocusCompanionView(noteID: noteID, pageText: currentPageText)
         } else if showsBookPanel {
             BookPanel(session: session, canvas: canvas, noteID: noteID) { result in
@@ -430,6 +447,7 @@ struct NoteEditorView: View {
         isShowingPages = false
         if notebook.isOpen { notebook.close() }
         showsBookPanel = false
+        showsAsk = false
         showsCompanion = true
         isShowingLiving = true
         focus.start(title: title, noteID: noteID, strokes: canvas.drawing?.strokes.count ?? 0, workspace: workspace)
@@ -514,7 +532,28 @@ struct NoteEditorView: View {
         }
     }
 
+    private func openAsk() {
+        showsCompanion = false
+        showsBookPanel = false
+        showsAsk = true
+        isShowingLiving = true
+    }
+
+    /// An answer from Ask This Page, put beside the paragraph it cites.
+    private func placeAnswer(_ text: String, near rect: CGRect?, asSticky: Bool) {
+        if asSticky {
+            var note = StickyNote(tint: .blue)
+            note.text = text
+            let center: CGPoint? = rect.map { CGPoint(x: min($0.maxX + 110, PageLayout.pageWidth - 110), y: $0.midY) }
+            canvas.addSticky(note, at: center)
+        } else {
+            let anchor = rect ?? CGRect(origin: canvas.visibleCenter ?? .zero, size: .zero)
+            canvas.placeText(TextBoxStyle.attributed(markdown: text, title: tr("Answer")), below: anchor)
+        }
+    }
+
     private func openBookPanel() {
+        showsAsk = false
         showsCompanion = false
         showsBookPanel = true
         isShowingLiving = true
@@ -574,6 +613,10 @@ struct NoteEditorView: View {
             PaletteItem(id: "ink-toolbar", title: isToolbarHidden ? "Show Toolbar" : "Hide Toolbar", systemImage: "eye", section: .thisNote,
                         keywords: ["tools", "ادوات"]) {
                 setToolbarHidden(!isToolbarHidden)
+            },
+            PaletteItem(id: "ink-ask", title: "Ask This Page", subtitle: "Answers with page and paragraph citations",
+                        systemImage: "sparkles", tint: .purple, section: .thisNote, keywords: ["ask", "question", "اسأل", "سؤال"]) {
+                openAsk()
             },
             PaletteItem(id: "ink-beside", title: split.isOpen ? "Close the Note Beside" : "Open Another Note Beside This…",
                         subtitle: "Two notes or PDFs side by side; drag ink, pictures, text and pages between them",
@@ -950,6 +993,13 @@ struct NoteEditorView: View {
                     Label("Recordings", systemImage: "waveform")
                 }
             }
+
+            Button {
+                if showsAsk && isShowingLiving { isShowingLiving = false } else { openAsk() }
+            } label: {
+                Label("Ask This Page", systemImage: "sparkles")
+            }
+            .disabled(session.metadata == nil)
 
             Button {
                 session.save(thumbnail: false)

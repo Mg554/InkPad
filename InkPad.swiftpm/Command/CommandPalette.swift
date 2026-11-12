@@ -19,6 +19,8 @@ struct CommandPalette: View {
     @State private var aiItems: [PaletteItem] = []
     @State private var isAsking = false
     @State private var aiProblem: String?
+    /// Notes found by meaning for what is typed.
+    @State private var meaningItems: [PaletteItem] = []
     @FocusState private var isFocused: Bool
 
     /// Plain gray: the material's vibrant .secondary is too faint here.
@@ -32,7 +34,7 @@ struct CommandPalette: View {
     }
 
     var body: some View {
-        let items = catalog.items(for: query, aiItems: aiItems + askAIItem)
+        let items = catalog.items(for: query, aiItems: meaningItems + aiItems + askAIItem)
         ZStack(alignment: .top) {
             Color.black.opacity(0.22)
                 .ignoresSafeArea()
@@ -69,6 +71,21 @@ struct CommandPalette: View {
             selection = 0
             aiItems = []
             aiProblem = nil
+            meaningItems = []
+        }
+        .task(id: query) {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled, query.trimmingCharacters(in: .whitespaces).count >= 4 else { return }
+            let hits = await SemanticSearch.shared.search(query, store: store, limit: 4)
+            guard !Task.isCancelled else { return }
+            meaningItems = hits.map { hit in
+                let page: Int? = hit.pdfPage
+                let subtitle: String = (page.map { "p. \($0 + 1) · " } ?? "") + hit.snippet
+                return PaletteItem(id: "meaning-" + hit.id, title: hit.title, subtitle: subtitle, systemImage: "sparkle.magnifyingglass",
+                                   tint: .purple, section: .notes) { [center] in
+                    if let page { center.openNote(hit.noteID, pdfPage: page) } else { center.openNote(hit.noteID) }
+                }
+            }
         }
         .onDisappear {
             voice.stop()

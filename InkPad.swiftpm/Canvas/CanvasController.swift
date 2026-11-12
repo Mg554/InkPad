@@ -43,7 +43,7 @@ final class CanvasController: NSObject, ObservableObject {
     /// ⌘K, sticky notes).
     var onEditorAction: ((GestureAction) -> Void)?
     /// Lasso › Think: the selected writing as text, and where it is.
-    var onThink: ((String, CGRect) -> Void)?
+    var onThink: ((String, CGRect, String) -> Void)?
     /// Lasso › Remind Me: the selected writing as text.
     var onRemind: ((String) -> Void)?
     /// Lasso › Text from Area: a picture of the area and where it is.
@@ -95,7 +95,7 @@ final class CanvasController: NSObject, ObservableObject {
         host.canvas.isRulerActive = isRulerActive
         host.elementLayer.onChange = { [weak self] in self?.contentDidChange() }
         host.lasso.onChange = { [weak self] in self?.contentDidChange() }
-        host.lasso.onThink = { [weak self] text, rect in self?.onThink?(text, rect) }
+        host.lasso.onThink = { [weak self] text, rect, mode in self?.onThink?(text, rect, mode) }
         host.lasso.onRemind = { [weak self] text in self?.onRemind?(text) }
         host.lasso.onSaveSticker = { [weak self] drawing in self?.onSaveSticker?(drawing) }
         host.lasso.onSendAcross = onSendAcross
@@ -514,9 +514,9 @@ final class CanvasController: NSObject, ObservableObject {
 
     /// A new sticky note in the middle of what is shown; returns its id.
     @discardableResult
-    func addSticky(_ note: StickyNote = StickyNote()) -> UUID? {
+    func addSticky(_ note: StickyNote = StickyNote(), at center: CGPoint? = nil) -> UUID? {
         guard let host else { return nil }
-        return host.elementLayer.addSticky(note, centeredAt: host.visibleCenter).id
+        return host.elementLayer.addSticky(note, centeredAt: center ?? host.visibleCenter).id
     }
 
     func updateSticky(_ id: UUID, with note: StickyNote) {
@@ -596,6 +596,16 @@ final class CanvasController: NSObject, ObservableObject {
             canvas.drawing = before
         }
         contentDidChange()
+    }
+
+    /// A picture of part of the page as it looks (for AI that reads pictures).
+    func picture(of rect: CGRect) -> UIImage? {
+        host?.image(of: rect.insetBy(dx: -10, dy: -10), scale: 2)
+    }
+
+    /// Lights up a part of the page for a moment (a cited paragraph).
+    func flash(_ rect: CGRect) {
+        host?.flash(rect)
     }
 
     /// The middle of what is shown, in canvas coordinates.

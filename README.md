@@ -75,6 +75,21 @@ Done:
   Send to the Note Beside does it without dragging. Each note remembers
   the note it was open beside; Save as a Workspace keeps a named pair in
   the sidebar
+- AI on the page: Ask This Page (✨ in the note) is a side chat about this
+  page, this chapter or the whole note; answers cite page and paragraph
+  (tap a citation to jump there and light it up), anything from outside
+  the note is marked 🌐, and an answer can go on the page as text or a
+  sticky note. Lasso › AI: Explain (simple / student / expert), Translate
+  (with key terms), Math Steps (reads a picture of handwritten math,
+  solves step by step or checks your working), Summarize, Flashcards,
+  Exam Questions, Concepts
+- Search by meaning: under the library search and in ⌘K, passages that
+  mean the same thing (sentence vectors on the iPad; with an AI service
+  the question is also phrased in English and Arabic), with PDF pages
+- Organizing: after leaving a new unfiled or untitled note, a bar offers
+  a title, a folder and tags (on the iPad, or by AI when the Firewall
+  allows); View › Organize My Library… suggests for every such note and
+  proposes new folders for notes that belong together
 - Sticky notes (+ › Sticky Note): colored notes on the page with typed
   text and handwriting, a group name, folding to a small square; tap one
   with a finger to open it; turn it into a Planner task linked to its

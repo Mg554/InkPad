@@ -2,7 +2,7 @@ import SwiftUI
 
 /// What Write → Think → Build makes from a lasso selection.
 enum ThinkMode: String, CaseIterable, Identifiable {
-    case concepts, flashcards, questions, explain
+    case explain, translate, math, summary, flashcards, questions, concepts
 
     var id: Self { self }
 
@@ -10,8 +10,11 @@ enum ThinkMode: String, CaseIterable, Identifiable {
         switch self {
         case .concepts: "Concepts"
         case .flashcards: "Flashcards"
-        case .questions: "Questions"
+        case .questions: "Exam Questions"
         case .explain: "Explain"
+        case .translate: "Translate"
+        case .math: "Math Steps"
+        case .summary: "Summarize"
         }
     }
 
@@ -21,6 +24,9 @@ enum ThinkMode: String, CaseIterable, Identifiable {
         case .flashcards: "rectangle.on.rectangle"
         case .questions: "questionmark.bubble"
         case .explain: "lightbulb"
+        case .translate: "character.bubble"
+        case .math: "function"
+        case .summary: "text.alignleft"
         }
     }
 
@@ -30,6 +36,22 @@ enum ThinkMode: String, CaseIterable, Identifiable {
         case .flashcards: .orange
         case .questions: .teal
         case .explain: .purple
+        case .translate: .blue
+        case .math: .green
+        case .summary: .pink
+        }
+    }
+}
+
+/// How deep an explanation goes.
+enum ExplainLevel: String, CaseIterable, Identifiable {
+    case simple, student, expert
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .simple: "Simple"
+        case .student: "Student"
+        case .expert: "Expert"
         }
     }
 }
@@ -40,6 +62,9 @@ struct ThinkRequest: Identifiable {
     let text: String
     /// Where the selection is on the page, to place the answer below it.
     let anchor: CGRect
+    var mode: ThinkMode = .explain
+    /// A picture of the selection, for AI that reads pictures (handwritten math).
+    var image: Data?
 }
 
 /// Write → Think → Build: turns the writing circled with the lasso into
@@ -55,7 +80,11 @@ struct ThinkView: View {
     /// Puts an answer (Markdown, title) on the page under the selection.
     let placeOnPage: ((String, String) -> Void)?
     @State private var passage: String
-    @State private var mode: ThinkMode = .concepts
+    @State private var mode: ThinkMode
+    @State private var level: ExplainLevel = .student
+    @AppStorage("translateTarget") private var language = "English"
+    private let image: Data?
+    private static let languages = ["English", "Arabic", "French", "German", "Spanish", "Turkish", "Urdu", "Chinese"]
     @State private var isThinking = false
     @State private var result: String?
     @State private var cards: [Flashcard] = []
@@ -64,16 +93,18 @@ struct ThinkView: View {
     @State private var isShowingSettings = false
     @State private var task: Task<Void, Never>?
 
-    init(noteID: UUID, text: String, placeOnPage: ((String, String) -> Void)? = nil) {
+    init(noteID: UUID, text: String, mode: ThinkMode = .explain, image: Data? = nil, placeOnPage: ((String, String) -> Void)? = nil) {
         self.noteID = noteID
         self.placeOnPage = placeOnPage
+        self.image = image
         _passage = State(initialValue: text)
+        _mode = State(initialValue: mode)
     }
 
     private var noteTitle: String { store.note(noteID)?.title ?? "Note" }
     /// The AI Firewall keeps this note from the connected AI.
     private var isHidden: Bool { !store.mayUseAI(noteID, onDevice: ai.provider.isOnDevice) }
-    private var hasPassage: Bool { !passage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var hasPassage: Bool { !passage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || image != nil }
 
     var body: some View {
         NavigationStack {
@@ -94,6 +125,7 @@ struct ThinkView: View {
                     }
                     passageCard
                     modePicker
+                    modeOptions
                     thinkButton
                     if let error {
                         Label(trMessage(error), systemImage: "exclamationmark.triangle")
@@ -150,8 +182,32 @@ struct ThinkView: View {
         }
     }
 
+    @ViewBuilder
+    private var modeOptions: some View {
+        switch mode {
+        case .explain:
+            Picker("Level", selection: $level) {
+                ForEach(ExplainLevel.allCases) { Text(tr($0.title)).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        case .translate:
+            Picker("Into", selection: $language) {
+                ForEach(Self.languages, id: \.self) { Text(tr($0)).tag($0) }
+            }
+            .pickerStyle(.menu)
+        case .math:
+            Text(image == nil
+                ? "Solves it step by step, or checks your steps if you wrote a solution."
+                : "The AI looks at a picture of what you circled, so handwritten math is read as written.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        default:
+            EmptyView()
+        }
+    }
+
     private var modePicker: some View {
-        HStack(spacing: 12) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 12)], spacing: 12) {
             ForEach(ThinkMode.allCases) { item in
                 Button {
                     mode = item
@@ -283,7 +339,9 @@ struct ThinkView: View {
               store.mayUseAI(noteID, onDevice: client.kind.isOnDevice)
         else { return }
         let chosen = mode
-        let prompt = StudyAI.thinkPrompt(chosen, passage: passage, noteTitle: noteTitle)
+        let prompt = StudyAI.thinkPrompt(chosen, passage: passage, noteTitle: noteTitle, level: level, language: language)
+        // Math is best read from the picture; other actions use it when no words were read.
+        let picture: Data? = chosen == .math || passage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? image : nil
         isThinking = true
         error = nil
         result = nil
@@ -293,7 +351,8 @@ struct ThinkView: View {
             do {
                 let reply = try await client.complete(
                     system: "You help a student think deeply about their own handwritten notes.",
-                    messages: [AIMessage(.user, prompt)]
+                    prompt: prompt,
+                    image: picture
                 )
                 guard !Task.isCancelled else { return }
                 if chosen == .flashcards {

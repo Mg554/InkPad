@@ -23,6 +23,7 @@ struct NotesGridView: View {
     @State private var selection: Set<UUID> = []
     @State private var confirmsDelete = false
     @State private var collapsedFolders: Set<UUID> = []
+    @State private var isOrganizing = false
     /// Open Beside…: the note to open, waiting for the second one.
     @State private var besideNote: NoteSummary?
     @AppStorage(NoteSort.storageKey) private var sortRaw = NoteSort.edited.rawValue
@@ -102,6 +103,15 @@ struct NotesGridView: View {
                     }
                 }
                 notesLayout(arranged.others, reorderable: sort == .custom && !isSelecting)
+                }
+                if !searchText.isEmpty {
+                    MeaningResults(query: searchText) { hit in
+                        if let page = hit.pdfPage {
+                            CommandCenter.shared.openNote(hit.noteID, pdfPage: page)
+                        } else {
+                            openNote(hit.noteID)
+                        }
+                    }
                 }
             }
             .padding(.bottom, isSelecting ? 80 : 0)
@@ -191,6 +201,10 @@ struct NotesGridView: View {
             .ignoresSafeArea()
         }
         .namePrompt($prompt)
+        .sheet(isPresented: $isOrganizing) {
+            OrganizeLibraryView()
+                .environmentObject(store)
+        }
         .sheet(item: $besideNote) { note in
             NotePickerSheet(excluding: note.id, title: "Open Beside") { other in
                 CommandCenter.shared.openNote(note.id, beside: other)
@@ -381,6 +395,13 @@ struct NotesGridView: View {
             if sort == .custom {
                 Section {
                     Text("Drag a note onto another to put it before that one.")
+                }
+            }
+            Section {
+                Button {
+                    isOrganizing = true
+                } label: {
+                    Label("Organize My Library…", systemImage: "wand.and.stars")
                 }
             }
         } label: {

@@ -191,7 +191,7 @@
       sounds and the owner's own music.
    3. **Split workspace** (done, 12 Nov 2026, needs iPad testing) — any two notes or PDFs side by side, dragging
       between them.
-   4. **AI** — Ask This Page with page and paragraph citations (marking
+   4. **AI** (done, 12 Nov 2026, needs iPad testing with an AI key) — Ask This Page with page and paragraph citations (marking
       outside knowledge); Explain / Translate / math steps from the lasso;
       search by meaning (on-device by default, the connected AI when
       allowed by the AI Firewall); folder and tag suggestions.

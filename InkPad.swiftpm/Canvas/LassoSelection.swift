@@ -18,7 +18,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     var onChange: (() -> Void)?
     /// Think: the selected writing (read with Vision) or PDF text, to turn
     /// into concepts, flashcards, questions or an explanation.
-    var onThink: ((String, CGRect) -> Void)?
+    /// The words, where they are, and the AI action chosen (a `ThinkMode` raw value).
+    var onThink: ((String, CGRect, String) -> Void)?
     /// Remind Me: the selected writing as text, for a new reminder.
     var onRemind: ((String) -> Void)?
     /// Text from Area: a picture of the lassoed area (page and ink), and where it is.
@@ -366,7 +367,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         if hasTextSelection {
             actions += [
                 UIAction(title: "Copy Text", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in self?.copyPDFText() },
-                UIAction(title: "Think", image: UIImage(systemName: "lightbulb")) { [weak self] _ in self?.thinkAboutPDFText() },
+                aiMenu(forInk: false),
                 UIAction(title: "Highlight", image: UIImage(systemName: "highlighter")) { [weak self] _ in self?.highlightPDFText() },
             ]
         }
@@ -374,7 +375,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
             actions += [
                 UIAction(title: "Style", image: UIImage(systemName: "paintpalette")) { [weak self] _ in self?.showStylePanel() },
                 UIAction(title: "Refine", image: UIImage(systemName: "wand.and.stars")) { [weak self] _ in self?.refineSelection() },
-                UIAction(title: "Think", image: UIImage(systemName: "lightbulb")) { [weak self] _ in self?.thinkAboutInk() },
+                aiMenu(forInk: true),
                 UIAction(title: "Remind Me", image: UIImage(systemName: "bell")) { [weak self] _ in
                     self?.readSelectedInk { text in self?.onRemind?(text) }
                 },
@@ -516,14 +517,33 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         }
     }
 
-    private func thinkAboutInk() {
+    private func thinkAboutInk(_ mode: String = "concepts") {
         let rect = selectionBounds
-        readSelectedInk { [weak self] text in self?.onThink?(text, rect) }
+        readSelectedInk { [weak self] text in self?.onThink?(text, rect, mode) }
     }
 
-    private func thinkAboutPDFText() {
+    private func thinkAboutPDFText(_ mode: String = "concepts") {
         guard let text = textHit?.text else { return }
-        onThink?(text, selectionBounds)
+        onThink?(text, selectionBounds, mode)
+    }
+
+    /// The AI submenu: each action opens Think on that action.
+    private func aiMenu(forInk: Bool) -> UIMenu {
+        let items: [(String, String, String)] = [
+            ("Explain", "lightbulb", "explain"),
+            ("Translate", "character.bubble", "translate"),
+            ("Math Steps", "function", "math"),
+            ("Summarize", "text.alignleft", "summary"),
+            ("Flashcards", "rectangle.on.rectangle", "flashcards"),
+            ("Exam Questions", "questionmark.bubble", "questions"),
+            ("Concepts", "point.3.connected.trianglepath.dotted", "concepts"),
+        ]
+        let actions: [UIAction] = items.map { item in
+            UIAction(title: tr(item.0), image: UIImage(systemName: item.1)) { [weak self] _ in
+                if forInk { self?.thinkAboutInk(item.2) } else { self?.thinkAboutPDFText(item.2) }
+            }
+        }
+        return UIMenu(title: tr("AI"), image: UIImage(systemName: "sparkles"), children: actions)
     }
 
     /// Reads the selected handwriting with Vision, off the main thread.

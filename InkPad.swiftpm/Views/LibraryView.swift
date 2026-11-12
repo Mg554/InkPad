@@ -287,6 +287,13 @@ struct LibraryView: View {
                     .environmentObject(workspace)
             }
             .overlay(alignment: .bottom) {
+                if focusSession.openEditors == 0, !focusSession.isActive {
+                    OrganizeBanner()
+                        .padding(.horizontal, 20)
+                }
+            }
+            .animation(.snappy, value: OrganizeAdvisor.shared.pending)
+            .overlay(alignment: .bottom) {
                 if focusSession.isActive, focusSession.openEditors == 0, !CommandCenter.shared.showsFocusScreen {
                     FocusPill()
                         .padding(.bottom, 24)

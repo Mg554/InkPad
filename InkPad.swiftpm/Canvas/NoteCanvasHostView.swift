@@ -425,3 +425,22 @@ final class StickyTapDelegate: NSObject, UIGestureRecognizerDelegate {
         return tap.numberOfTouchesRequired == 1
     }
 }
+
+extension NoteCanvasHostView {
+    /// A yellow glow over `rect` (canvas coordinates) that fades away.
+    func flash(_ rect: CGRect) {
+        let glow = UIView(frame: rect.insetBy(dx: -6, dy: -4))
+        glow.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.35)
+        glow.layer.cornerRadius = 6
+        glow.layer.borderColor = UIColor.systemOrange.cgColor
+        glow.layer.borderWidth = 2
+        glow.isUserInteractionEnabled = false
+        glow.alpha = 0
+        selectionOverlay.addSubview(glow)
+        UIView.animate(withDuration: 0.25, animations: { glow.alpha = 1 }, completion: { _ in
+            UIView.animate(withDuration: 0.8, delay: 2.4, options: [], animations: { glow.alpha = 0 }, completion: { _ in
+                glow.removeFromSuperview()
+            })
+        })
+    }
+}
