@@ -26,6 +26,15 @@ final class CanvasController: NSObject, ObservableObject {
     var onEdit: (() -> Void)?
     /// Called when ink from the open recording is tapped, with when it was written.
     var onInkTapped: ((Date) -> Void)?
+    /// A touch began on this canvas (split workspace: this side is active).
+    var onTouchBegan: (() -> Void)?
+    /// Something was dropped here that needs the editor (a picture to
+    /// store, a note to open beside, a page to copy in).
+    var onDrop: ((CanvasDrop, CGPoint) -> Void)?
+    /// Lasso › Send to the Note Beside.
+    var onSendAcross: ((PKDrawing) -> Void)? {
+        didSet { host?.lasso.onSendAcross = onSendAcross }
+    }
     /// Lasso › Save as Sticker: the selected ink.
     var onSaveSticker: ((PKDrawing) -> Void)?
     /// A sticky note was tapped: open it.
@@ -89,6 +98,8 @@ final class CanvasController: NSObject, ObservableObject {
         host.lasso.onThink = { [weak self] text, rect in self?.onThink?(text, rect) }
         host.lasso.onRemind = { [weak self] text in self?.onRemind?(text) }
         host.lasso.onSaveSticker = { [weak self] drawing in self?.onSaveSticker?(drawing) }
+        host.lasso.onSendAcross = onSendAcross
+        host.dropHandler.onDrop = { [weak self] drop, point in self?.receive(drop, at: point) }
         host.lasso.onReadArea = { [weak self] image, rect in self?.onReadArea?(image, rect) }
         if onSendToNotebook != nil {
             host.lasso.onSendArea = { [weak self] image, rect in self?.onSendToNotebook?(image, rect) }
@@ -105,6 +116,7 @@ final class CanvasController: NSObject, ObservableObject {
         let holdTracker = StrokeHoldTracker()
         holdTracker.coordinateView = host.elementLayer
         holdTracker.onTouchBegan = { [weak self, weak host] in
+            self?.onTouchBegan?()
             self?.drawingAtTouch = host?.canvas.drawing
             self?.refineTask?.cancel()
             self?.livingTask?.cancel()
@@ -533,6 +545,44 @@ final class CanvasController: NSObject, ObservableObject {
         guard let element = (elements ?? []).first(where: { $0.id == id }) else { return currentPage }
         let middle = element.frame.minY + 10
         return pageRects.lastIndex(where: { $0.minY - PageLayout.pageGap <= middle }) ?? currentPage
+    }
+
+    /// A drop: ink, text and sticky notes are placed here; pictures, notes
+    /// and pages go to the editor.
+    func receive(_ drop: CanvasDrop, at point: CGPoint) {
+        guard let host else { return }
+        switch drop {
+        case let .ink(drawing):
+            addInk(drawing, centeredAt: point)
+        case let .text(text):
+            let attributed = NSAttributedString(string: text, attributes: TextBoxStyle.defaultAttributes)
+            host.elementLayer.addTextBox(attributed, below: CGRect(x: point.x - 160, y: point.y - 12, width: 320, height: 0))
+        case let .sticky(note):
+            host.elementLayer.addSticky(note, centeredAt: point)
+        case .image, .note, .page:
+            onDrop?(drop, point)
+        }
+    }
+
+    /// Ink moved so its middle lands on `center` (or the middle of the view).
+    func addInk(_ drawing: PKDrawing, centeredAt center: CGPoint? = nil) {
+        guard let target = center ?? visibleCenter else { return }
+        let bounds = drawing.bounds
+        let move = CGAffineTransform(translationX: target.x - bounds.midX, y: target.y - bounds.midY)
+        let strokes: [PKStroke] = drawing.strokes.map { stroke in
+            var copy = stroke
+            copy.transform = copy.transform.concatenating(move)
+            return copy
+        }
+        addStrokes(strokes)
+    }
+
+    /// A stored picture placed at `center` (a drop), at most 300 points wide.
+    func placeImage(file: String, image: UIImage, pixelSize: CGSize, at center: CGPoint) {
+        guard let host else { return }
+        let width: CGFloat = min(300, pixelSize.width / 2)
+        let height: CGFloat = width * pixelSize.height / max(pixelSize.width, 1)
+        host.elementLayer.addImage(file: file, image: image, size: CGSize(width: width, height: height), centeredAt: center)
     }
 
     /// Adds ink (in canvas coordinates) with an undo step.

@@ -19,6 +19,9 @@ final class EditorSession: ObservableObject {
         didSet { snapshotRevision += 1 }
     }
     @Published private(set) var snapshotRevision = 0
+    /// Bumped when the content is replaced from outside (pages dropped in
+    /// from the other side), so the canvas is made again.
+    @Published private(set) var generation = 0
     /// The content the canvas is created from.
     private(set) var initialContent: NoteContent?
 
@@ -381,6 +384,28 @@ final class EditorSession: ObservableObject {
         if let drawing = canvas.drawing { content.drawing = drawing }
         if let elements = canvas.elements { content.metadata.elements = elements }
         return content
+    }
+
+    /// Saves `content` as this open note and rebuilds the canvas from it
+    /// (pages dropped in from the note beside it).
+    func replaceContent(_ content: NoteContent) async -> Bool {
+        guard let store, let noteID else { return false }
+        autosaveTask?.cancel()
+        pendingSave = nil
+        // Let a save already under way finish first.
+        while isSaving {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        guard await store.saveContent(content, for: noteID, thumbnail: true) else { return false }
+        baseContent = content
+        initialContent = content
+        snapshot = content
+        metadata = content.metadata
+        background = content.makeBackground()
+        savedGeneration = editGeneration
+        thumbnailGeneration = editGeneration
+        generation += 1
+        return true
     }
 
     func markEdited() {

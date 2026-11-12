@@ -172,5 +172,26 @@ The recording couldn't be read. => تعذّرت قراءة التسجيل.
 The AI couldn't transcribe the recording ({}). => لم يستطع الذكاء الاصطناعي تفريغ التسجيل ({}).
 the AI Firewall keeps this note on the iPad => جدار AI يُبقي هذه الملاحظة على الآيباد
 Apple's speech service can't be reached; check the internet connection => تعذّر الوصول لخدمة Apple للكلام؛ تحقق من الاتصال بالإنترنت
+Open Beside… => افتح بجانبها…
+Open Beside => افتح بجانبها
+Close the Note Beside => أغلق الملاحظة المجاورة
+Open Another Note Beside This… => افتح ملاحظة أخرى بجانب هذه…
+Two notes or PDFs side by side; drag ink, pictures, text and pages between them => ملاحظتان أو ملفا PDF جنباً إلى جنب؛ اسحب الحبر والصور والنصوص والصفحات بينهما
+Open Another Note Here… => افتح ملاحظة أخرى هنا…
+Swap Sides => بدّل الجانبين
+Side by Side => جنباً إلى جنب
+Top and Bottom => فوق وتحت
+Scroll Together => مرّر معاً
+Show Both => أظهر الاثنين
+Make This Side Full => كبّر هذا الجانب
+Save as a Workspace… => احفظ كمساحة عمل…
+Save as a Workspace => احفظ كمساحة عمل
+Saved to Workspaces in the sidebar => حُفظت في «مساحات العمل» بالشريط الجانبي
+Workspaces => مساحات العمل
+Delete Workspace => احذف مساحة العمل
+Search notes and PDFs => ابحث في الملاحظات وملفات PDF
+Send to the Note Beside => أرسل للملاحظة المجاورة
+Page copied => نُسخت الصفحة
+Resize => تغيير الحجم
 """#
 }

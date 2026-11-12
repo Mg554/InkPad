@@ -117,6 +117,24 @@ final class ElementLayerView: UIView {
         return view
     }
 
+    /// The top element under `point` (layer coordinates).
+    func element(at point: CGPoint) -> PageElementView? {
+        for case let view as PageElementView in subviews.reversed() where view.frame.contains(point) {
+            return view
+        }
+        return nil
+    }
+
+    /// A picture centered at `center` (a drop).
+    @discardableResult
+    func addImage(file: String, image: UIImage, size: CGSize, centeredAt center: CGPoint) -> CGRect {
+        let frame = CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2, width: size.width, height: size.height)
+        let view = ImageElementView(id: UUID(), frame: frame, file: file, image: image)
+        add(view)
+        elementsDidChange()
+        return frame
+    }
+
     func sticky(_ id: UUID) -> StickyNoteView? {
         subviews.first(where: { ($0 as? StickyNoteView)?.id == id }) as? StickyNoteView
     }

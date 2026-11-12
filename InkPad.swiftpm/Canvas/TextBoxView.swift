@@ -240,6 +240,8 @@ final class ImageElementView: PageElementView {
         PageElement(id: id, frame: frame, content: .image(file: file))
     }
 
+    var image: UIImage? { imageView.image }
+
     @objc private func handleTap() {
         layerView?.endEditing(true)
         layerView?.selectElement(self)

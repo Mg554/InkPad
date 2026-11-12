@@ -36,6 +36,11 @@ final class NoteCanvasHostView: UIView {
     /// pencil while it isn't drawing).
     private lazy var stickyTap = UITapGestureRecognizer(target: self, action: #selector(handleStickyTap(_:)))
     private let stickyTapDelegate = StickyTapDelegate()
+    /// Drops from the note beside (ink, pictures, text, notes, pages).
+    let dropHandler = CanvasDropHandler()
+    /// Dragging the lasso selection or an element out.
+    let dragSource = CanvasDragSource()
+    private lazy var dragInteraction = UIDragInteraction(delegate: dragSource)
 
     /// Reports the page in the middle of the screen and the page count.
     var onVisiblePageChange: ((_ current: Int, _ count: Int) -> Void)?
@@ -72,6 +77,11 @@ final class NoteCanvasHostView: UIView {
         fingerGestures.install(on: canvas, hudHost: self)
         stickyTapDelegate.host = self
         stickyTap.delegate = stickyTapDelegate
+        dropHandler.host = self
+        dragSource.host = self
+        addInteraction(UIDropInteraction(delegate: dropHandler))
+        dragInteraction.isEnabled = false
+        addInteraction(dragInteraction)
         stickyTap.cancelsTouchesInView = true
         canvas.addGestureRecognizer(stickyTap)
     }
@@ -186,6 +196,8 @@ final class NoteCanvasHostView: UIView {
             break
         }
         canvas.drawingGestureRecognizer.isEnabled = newMode == .draw
+        // Press and hold to drag the selection or an element to the note beside.
+        dragInteraction.isEnabled = newMode == .lasso || newMode == .text
         updateSeekTap()
     }
 

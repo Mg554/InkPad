@@ -100,6 +100,18 @@ final class CommandCenter: ObservableObject {
         pendingPDFPages.removeValue(forKey: id)
     }
 
+    /// A note to open beside this one when it opens (a saved workspace).
+    private var pendingBeside: [UUID: UUID] = [:]
+
+    func openNote(_ id: UUID, beside other: UUID) {
+        pendingBeside[id] = other
+        openNote(id)
+    }
+
+    func takePendingBeside(for id: UUID) -> UUID? {
+        pendingBeside.removeValue(forKey: id)
+    }
+
     private static let recentKey = "paletteRecent"
     private(set) var recent: [String] = UserDefaults.standard.stringArray(forKey: recentKey) ?? []
     private var toastTask: Task<Void, Never>?

@@ -55,6 +55,10 @@ struct NoteEditorView: View {
     @State private var isShowingStickers = false
     @State private var isReading = false
     @State private var toolbarWasHiddenBeforeReading = false
+    /// Split workspace: another note or PDF beside this one.
+    @StateObject private var split = SplitController()
+    @State private var isPickingBeside = false
+    @State private var workspacePrompt: NamePrompt?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -66,7 +70,7 @@ struct NoteEditorView: View {
         Group {
             if let content = session.initialContent, let background = session.background {
                 HStack(spacing: 0) {
-                    canvasArea(content: content, background: background)
+                    mainArea(content: content, background: background)
                     if notebook.isOpen {
                         notebookColumn
                             .transition(.move(edge: .trailing))
@@ -267,7 +271,14 @@ struct NoteEditorView: View {
             isSendingPages: $isSendingPages,
             areaRequest: $areaRequest
         ))
+        .modifier(SplitWiring(split: split, palette: palette, mainCanvas: canvas))
+        .sheet(isPresented: $isPickingBeside) {
+            NotePickerSheet(excluding: noteID, title: "Open Beside") { openBeside($0) }
+                .environmentObject(store)
+        }
+        .namePrompt($workspacePrompt)
         .onDisappear {
+            split.session?.save(thumbnail: true)
             LivingNotes.shared.markSeen(noteID)
             // Stopping a recording stores it in the note before the save.
             session.audio.stopAll()
@@ -287,6 +298,7 @@ struct NoteEditorView: View {
             if scenePhase != .active {
                 session.save(thumbnail: true)
                 notebook.session.save(thumbnail: true)
+                split.session?.save(thumbnail: true)
             }
         }
     }
@@ -302,6 +314,7 @@ struct NoteEditorView: View {
                 controller: canvas,
                 palette: palette
             )
+            .id(session.generation)
             .ignoresSafeArea(edges: isToolbarDocked(at: .bottom) ? [] : .bottom)
             .overlay(alignment: .top) {
                 AudioPlaybackBar(
@@ -361,7 +374,7 @@ struct NoteEditorView: View {
                 }
             ) { onMove, onMoveEnded, onMoveCancelled in
                 DrawingToolbar(
-                    canvas: canvas,
+                    canvas: activeCanvas,
                     pencilOnly: $pencilOnly,
                     edge: edge,
                     onMove: onMove,
@@ -483,6 +496,7 @@ struct NoteEditorView: View {
     }
 
     private func openNotebook() {
+        if split.isOpen { split.close(beside: noteID) }
         notebook.open(book: session, bookID: noteID, store: store)
     }
 
@@ -561,6 +575,11 @@ struct NoteEditorView: View {
                         keywords: ["tools", "ادوات"]) {
                 setToolbarHidden(!isToolbarHidden)
             },
+            PaletteItem(id: "ink-beside", title: split.isOpen ? "Close the Note Beside" : "Open Another Note Beside This…",
+                        subtitle: "Two notes or PDFs side by side; drag ink, pictures, text and pages between them",
+                        systemImage: "rectangle.split.2x1", tint: .indigo, section: .thisNote, keywords: ["split", "side", "بجانب", "تقسيم"]) {
+                if split.isOpen { split.close(beside: noteID) } else { isPickingBeside = true }
+            },
             PaletteItem(id: "ink-reading", title: isReading ? "End Reading Mode" : "Reading Mode", subtitle: "A clean page: no tools, nothing written by accident",
                         systemImage: "book", section: .thisNote, keywords: ["read", "clean", "قراءة"]) {
                 setReading(!isReading)
@@ -594,6 +613,11 @@ struct NoteEditorView: View {
             stickyRequest = StickyRequest(id: id, note: note, page: canvas.page(ofElement: id, pageRects: rects))
         }
         canvas.onEditorAction = { action in handleEditorAction(action) }
+        canvas.onTouchBegan = { if split.active != .main { split.active = .main } }
+        canvas.onDrop = { drop, point in handleDrop(drop, at: point, onMain: true) }
+        if let beside = CommandCenter.shared.takePendingBeside(for: noteID) ?? SplitMemory.shared.openPartner(of: noteID) {
+            openBeside(beside)
+        }
         canvas.onSaveSticker = { drawing in
             if StickerStore.shared.add(ink: drawing, name: tr("Handwriting"), folder: nil) != nil {
                 CommandCenter.shared.say(tr("Saved to My Stickers"))
@@ -617,6 +641,109 @@ struct NoteEditorView: View {
                 canvas.scrollToPage(page)
                 try? await Task.sleep(for: .milliseconds(500))
                 canvas.scrollToPage(page)
+            }
+        }
+    }
+
+    // MARK: Split workspace
+
+    /// The canvas the toolbar works on: the side last touched.
+    private var activeCanvas: CanvasController {
+        if split.active == .other, let other = split.session { return other.canvas }
+        return canvas
+    }
+
+    @ViewBuilder
+    private func mainArea(content: NoteContent, background: NoteBackground) -> some View {
+        if let other = split.session {
+            SplitStack(
+                vertical: split.vertical,
+                fraction: $split.fraction,
+                swapped: split.swapped,
+                only: split.maximized == .main ? 1 : split.maximized == .other ? 2 : nil
+            ) {
+                canvasArea(content: content, background: background)
+                    .overlay(alignment: .top) { activeMark(.main) }
+            } second: {
+                SplitPane(split: split, session: other, mainID: noteID, pencilOnly: pencilOnly,
+                          pick: { isPickingBeside = true }, saveWorkspace: promptWorkspace)
+            }
+        } else {
+            canvasArea(content: content, background: background)
+        }
+    }
+
+    /// A thin accent line on the side the toolbar works on.
+    @ViewBuilder
+    private func activeMark(_ side: SplitController.Side) -> some View {
+        if split.active == side {
+            Rectangle().fill(Color.inkAccent).frame(height: 3).allowsHitTesting(false)
+        }
+    }
+
+    private func openBeside(_ id: UUID) {
+        guard id != noteID else { return }
+        if notebook.isOpen { notebook.close() }
+        withAnimation(.snappy) { split.open(id, beside: noteID, store: store) }
+        guard let other = split.session else { return }
+        other.canvas.onTouchBegan = { if split.active != .other { split.active = .other } }
+        other.canvas.onDrop = { drop, point in handleDrop(drop, at: point, onMain: false) }
+        other.canvas.onSendAcross = { drawing in canvas.addInk(drawing) }
+        canvas.onSendAcross = { drawing in split.session?.canvas.addInk(drawing) }
+    }
+
+    private func promptWorkspace() {
+        guard let otherID = split.otherID else { return }
+        let suggested = title + " + " + (store.note(otherID)?.title ?? "")
+        workspacePrompt = NamePrompt(title: "Save as a Workspace", initialText: suggested, confirmTitle: "Save") { name in
+            SplitMemory.shared.saveWorkspace(SavedWorkspace(name: name, first: noteID, second: otherID, vertical: split.vertical))
+            CommandCenter.shared.say(tr("Saved to Workspaces in the sidebar"))
+        }
+    }
+
+    /// Something dropped on one side: pictures are stored in that note,
+    /// a note opens beside, a page is copied in.
+    private func handleDrop(_ drop: CanvasDrop, at point: CGPoint, onMain: Bool) {
+        let targetSession: EditorSession? = onMain ? session : split.session
+        let targetID: UUID? = onMain ? noteID : split.otherID
+        guard let targetSession, let targetID else { return }
+        switch drop {
+        case let .image(image):
+            guard let data = image.pngData() else { return }
+            Task {
+                guard let added = await store.addImage(data, to: targetID, keepsTransparency: true),
+                      let directory = targetSession.imageDirectory,
+                      let saved = UIImage(contentsOfFile: directory.appendingPathComponent(added.file).path)
+                else { return }
+                targetSession.canvas.placeImage(file: added.file, image: saved, pixelSize: added.size, at: point)
+            }
+        case let .note(id):
+            if id != noteID { openBeside(id) }
+        case let .page(sourceID, index):
+            guard sourceID != targetID else { return }
+            copyPage(index, from: sourceID, into: targetSession)
+        case .ink, .text, .sticky:
+            break
+        }
+    }
+
+    /// Copies a page (ink, elements, PDF page and size) into the note on the
+    /// other side, after the page shown there.
+    private func copyPage(_ index: Int, from sourceID: UUID, into target: EditorSession) {
+        let open: EditorSession? = sourceID == noteID ? session : (split.otherID == sourceID ? split.session : nil)
+        guard let source = open?.currentContent() ?? (try? store.loadContent(for: sourceID)),
+              let current = target.currentContent() else { return }
+        let after = target.canvas.currentPage
+        Task {
+            do {
+                let lifted = PageTransfer.lift([index], from: source)
+                let updated = try PageTransfer.insert(lifted, from: source, into: current, at: .after(after))
+                guard await target.replaceContent(updated) else { return }
+                try? await Task.sleep(for: .milliseconds(450))
+                target.canvas.scrollToPage(after + 1)
+                CommandCenter.shared.say(tr("Page copied"))
+            } catch {
+                store.errorMessage = error.localizedDescription
             }
         }
     }
@@ -972,6 +1099,17 @@ struct NoteEditorView: View {
                 }
                 .tint(.orange)
             }
+
+            Button {
+                if split.isOpen {
+                    withAnimation(.snappy) { split.close(beside: noteID) }
+                } else {
+                    isPickingBeside = true
+                }
+            } label: {
+                Label(split.isOpen ? "Close the Note Beside" : "Open Beside…", systemImage: split.isOpen ? "rectangle.righthalf.inset.filled" : "rectangle.split.2x1")
+            }
+            .disabled(session.metadata == nil)
 
             Button {
                 isShowingPages.toggle()
@@ -1350,6 +1488,90 @@ private struct WritingSheets: ViewModifier {
             }
             .sheet(isPresented: $isShowingStickers) {
                 StickerStudioView(insertImage: insertSticker, insertInk: insertInk)
+            }
+    }
+}
+
+/// The note beside: its bar, its canvas and, if shown, its pages.
+private struct SplitPane: View {
+    @EnvironmentObject private var palette: ToolPalette
+    @ObservedObject var split: SplitController
+    @ObservedObject var session: EditorSession
+    let mainID: UUID
+    let pencilOnly: Bool
+    let pick: () -> Void
+    let saveWorkspace: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SplitPaneHeader(split: split, canvas: session.canvas, mainID: mainID, pick: pick, saveWorkspace: saveWorkspace)
+                .overlay(alignment: .top) {
+                    if split.active == .other {
+                        Rectangle().fill(Color.inkAccent).frame(height: 3).allowsHitTesting(false)
+                    }
+                }
+            Divider()
+            HStack(spacing: 0) {
+                if let content = session.initialContent, let background = session.background {
+                    NoteCanvas(
+                        initialContent: content,
+                        background: background,
+                        pencilOnly: pencilOnly,
+                        controller: session.canvas,
+                        palette: palette
+                    )
+                    .id(session.generation)
+                    .clipped()
+                    .environment(\.layoutDirection, .leftToRight)
+                } else if let error = session.loadError {
+                    ContentUnavailableView("Could Not Open Note", systemImage: "exclamationmark.triangle", description: Text(trMessage(error)))
+                } else {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                if split.showsPages, let snapshot = session.snapshot, let background = session.background, let id = split.otherID {
+                    Divider()
+                    PageSidebar(
+                        canvas: session.canvas,
+                        session: session,
+                        noteID: id,
+                        content: snapshot,
+                        revision: session.snapshotRevision,
+                        background: background,
+                        insertPage: { session.insertPage(after: $0) },
+                        deletePage: { session.deletePage(at: $0) },
+                        movePage: { session.movePage(from: $0, to: $1) }
+                    )
+                    .frame(width: 180)
+                    .transition(.move(edge: .trailing))
+                }
+            }
+        }
+        .background(Color(uiColor: .systemBackground))
+    }
+}
+
+/// Keeps the note beside in step: the same pen, and scrolling together.
+private struct SplitWiring: ViewModifier {
+    @ObservedObject var split: SplitController
+    let palette: ToolPalette
+    @ObservedObject var mainCanvas: CanvasController
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(palette.objectWillChange) {
+                guard let other = split.session else { return }
+                DispatchQueue.main.async { other.canvas.applyTool() }
+            }
+            .onChange(of: split.syncsScroll) {
+                guard split.syncsScroll, let other = split.session else { return }
+                split.pageOffset = other.canvas.currentPage - mainCanvas.currentPage
+            }
+            .onChange(of: mainCanvas.currentPage) {
+                guard split.syncsScroll, let other = split.session else { return }
+                let target: Int = max(mainCanvas.currentPage + split.pageOffset, 0)
+                if target != other.canvas.currentPage, target < other.canvas.pageCount {
+                    other.canvas.scrollToPage(target)
+                }
             }
     }
 }

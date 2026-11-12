@@ -43,6 +43,18 @@ struct SidebarView: View {
                     }
                 }
                 .tag(LibraryScope.favorites)
+                // Favorite notes: open one, or drag it onto an open note to
+                // put it beside that one.
+                ForEach(store.notes.filter(\.favorite).prefix(6)) { note in
+                    Button {
+                        navigation.openNote(note.id)
+                    } label: {
+                        Label { Text(verbatim: note.title).lineLimit(1) } icon: { Image(systemName: "star.fill").foregroundStyle(.yellow) }
+                            .font(.subheadline)
+                    }
+                    .padding(.leading, 18)
+                    .draggable(CanvasDragType.notePayload(note.id))
+                }
                 Button {
                     let today = workspace.tasks
                         .filter { task in task.status != .done && (task.dueDate.map(Calendar.current.isDateInToday) ?? false) }
@@ -73,6 +85,7 @@ struct SidebarView: View {
             }
 
             SidebarToDo(scope: $scope)
+            SidebarWorkspaces()
             Section {
                 ForEach(BuiltInCollection.allCases) { collection in
                     Label(tr(collection.title), systemImage: collection.systemImage)

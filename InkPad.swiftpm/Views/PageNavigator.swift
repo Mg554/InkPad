@@ -294,7 +294,8 @@ struct PageSidebar: View {
                 // Long-press and drag a page onto another to move it there.
                 .onDrag {
                     draggedPage = index
-                    return NSItemProvider(object: "InkPad page \(index)" as NSString)
+                    // Also droppable on the note beside (split workspace).
+                    return NSItemProvider(object: CanvasDragType.pagePayload(note: noteID, page: index) as NSString)
                 }
                 .onDrop(of: [.plainText], isTargeted: nil) { _ in
                     defer { draggedPage = nil }

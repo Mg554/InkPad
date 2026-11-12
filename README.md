@@ -64,6 +64,17 @@ Done:
   Focus pill outside notes); sounds: CC0 nature recordings (birds, dawn,
   river, light rain, forest, waves, café, wind; Sounds/CREDITS.txt), the
   made-on-iPad noises, or your own from Files or the music library
+- Split workspace: Open Beside… (toolbar, ⌘K, a note's menu in the
+  library, or drag a favorite from the sidebar onto an open note) puts
+  any two notes or PDFs side by side; drag the divider, swap sides, top
+  and bottom, make one side full, scroll together; one toolbar works on
+  the side last touched. Drag between the sides: a lasso selection (ink
+  stays editable, PDF text, or an area as a picture; press and hold, then
+  drag), text boxes, pictures and sticky notes (Text tool), and whole
+  pages from the pages panel (copied with their ink and size). Lasso ›
+  Send to the Note Beside does it without dragging. Each note remembers
+  the note it was open beside; Save as a Workspace keeps a named pair in
+  the sidebar
 - Sticky notes (+ › Sticky Note): colored notes on the page with typed
   text and handwriting, a group name, folding to a small square; tap one
   with a finger to open it; turn it into a Planner task linked to its

@@ -174,6 +174,38 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         menu.dismissMenu()
     }
 
+    /// What dragging the selection carries: the ink, PDF text, and a picture.
+    struct DragPayload {
+        var drawing: PKDrawing?
+        var text: String?
+        var image: UIImage?
+    }
+
+    /// The selection under `point` (overlay coordinates), for dragging it
+    /// to the note beside this one.
+    func dragPayload(at point: CGPoint) -> DragPayload? {
+        guard let host else { return nil }
+        if hasSelection, selectionBounds.insetBy(dx: -16, dy: -16).contains(point) {
+            let strokes = selected.flatMap { Self.dashed($0, style: dash) }
+            let drawing = PKDrawing(strokes: strokes)
+            var image = UIImage()
+            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+                image = drawing.image(from: drawing.bounds.insetBy(dx: -4, dy: -4), scale: 2)
+            }
+            return DragPayload(drawing: drawing, text: nil, image: image)
+        }
+        if let textHit, selectionBounds.contains(point) {
+            return DragPayload(drawing: nil, text: textHit.text, image: host.image(of: selectionBounds, scale: 2))
+        }
+        if let area, area.contains(point), let image = host.image(of: area, scale: 2) {
+            return DragPayload(drawing: nil, text: nil, image: image)
+        }
+        return nil
+    }
+
+    /// Send to the Note Beside: the selected ink (split workspace).
+    var onSendAcross: ((PKDrawing) -> Void)?
+
     private var selectionBounds: CGRect {
         let ink = selected.reduce(CGRect.null) { $0.union($1.renderBounds) }
         return (textHit?.lines ?? []).reduce(ink) { $0.union($1) }
@@ -348,6 +380,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
                 },
                 UIAction(title: "Copy as Text", image: UIImage(systemName: "text.viewfinder")) { [weak self] _ in self?.copyInkAsText() },
                 UIAction(title: "Save as Sticker", image: UIImage(systemName: "seal")) { [weak self] _ in self?.saveAsSticker() },
+                UIAction(title: "Send to the Note Beside", image: UIImage(systemName: "rectangle.righthalf.inset.filled.arrow.right"),
+                         attributes: onSendAcross == nil ? .hidden : []) { [weak self] _ in self?.sendAcross() },
                 UIAction(title: "Duplicate", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in self?.duplicateSelection() },
                 UIAction(title: "Cut", image: UIImage(systemName: "scissors")) { [weak self] _ in self?.cutSelection() },
                 UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in self?.copySelection() },
@@ -458,6 +492,11 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     }
 
     /// Reads the selected handwriting with Vision and copies it as text.
+    private func sendAcross() {
+        guard !selected.isEmpty else { return }
+        onSendAcross?(PKDrawing(strokes: selected.flatMap { Self.dashed($0, style: dash) }))
+    }
+
     private func saveAsSticker() {
         guard !selected.isEmpty else { return }
         let solid = selected.flatMap { Self.dashed($0, style: dash) }

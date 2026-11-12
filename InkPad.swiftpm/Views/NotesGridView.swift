@@ -23,6 +23,8 @@ struct NotesGridView: View {
     @State private var selection: Set<UUID> = []
     @State private var confirmsDelete = false
     @State private var collapsedFolders: Set<UUID> = []
+    /// Open Beside…: the note to open, waiting for the second one.
+    @State private var besideNote: NoteSummary?
     @AppStorage(NoteSort.storageKey) private var sortRaw = NoteSort.edited.rawValue
     @AppStorage(LibraryLayout.storageKey) private var layoutRaw = LibraryLayout.grid.rawValue
 
@@ -189,6 +191,12 @@ struct NotesGridView: View {
             .ignoresSafeArea()
         }
         .namePrompt($prompt)
+        .sheet(item: $besideNote) { note in
+            NotePickerSheet(excluding: note.id, title: "Open Beside") { other in
+                CommandCenter.shared.openNote(note.id, beside: other)
+            }
+            .environmentObject(store)
+        }
         .sheet(item: $coverNote) { note in
             CoverEditor(note: note)
                 .environmentObject(store)
@@ -398,6 +406,14 @@ struct NotesGridView: View {
             coverNote = note
         } label: {
             Label("Cover…", systemImage: "book.closed")
+        }
+
+        if !note.isText {
+            Button {
+                besideNote = note
+            } label: {
+                Label("Open Beside…", systemImage: "rectangle.split.2x1")
+            }
         }
 
         Divider()

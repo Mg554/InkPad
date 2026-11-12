@@ -189,7 +189,7 @@
       shapes (icons, compact, bubbles, circle, tree, shelf, timeline);
       GPS islands open their chapter; Focus Mode across notes with nature
       sounds and the owner's own music.
-   3. **Split workspace** — any two notes or PDFs side by side, dragging
+   3. **Split workspace** (done, 12 Nov 2026, needs iPad testing) — any two notes or PDFs side by side, dragging
       between them.
    4. **AI** — Ask This Page with page and paragraph citations (marking
       outside knowledge); Explain / Translate / math steps from the lasso;
