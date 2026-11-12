@@ -704,28 +704,27 @@ struct NoteEditorView: View {
 
     @ViewBuilder
     private func mainArea(content: NoteContent, background: NoteBackground) -> some View {
-        if let other = split.session {
-            SplitStack(
-                vertical: split.vertical,
-                fraction: $split.fraction,
-                swapped: split.swapped,
-                only: split.maximized == .main ? 1 : split.maximized == .other ? 2 : nil
-            ) {
-                canvasArea(content: content, background: background)
-                    .overlay(alignment: .top) { activeMark(.main) }
-            } second: {
+        // Always the same stack, so the main canvas is never rebuilt when the
+        // other note opens, swaps, floats or closes.
+        SplitStack(split: split, close: { split.close(beside: noteID) }) {
+            canvasArea(content: content, background: background)
+                .overlay(alignment: .top) { activeMark(.main) }
+        } second: {
+            if let other = split.session {
                 SplitPane(split: split, session: other, mainID: noteID, pencilOnly: pencilOnly,
                           pick: { isPickingBeside = true }, saveWorkspace: promptWorkspace)
+                    .id(split.otherID)
+            } else {
+                Color.clear
             }
-        } else {
-            canvasArea(content: content, background: background)
         }
     }
 
     /// A thin accent line on the side the toolbar works on.
     @ViewBuilder
     private func activeMark(_ side: SplitController.Side) -> some View {
-        if split.active == side {
+        if split.isOpen, split.maximized == nil, !split.floating, split.active == side,
+           UserDefaults.standard.string(forKey: SplitPrefs.style) == SplitWindowStyle.classic.rawValue {
             Rectangle().fill(Color.inkAccent).frame(height: 3).allowsHitTesting(false)
         }
     }
@@ -733,7 +732,7 @@ struct NoteEditorView: View {
     private func openBeside(_ id: UUID) {
         guard id != noteID else { return }
         if notebook.isOpen { notebook.close() }
-        withAnimation(.snappy) { split.open(id, beside: noteID, store: store) }
+        withAnimation(SplitController.motion) { split.open(id, beside: noteID, store: store) }
         guard let other = split.session else { return }
         other.canvas.onTouchBegan = { if split.active != .other { split.active = .other } }
         other.canvas.onDrop = { drop, point in handleDrop(drop, at: point, onMain: false) }
@@ -1158,7 +1157,7 @@ struct NoteEditorView: View {
 
             Button {
                 if split.isOpen {
-                    withAnimation(.snappy) { split.close(beside: noteID) }
+                    withAnimation(SplitController.motion) { split.close(beside: noteID) }
                 } else {
                     isPickingBeside = true
                 }
@@ -1562,7 +1561,8 @@ private struct SplitPane: View {
         VStack(spacing: 0) {
             SplitPaneHeader(split: split, canvas: session.canvas, mainID: mainID, pick: pick, saveWorkspace: saveWorkspace)
                 .overlay(alignment: .top) {
-                    if split.active == .other {
+                    if split.active == .other, split.maximized == nil, !split.floating,
+                       UserDefaults.standard.string(forKey: SplitPrefs.style) == SplitWindowStyle.classic.rawValue {
                         Rectangle().fill(Color.inkAccent).frame(height: 3).allowsHitTesting(false)
                     }
                 }

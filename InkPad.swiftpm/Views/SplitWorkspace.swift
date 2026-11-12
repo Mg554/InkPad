@@ -105,7 +105,105 @@ final class SplitController: ObservableObject {
     /// Pages apart when scrolling was linked.
     var pageOffset = 0
 
+    // Slide Over: the other note floats above the main one.
+    @Published var floating: Bool = UserDefaults.standard.bool(forKey: "splitFloating") {
+        didSet { UserDefaults.standard.set(floating, forKey: "splitFloating") }
+    }
+    /// The floating window's top-left corner; nil until placed.
+    @Published var floatOrigin: CGPoint?
+    @Published var floatSize: CGSize?
+    /// The live drag of the floating window (or of the pane, to swap).
+    @Published var windowDrag: CGSize = .zero
+    /// Slid off an edge: only a tab shows there.
+    @Published var tucked: HorizontalEdge?
+    /// The editor's space, measured.
+    var container: CGSize = .zero
+
     var isOpen: Bool { session != nil }
+
+    /// Spring when the owner wants motion, else a short ease.
+    static var motion: Animation {
+        let smooth: Bool = UserDefaults.standard.object(forKey: SplitPrefs.spring) as? Bool ?? true
+        return smooth ? .spring(response: 0.42, dampingFraction: 0.84) : .easeInOut(duration: 0.18)
+    }
+
+    enum Arrangement { case sideBySide, topAndBottom, slideOver }
+
+    func arrange(_ arrangement: Arrangement) {
+        withAnimation(Self.motion) {
+            maximized = nil
+            tucked = nil
+            switch arrangement {
+            case .sideBySide:
+                floating = false
+                vertical = false
+            case .topAndBottom:
+                floating = false
+                vertical = true
+            case .slideOver:
+                floating = true
+            }
+        }
+    }
+
+    /// Where the floating window sits in a space of `size`.
+    func floatRect(in size: CGSize) -> CGRect {
+        let wanted: CGSize = floatSize ?? CGSize(width: min(max(size.width * 0.38, 320), 480), height: size.height * 0.86)
+        let width: CGFloat = min(max(wanted.width, 280), max(size.width - 24, 280))
+        let height: CGFloat = min(max(wanted.height, 320), max(size.height - 24, 320))
+        let origin: CGPoint = floatOrigin ?? CGPoint(x: size.width - width - 14, y: (size.height - height) / 2)
+        var x: CGFloat = origin.x + windowDrag.width
+        var y: CGFloat = origin.y + windowDrag.height
+        y = min(max(y, 8), max(size.height - height - 8, 8))
+        if let tucked {
+            x = tucked == .trailing ? size.width + 24 : -width - 24
+        }
+        return CGRect(x: x, y: y, width: width, height: height)
+    }
+
+    /// The floating window let go: thrown off an edge it tucks away, else it
+    /// settles on the nearer side.
+    func endFloatDrag(translation: CGSize, predicted: CGSize) {
+        let size = container
+        windowDrag = .zero
+        let rect = floatRect(in: size)
+        let thrownX: CGFloat = rect.midX + predicted.width
+        withAnimation(Self.motion) {
+            if thrownX > size.width + rect.width * 0.05 {
+                floatOrigin = CGPoint(x: size.width - rect.width - 14, y: rect.minY + translation.height)
+                tucked = .trailing
+            } else if thrownX < -rect.width * 0.05 {
+                floatOrigin = CGPoint(x: 14, y: rect.minY + translation.height)
+                tucked = .leading
+            } else {
+                let movedX: CGFloat = rect.minX + translation.width
+                let movedY: CGFloat = rect.minY + translation.height
+                let onRight: Bool = movedX + rect.width / 2 > size.width / 2
+                floatOrigin = CGPoint(x: onRight ? size.width - rect.width - 14 : 14, y: movedY)
+            }
+        }
+    }
+
+    func untuck() {
+        withAnimation(Self.motion) { tucked = nil }
+    }
+
+    func resizeFloat(to newSize: CGSize) {
+        let maxWidth: CGFloat = max(container.width - 24, 280)
+        let maxHeight: CGFloat = max(container.height - 16, 320)
+        floatSize = CGSize(width: min(max(newSize.width, 280), maxWidth), height: min(max(newSize.height, 320), maxHeight))
+    }
+
+    /// The pane dragged by its bar toward the other side: swap them.
+    func endPaneDrag(_ translation: CGSize) {
+        let moved: CGFloat = vertical ? translation.height : translation.width
+        // The other note sits after the main one unless swapped.
+        let towardOther: CGFloat = swapped ? moved : -moved
+        withAnimation(Self.motion) {
+            windowDrag = .zero
+            if towardOther > 110 { swapped.toggle() }
+        }
+    }
 
     func open(_ id: UUID, beside mainID: UUID, store: LibraryStore) {
         guard id != mainID, store.note(id) != nil, !(store.note(id)?.isText ?? true) else { return }
@@ -118,6 +216,8 @@ final class SplitController: ObservableObject {
         SyncEngine.shared.openNotes.insert(id)
         active = .other
         maximized = nil
+        tucked = nil
+        windowDrag = .zero
         SplitMemory.shared.remember(id, beside: mainID)
     }
 
@@ -129,6 +229,8 @@ final class SplitController: ObservableObject {
         otherID = nil
         active = .main
         maximized = nil
+        tucked = nil
+        windowDrag = .zero
         syncsScroll = false
         if let mainID { SplitMemory.shared.remember(nil, beside: mainID) }
     }
@@ -159,7 +261,7 @@ struct SplitPaneHeader: View {
             }
             .disabled(!canvas.canUndo)
             Button {
-                withAnimation(.snappy) { split.showsPages.toggle() }
+                withAnimation(SplitController.motion) { split.showsPages.toggle() }
             } label: {
                 Image(systemName: split.showsPages ? "sidebar.right" : "rectangle.grid.1x2")
             }
@@ -170,25 +272,11 @@ struct SplitPaneHeader: View {
                 } label: {
                     Label("Open Another Note Here…", systemImage: "doc.on.doc")
                 }
-                Button {
-                    withAnimation(.snappy) { split.swapped.toggle() }
-                } label: {
-                    Label("Swap Sides", systemImage: "arrow.left.arrow.right")
-                }
-                Button {
-                    withAnimation(.snappy) { split.vertical.toggle() }
-                } label: {
-                    Label(split.vertical ? "Side by Side" : "Top and Bottom", systemImage: split.vertical ? "rectangle.split.2x1" : "rectangle.split.1x2")
-                }
+                WindowArrangeButtons(split: split, side: .other, close: { split.close(beside: mainID) })
                 Toggle(isOn: Binding(get: { split.syncsScroll }, set: { on in
                     split.syncsScroll = on
                 })) {
                     Label("Scroll Together", systemImage: "arrow.up.arrow.down")
-                }
-                Button {
-                    withAnimation(.snappy) { split.maximized = split.maximized == .other ? nil : .other }
-                } label: {
-                    Label(split.maximized == .other ? "Show Both" : "Make This Side Full", systemImage: "arrow.up.left.and.arrow.down.right")
                 }
                 Divider()
                 Button {
@@ -200,7 +288,7 @@ struct SplitPaneHeader: View {
                 Image(systemName: "ellipsis.circle")
             }
             Button {
-                withAnimation(.snappy) { split.close(beside: mainID) }
+                withAnimation(SplitController.motion) { split.close(beside: mainID) }
             } label: {
                 Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
             }
@@ -210,6 +298,24 @@ struct SplitPaneHeader: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(.bar)
+        .contentShape(Rectangle())
+        .gesture(moveGesture)
+    }
+
+    /// Dragging the bar moves the floating window, or carries the pane
+    /// across to swap sides.
+    private var moveGesture: some Gesture {
+        DragGesture(minimumDistance: 10, coordinateSpace: .global)
+            .onChanged { value in
+                split.windowDrag = value.translation
+            }
+            .onEnded { value in
+                if split.floating {
+                    split.endFloatDrag(translation: value.translation, predicted: value.predictedEndTranslation)
+                } else {
+                    split.endPaneDrag(value.translation)
+                }
+            }
     }
 }
 
@@ -302,79 +408,5 @@ struct SidebarWorkspaces: View {
         let first = store.note(workspace.first)?.title ?? "?"
         let second = store.note(workspace.second)?.title ?? "?"
         return first + "  ·  " + second
-    }
-}
-
-/// Two views sharing the space, side by side or one above the other, with
-/// a divider to drag. `fraction` is the first view's share.
-struct SplitStack<First: View, Second: View>: View {
-    let vertical: Bool
-    @Binding var fraction: Double
-    /// The second view comes first (left or top).
-    let swapped: Bool
-    /// 1 shows only the first, 2 only the second, nil both.
-    let only: Int?
-    @ViewBuilder let first: () -> First
-    @ViewBuilder let second: () -> Second
-    @State private var dragStart: Double?
-
-    var body: some View {
-        GeometryReader { proxy in
-            let total: CGFloat = vertical ? proxy.size.height : proxy.size.width
-            let divider: CGFloat = only == nil ? 14 : 0
-            let available: CGFloat = max(total - divider, 1)
-            let share: CGFloat = only == 1 ? 1 : only == 2 ? 0 : CGFloat(fraction)
-            let firstSize: CGFloat = available * share
-            let secondSize: CGFloat = available - firstSize
-            let layout = vertical ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
-            layout {
-                if swapped {
-                    pane(second(), size: secondSize, total: proxy.size)
-                    handle(total: available)
-                    pane(first(), size: firstSize, total: proxy.size)
-                } else {
-                    pane(first(), size: firstSize, total: proxy.size)
-                    handle(total: available)
-                    pane(second(), size: secondSize, total: proxy.size)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func pane<Content: View>(_ content: Content, size: CGFloat, total: CGSize) -> some View {
-        if size > 1 {
-            content
-                .frame(width: vertical ? total.width : size, height: vertical ? size : total.height)
-                .clipped()
-        }
-    }
-
-    @ViewBuilder
-    private func handle(total: CGFloat) -> some View {
-        if only == nil {
-            ZStack {
-                Rectangle().fill(Color(uiColor: .separator))
-                    .frame(width: vertical ? nil : 1, height: vertical ? 1 : nil)
-                Capsule()
-                    .fill(Color(uiColor: .tertiaryLabel))
-                    .frame(width: vertical ? 44 : 5, height: vertical ? 5 : 44)
-            }
-            .frame(width: vertical ? nil : 14, height: vertical ? 14 : nil)
-            .frame(maxWidth: vertical ? .infinity : nil, maxHeight: vertical ? nil : .infinity)
-            .background(Color(uiColor: .systemBackground))
-            .contentShape(Rectangle())
-            .gesture(DragGesture()
-                .onChanged { value in
-                    let start = dragStart ?? fraction
-                    dragStart = start
-                    let moved: CGFloat = vertical ? value.translation.height : value.translation.width
-                    let delta = Double(moved / max(total, 1))
-                    let next = swapped ? start - delta : start + delta
-                    fraction = min(max(next, 0.2), 0.8)
-                }
-                .onEnded { _ in dragStart = nil })
-            .accessibilityLabel("Resize")
-        }
     }
 }

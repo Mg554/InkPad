@@ -145,8 +145,16 @@ struct BubbleFlow: Layout {
     }
 }
 
-/// Places items on rings around the middle.
+/// Places items on rings around the middle; `rotation` turns the rings
+/// (each ring a little differently), and animates along the circle.
 struct RadialLayout: Layout {
+    var rotation: Double = 0
+
+    var animatableData: Double {
+        get { rotation }
+        set { rotation = newValue }
+    }
+
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.width ?? 800
         let rings = Self.rings(count: subviews.count)
@@ -161,7 +169,8 @@ struct RadialLayout: Layout {
         for (ring, count) in rings.enumerated() {
             let radius = Self.radius(ring: ring + 1, width: bounds.width)
             for slot in 0..<count where index < subviews.count {
-                let angle: Double = Double(slot) / Double(count) * 2 * Double.pi - Double.pi / 2 + Double(ring) * 0.35
+                let turn: Double = ring % 2 == 0 ? rotation : -rotation * 0.7
+                let angle: Double = Double(slot) / Double(count) * 2 * Double.pi - Double.pi / 2 + Double(ring) * 0.35 + turn
                 let x: CGFloat = center.x + radius * CGFloat(Math.cosine(angle))
                 let y: CGFloat = center.y + radius * CGFloat(Math.sine(angle))
                 subviews[index].place(at: CGPoint(x: x, y: y), anchor: .center, proposal: .unspecified)

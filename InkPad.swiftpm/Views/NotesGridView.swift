@@ -265,22 +265,13 @@ struct NotesGridView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
         case .bubbles:
-            BubbleFlow {
-                ForEach(notes) { note in
-                    item(note, reorderable: false) { NoteBubble(note: note) }
-                }
+            BubbleField(notes: notes) { note in
+                item(note, reorderable: false) { NoteBubble(note: note) }
             }
-            .padding(24)
         case .circle:
-            ZStack {
-                RadialLayout {
-                    ForEach(notes) { note in
-                        item(note, reorderable: false) { NoteBubble(note: note).scaleEffect(0.75) }
-                    }
-                }
-                CircleHub(title: tr(title), count: notes.count)
+            SpinningCircle(notes: notes, title: tr(title)) { note in
+                item(note, reorderable: false) { NoteBubble(note: note).scaleEffect(0.75) }
             }
-            .padding(.horizontal, 24)
         case .tree:
             treeView(notes)
         case .shelf:
@@ -390,6 +381,11 @@ struct NotesGridView: View {
                     ForEach(LibraryLayout.allCases) { option in
                         Label(tr(option.title), systemImage: option.systemImage).tag(option.rawValue)
                     }
+                }
+            }
+            if layout == .bubbles || layout == .circle {
+                Section {
+                    LibraryMotionMenu(isCircle: layout == .circle)
                 }
             }
             if sort == .custom {

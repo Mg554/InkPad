@@ -160,6 +160,13 @@ struct SidebarView: View {
                     }
                 }
                 .foregroundStyle(Color(uiColor: .label))
+                Button {
+                    CommandCenter.shared.sheet = .garden
+                } label: {
+                    Label("Focus Garden", systemImage: "leaf")
+                }
+                .foregroundStyle(Color(uiColor: .label))
+                .contextMenu { GardenOptions() }
             }
 
             if !store.allTags.isEmpty {

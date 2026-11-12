@@ -54,6 +54,16 @@ struct SettingsView: View {
                             Label("Focus Sound", systemImage: FocusSounds.systemImage(of: looks.look))
                         }
                     }
+                    NavigationLink {
+                        DistractionSettingsView()
+                    } label: {
+                        Label("Distraction Box", systemImage: "tray.full")
+                    }
+                    NavigationLink {
+                        GardenSettingsView()
+                    } label: {
+                        Label("Focus Garden", systemImage: "leaf")
+                    }
                 }
                 Section {
                     Picker(selection: $transcription) {
@@ -152,6 +162,11 @@ struct SettingsView: View {
             } label: {
                 Label("Themes", systemImage: "paintbrush")
             }
+            NavigationLink {
+                LibraryMotionSettingsView()
+            } label: {
+                Label("Library Motion", systemImage: "circle.grid.cross")
+            }
         }
     }
 
@@ -175,6 +190,11 @@ struct SettingsView: View {
                 GestureSettingsView()
             } label: {
                 Label("Gestures", systemImage: "hand.tap")
+            }
+            NavigationLink {
+                SplitSettingsView()
+            } label: {
+                Label("Split View", systemImage: "rectangle.split.2x1")
             }
             NavigationLink {
                 HandwritingSettingsView()

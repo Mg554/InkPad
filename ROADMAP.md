@@ -198,6 +198,12 @@
    5. **Sync** (done, 12 Nov 2026, needs testing between the Playgrounds copy and the installed app) — a free sync folder in iCloud Drive chosen in Files (no
       CloudKit, which needs the paid program), first between the Swift
       Playgrounds copy and the Xcode-installed copy on the same iPad.
+   After the batches (done, 12 Nov 2026, needs iPad testing): split windows
+      like iPadOS (snapping divider, Slide Over, ••• menus, settings);
+      bubbles with physics and a spinning circle in the library; the
+      Distraction Box as a jar, swipe sorting, a floating catch bubble and
+      insights; real plant species in a garden scene that grow before
+      your eyes.
    Postponed: layers and an infinite canvas. Real-time collaboration is
    out of scope (needs a paid server or program).
 

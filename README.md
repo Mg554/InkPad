@@ -40,7 +40,11 @@ Done:
   sound, how recordings become text, storage and backups, an InkPad Pro
   page (plans shown for later; every feature is free) and About ⓘ
 - Library views (the view button): cards, small icons, compact list,
-  detailed list, bubbles sized by pages, a circle around the folder, a
+  detailed list, bubbles sized by pages (they float and breathe, can be
+  dragged and thrown, bump into each other and stay where left; Tidy Up
+  puts them back), a circle around the folder (spin its rings with a
+  finger; pinch to zoom both; View › Motion or Settings › Library
+  Motion), a
   `tree`-style outline of folders and notes, a bookshelf and a timeline
   by month; Select to pick many notes and move, copy, favorite, pin, tag
   or delete them at once
@@ -74,7 +78,12 @@ Done:
   pages from the pages panel (copied with their ink and size). Lasso ›
   Send to the Note Beside does it without dragging. Each note remembers
   the note it was open beside; Save as a Workspace keeps a named pair in
-  the sidebar
+  the sidebar; the two notes sit in windows like iPadOS ones (rounded,
+  with a shadow): the divider snaps to thirds and halves and closes a side
+  when dragged to the edge, a window's bar drags across to swap, ••• on
+  each window picks Split View, Top and Bottom, Slide Over (a floating
+  window you move, resize, or throw off the edge to tuck away) or Full
+  Screen (Settings › Split View: look, snapping, springs, the ••• menu)
 - AI on the page: Ask This Page (✨ in the note) is a side chat about this
   page, this chapter or the whole note; answers cite page and paragraph
   (tap a citation to jump there and light it up), anything from outside
@@ -326,12 +335,23 @@ Done:
   Eisenhower Matrix (drag between Do Now / Schedule / Delegate / Later)
   and Weekly Review (focus per day, tasks done, best hour, estimate
   accuracy, where the time went)
-- Distraction Box: catch a stray thought while focusing, typed or written
-  with the pen (read on the iPad), from Flowmodoro, the note toolbar, the
-  sidebar or ⌘K; stats by hour and task; each one can become a reminder
+- Distraction Box: catch a stray thought while focusing, typed, written
+  with the pen (read on the iPad) or spoken, from a floating bubble while
+  a session runs, Flowmodoro, the note toolbar, the sidebar or ⌘K. Each
+  thought drops into a glass jar as a paper ball (tap one to deal with it,
+  tap the lid to shake); Sort deals them like cards (right: a Planner
+  task, left: delete, up: a reminder, down: later); List; Insights charts
+  thoughts by hour and day, the tasks that wander most and the run of
+  sessions without a distraction (Settings › Focus › Distraction Box)
 - Focus Garden: a plant per subject (a planner task's first tag, or the
   Flowmodoro task) grows from seed to grand tree with focus time and
-  dresses for the season. Smart breaks: review due flashcards, a guided
+  dresses for the season: oak, pine, cherry blossom, palm, cactus,
+  sunflower or bonsai (automatic or chosen per subject), swaying in the
+  wind, in one garden under a sky that follows the clock (dawn, day, dusk,
+  night with stars) with snow, leaves, petals or fireflies, or as cards.
+  Plants grow before your eyes from where you last saw them, and after a
+  session a card shows the plant that grew (Settings › Focus › Focus
+  Garden, or the sidebar row's menu). Smart breaks: review due flashcards, a guided
   breathing minute, or a tip to move. Study-linked tasks: link a task to a
   note or book chapter; finishing it plans reviews 1, 3 and 7 days later.
   Planner Timeline (Gantt) shows tasks as bars over four weeks

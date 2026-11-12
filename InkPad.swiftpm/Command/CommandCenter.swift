@@ -44,11 +44,13 @@ enum CommandSheet: Identifiable {
     /// Distraction Box, and catching one.
     case distractions
     case catchDistraction
+    case garden
 
     var id: String {
         switch self {
         case .distractions: "distractions"
         case .catchDistraction: "catch-distraction"
+        case .garden: "garden"
         case .themes: "themes"
         case let .history(note): "history-\(note.id)"
         case let .reminder(draft): "reminder-\(draft.id)"

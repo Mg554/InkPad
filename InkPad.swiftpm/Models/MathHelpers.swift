@@ -23,6 +23,12 @@ enum Math {
         return result
     }
 
+    /// The angle of the point (x, y) from the x axis, in -π...π.
+    static func angle(y: Double, x: Double) -> Double {
+        let result: Double = atan2(y, x)
+        return result
+    }
+
     static func root(_ x: Double) -> Double {
         let result: Double = sqrt(x)
         return result

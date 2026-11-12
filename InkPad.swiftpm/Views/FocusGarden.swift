@@ -54,68 +54,6 @@ struct GardenPlant: Identifiable {
     }
 }
 
-/// A plant card, drawn for the season.
-struct GardenPlantCard: View {
-    let plant: GardenPlant
-    var size: CGFloat = 130
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Canvas { context, canvasSize in
-                PlantPainter.draw(in: &context, size: canvasSize, growth: plant.growth, season: PlantPainter.currentSeason, tint: .green)
-            }
-            .frame(width: size, height: size)
-            Text(plant.subject).font(.subheadline.weight(.semibold)).lineLimit(1)
-            Text("\(plant.stageName) · \(PlannerInsights.duration(plant.seconds))").font(.caption).foregroundStyle(.secondary)
-            if let next = plant.minutesToNext {
-                ProgressView(value: plant.growth)
-                    .tint(.green)
-                    .frame(width: size * 0.8)
-                Text("\(next) min to grow").font(.caption2).foregroundStyle(.secondary)
-            }
-        }
-        .padding(10)
-        .frame(width: size + 30)
-        .themedCard()
-    }
-}
-
-/// Every subject's plant, growing with focus time.
-struct FocusGardenView: View {
-    @EnvironmentObject private var workspace: WorkspaceStore
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        let plants = GardenPlant.garden(sessions: workspace.flowSessions, tasks: workspace.tasks)
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("Each subject grows a plant as you focus on it: a planner task's first tag is its subject. Plants dress for the season (\(PlantPainter.currentSeason.title)).")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    if plants.isEmpty {
-                        ContentUnavailableView("Nothing Planted Yet", systemImage: "leaf", description: Text("Finish a Flowmodoro session to plant your first seed."))
-                    }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
-                        ForEach(plants) { plant in
-                            GardenPlantCard(plant: plant, size: 140)
-                        }
-                    }
-                }
-                .padding(20)
-            }
-            .themedBackground()
-            .navigationTitle("Focus Garden")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-    }
-}
-
 // MARK: Smart breaks
 
 /// What to do with a break: due flashcards, breathing, or moving.

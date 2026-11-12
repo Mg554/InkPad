@@ -246,6 +246,8 @@ struct LibraryView: View {
             DistractionBoxView()
         case .catchDistraction:
             DistractionCapture()
+        case .garden:
+            FocusGardenView()
         }
     }
 
@@ -259,6 +261,7 @@ struct LibraryView: View {
         withCommands
             .task { syncOpenTaskNotes() }
             .onChange(of: workspace.tasks) { syncOpenTaskNotes() }
+            .modifier(FocusExtras())
     }
 
     /// Living Notes keeps its index of concepts up to date.
@@ -268,20 +271,7 @@ struct LibraryView: View {
             .onChange(of: store.notes) { LivingNotes.shared.refresh(store: store) }
             .onChange(of: store.textIndex) { LivingNotes.shared.refresh(store: store) }
             .onChange(of: store.recognizedText) { LivingNotes.shared.refresh(store: store) }
-            // Ambient sound follows the Flowmodoro timer, wherever you are in InkPad.
-            .task {
-                FocusSoundController.workspace = workspace
-                FocusSoundController.update()
-            }
-            .onChange(of: workspace.flowTimer?.phase) {
-                FocusSoundController.update()
-                FocusSession.shared.timerChanged(workspace)
-            }
-            .onChange(of: workspace.flowTimer?.taskID) { FocusSession.shared.timerChanged(workspace) }
-            .sheet(item: Binding(
-                get: { noteWrapUp },
-                set: { if $0 == nil { FocusSession.shared.summary = nil } }
-            )) { summary in
+            .sheet(item: wrapUpBinding) { summary in
                 FocusWrapUpView(summary: summary)
                     .environmentObject(store)
                     .environmentObject(workspace)
@@ -300,13 +290,64 @@ struct LibraryView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .fullScreenCover(isPresented: Binding(
-                get: { CommandCenter.shared.showsFocusScreen },
-                set: { CommandCenter.shared.showsFocusScreen = $0 }
-            )) {
+            .fullScreenCover(isPresented: showsFocusScreen) {
                 FocusScreenView()
                     .environmentObject(store)
                     .environmentObject(workspace)
             }
+    }
+
+    private var wrapUpBinding: Binding<FocusSummary?> {
+        Binding(
+            get: { noteWrapUp },
+            set: { if $0 == nil { FocusSession.shared.summary = nil } }
+        )
+    }
+
+    private var showsFocusScreen: Binding<Bool> {
+        Binding(
+            get: { CommandCenter.shared.showsFocusScreen },
+            set: { CommandCenter.shared.showsFocusScreen = $0 }
+        )
+    }
+}
+
+/// The catch bubble while focusing, and the plant that grew after a session.
+private struct FocusExtras: ViewModifier {
+    @EnvironmentObject private var workspace: WorkspaceStore
+    @ObservedObject private var gardenToast = GardenToastCenter.shared
+    @ObservedObject private var commands = CommandCenter.shared
+    @AppStorage(DistractionPrefs.bubble) private var catchBubble = true
+
+    private var showsBubble: Bool {
+        catchBubble && workspace.flowTimer?.phase == .working && !commands.showsFocusScreen
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if showsBubble {
+                    FloatingCatchBubble()
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .overlay(alignment: .top) {
+                if let toast = gardenToast.toast {
+                    GardenGrowthToast(toast: toast)
+                        .padding(.top, 70)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            // Ambient sound follows the Flowmodoro timer, wherever you are in InkPad.
+            .task {
+                FocusSoundController.workspace = workspace
+                FocusSoundController.update()
+            }
+            .onChange(of: workspace.flowTimer?.phase) { before, after in
+                FocusSoundController.update()
+                FocusSession.shared.timerChanged(workspace)
+                if before == .working, after == .breakReady { GardenToastCenter.shared.sessionEnded(workspace) }
+            }
+            .onChange(of: workspace.flowTimer?.taskID) { FocusSession.shared.timerChanged(workspace) }
     }
 }
