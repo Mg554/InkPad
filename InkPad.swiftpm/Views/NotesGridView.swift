@@ -420,6 +420,29 @@ struct NotesGridView: View {
         }
 
         Button {
+            if note.locked {
+                // Removing the protection needs Face ID too.
+                Task {
+                    let reason = trMessage("Unlock \(note.title).")
+                    switch await NoteLock.authenticate(reason: reason) {
+                    case .unlocked:
+                        store.setLocked(false, for: note.id)
+                        CommandCenter.shared.say("Note unlocked.")
+                    case .failed:
+                        CommandCenter.shared.say("Locked notes open with Face ID or the passcode.")
+                    case .needsPasscode:
+                        CommandCenter.shared.say("Set a passcode on this iPad — locked notes open with Face ID or the passcode.")
+                    }
+                }
+            } else {
+                store.setLocked(true, for: note.id)
+                CommandCenter.shared.say("Note locked.")
+            }
+        } label: {
+            Label(note.locked ? "Unlock Note" : "Lock Note", systemImage: note.locked ? "lock.open" : "lock")
+        }
+
+        Button {
             coverNote = note
         } label: {
             Label("Cover…", systemImage: "book.closed")

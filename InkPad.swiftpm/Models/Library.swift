@@ -108,6 +108,9 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     var aiOnDeviceOnly: Bool?
     /// Starred: listed under Favorites.
     var isFavorite: Bool?
+    /// Locked with Face ID (or the device passcode): its text and ink stay
+    /// out of search, previews and Living Notes until it is unlocked.
+    var isLocked: Bool?
     /// When it was pinned; pinned notes come first in every list.
     var pinnedAt: Date?
     /// A cover shown instead of the first page.
@@ -124,6 +127,7 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     var isText: Bool { kind == .text }
     var favorite: Bool { isFavorite == true }
     var isPinned: Bool { pinnedAt != nil }
+    var locked: Bool { isLocked == true }
 }
 
 /// A reusable starting text for new text notes. `{{title}}`, `{{date}}`

@@ -589,7 +589,36 @@ final class WorkspaceStore: ObservableObject {
         }
     }
 
+    /// Workspace writes go here, off the main thread, one at a time.
+    private let writeQueue = DispatchQueue(label: "InkPad.workspaceWrites", qos: .utility)
+    /// The workspace file has changes that are not on disk yet.
+    private var fileNeedsWrite = false
+    private var writeTask: Task<Void, Never>?
+
+    /// Marks the workspace file for a background write. Bursts of edits
+    /// coalesce into one write a moment later, so the interface never
+    /// waits for `workspace.json`.
     private func persist() {
+        fileNeedsWrite = true
+        writeTask?.cancel()
+        writeTask = Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            await writeNow()
+        }
+    }
+
+    /// Writes a pending workspace change right away, off the main thread.
+    /// Backups, syncs and leaving the app wait for this first.
+    func flushWorkspace() async {
+        writeTask?.cancel()
+        writeTask = nil
+        await writeNow()
+    }
+
+    private func writeNow() async {
+        guard fileNeedsWrite, !isReadOnly else { return }
+        fileNeedsWrite = false
         let file = WorkspaceFile(
             version: WorkspaceFile.currentVersion,
             tasks: tasks,
@@ -609,10 +638,19 @@ final class WorkspaceStore: ObservableObject {
             distractions: distractions,
             knowledgeMaps: knowledgeMaps
         )
-        do {
-            try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder.inkpad.encode(file).write(to: fileURL, options: .atomic)
-        } catch {
+        let url = fileURL
+        let result: Result<Void, Error> = await withCheckedContinuation { continuation in
+            writeQueue.async {
+                continuation.resume(returning: Result {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try JSONEncoder.inkpad.encode(file).write(to: url, options: .atomic)
+                })
+            }
+        }
+        if case .failure(let error) = result {
+            // Try again with the next flush, so a full disk or a hiccup
+            // does not silently drop the change.
+            fileNeedsWrite = true
             errorMessage = "Could not save: \(error.localizedDescription)"
         }
     }

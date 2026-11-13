@@ -183,7 +183,7 @@ struct BackupView: View {
         .interactiveDismissDisabled(progress != nil)
         .onChange(of: frequency) {
             Task {
-                await store.makeAutomaticBackupIfDue()
+                await store.makeAutomaticBackupIfDue(workspace: workspace)
                 automaticBackups = LibraryBackup.automaticBackups()
             }
         }

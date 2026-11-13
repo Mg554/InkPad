@@ -6,10 +6,16 @@ struct NotePreview: View {
     let note: NoteSummary
     @State private var thumbnail: UIImage?
 
+    /// Locked notes show a lock instead of their contents until they are
+    /// unlocked with Face ID (or the passcode).
+    private var showsLock: Bool { note.locked && !store.isUnlocked(note.id) }
+
     var body: some View {
         ZStack {
             Color.white
-            if let cover = note.cover {
+            if showsLock {
+                Image(systemName: "lock.fill").foregroundStyle(.secondary)
+            } else if let cover = note.cover {
                 NoteCoverView(cover: cover, title: "")
             } else if note.isText {
                 Image(systemName: "doc.text").foregroundStyle(.purple)
@@ -17,7 +23,8 @@ struct NotePreview: View {
                 Image(uiImage: thumbnail).resizable().scaledToFill()
             }
         }
-        .task(id: note.modifiedAt) {
+        .task(id: "\(note.id)-\(note.modifiedAt.timeIntervalSince1970)-\(showsLock)") {
+            if showsLock { thumbnail = nil; return }
             if !note.isText, note.cover == nil {
                 thumbnail = await store.cardThumbnail(for: note.id, modifiedAt: note.modifiedAt)
             }

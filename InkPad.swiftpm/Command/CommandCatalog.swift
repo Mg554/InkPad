@@ -126,9 +126,9 @@ struct CommandCatalog {
             PaletteItem(id: "set-themes", title: "Themes & Theme Mixer…", systemImage: "paintbrush", section: .settings,
                         keywords: ["theme", "colors", "ثيم", "ألوان"]) { [center] in center.sheet = .themes },
             PaletteItem(id: "set-backup", title: "Back Up Now", subtitle: "Saved in InkPad Automatic Backups", systemImage: "externaldrive.badge.checkmark",
-                        shortcut: "⌘⇧B", section: .settings, keywords: ["backup", "نسخة احتياطية"]) { [store, center] in
+                        shortcut: "⌘⇧B", section: .settings, keywords: ["backup", "نسخة احتياطية"]) { [store, workspace, center] in
                 Task {
-                    let done = await store.makeAutomaticBackupIfDue(force: true)
+                    let done = await store.makeAutomaticBackupIfDue(force: true, workspace: workspace)
                     center.say(done ? "Backed up to InkPad Automatic Backups" : "The backup couldn't be made")
                 }
             },

@@ -45,6 +45,11 @@ struct LibraryView: View {
 
     /// Opens a note from anywhere, leaving workspace pages for the notes area.
     private func open(_ id: UUID) {
+        // Locked notes open only after Face ID (or the passcode).
+        guard store.isUnlocked(id) else {
+            unlockThenOpen(id)
+            return
+        }
         switch scope {
         case .planner?, .expenses?, .mindMaps?, .slides?, .study?, .flowmodoro?, .reminders?, .pdfTools?, .gps?:
             // Changing the scope clears the path; the note opens once the
@@ -53,6 +58,25 @@ struct LibraryView: View {
             scope = .allNotes
         default:
             path.append(id)
+        }
+    }
+
+    /// Asks for Face ID first; the note opens only on success.
+    private func unlockThenOpen(_ id: UUID) {
+        let title = store.note(id)?.title ?? ""
+        Task {
+            let outcome = await NoteLock.authenticate(
+                reason: trMessage("Unlock \(title).")
+            )
+            switch outcome {
+            case .unlocked:
+                store.unlockNote(id)
+                open(id)
+            case .failed:
+                CommandCenter.shared.say("Locked notes open with Face ID or the passcode.")
+            case .needsPasscode:
+                CommandCenter.shared.say("Set a passcode on this iPad — locked notes open with Face ID or the passcode.")
+            }
         }
     }
 
@@ -151,6 +175,10 @@ struct LibraryView: View {
                 // A restored backup replaced the library: close what was open.
                 path = []
                 scope = .allNotes
+            }
+            .onChange(of: store.lockRevision) {
+                // A locked note cannot stay open on screen.
+                path.removeAll { !store.isUnlocked($0) }
             }
             .onChange(of: path) {
                 // Give the editor the whole screen; bring the sidebar back in the library.

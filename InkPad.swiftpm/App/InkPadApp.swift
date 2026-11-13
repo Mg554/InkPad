@@ -32,13 +32,21 @@ struct InkPadApp: App {
                 .task {
                     SyncEngine.shared.start(store: store, workspace: workspace)
                     SyncEngine.shared.soon(delay: 3)
-                    await store.makeAutomaticBackupIfDue()
+                    await store.makeAutomaticBackupIfDue(workspace: workspace)
                 }
                 .onChange(of: scenePhase) {
                     if scenePhase == .active {
-                        Task { await store.makeAutomaticBackupIfDue() }
+                        Task { await store.makeAutomaticBackupIfDue(workspace: workspace) }
                         SyncEngine.shared.soon(delay: 2)
                     } else if scenePhase == .background {
+                        // Locked notes lock again when the app leaves.
+                        store.lockUnlockedNotes()
+                        // Pending index and planner changes land on disk
+                        // before the app leaves, then the notes go out.
+                        Task {
+                            await store.flushIndex()
+                            await workspace.flushWorkspace()
+                        }
                         // Notes are saved on the way out; send them.
                         SyncEngine.shared.soon(delay: 1)
                     }

@@ -449,7 +449,7 @@ struct CommandShortcuts: View {
             shortcut("New Mind Map", "m", [.command, .shift]) { center.show(prefill: "mind map ") }
             shortcut("Back Up Now", "b", [.command, .shift]) {
                 Task {
-                    let done = await store.makeAutomaticBackupIfDue(force: true)
+                    let done = await store.makeAutomaticBackupIfDue(force: true, workspace: workspace)
                     center.say(done ? "Backed up to InkPad Automatic Backups" : "The backup couldn't be made")
                 }
             }

@@ -156,6 +156,10 @@ final class SyncEngine: ObservableObject {
     func run() async {
         guard isOn, status != .syncing, let store, let workspace else { return }
         status = .syncing
+        // Pending index and planner changes land on disk before the job
+        // reads the library, so nothing is synced half a step behind.
+        await store.flushIndex()
+        await workspace.flushWorkspace()
         let folder: URL
         do {
             folder = try folderURL()
