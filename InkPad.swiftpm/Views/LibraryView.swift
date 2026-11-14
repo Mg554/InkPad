@@ -123,14 +123,16 @@ struct LibraryView: View {
                     if shownScope == .graph {
                         GraphView()
                     } else {
-                        NotesGridView(scope: shownScope ?? .allNotes) { path.append($0) }
+                        NotesGridView(scope: shownScope ?? .allNotes) { open($0) }
                     }
                 }
                 .navigationDestination(for: UUID.self) { noteID in
-                    if store.note(noteID)?.isText == true {
-                        MarkdownNoteView(noteID: noteID)
-                    } else {
-                        NoteEditorView(noteID: noteID)
+                    NoteLockGate(noteID: noteID) {
+                        if store.note(noteID)?.isText == true {
+                            MarkdownNoteView(noteID: noteID)
+                        } else {
+                            NoteEditorView(noteID: noteID)
+                        }
                     }
                 }
             }
