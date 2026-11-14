@@ -189,7 +189,23 @@ final class LibraryStore: ObservableObject {
             for (id, text) in read.recognized where recognized[id] == nil { recognized[id] = text }
             textIndex = texts
             recognizedText = recognized
+            // The library is what Spotlight shows; locked notes stay out.
+            SpotlightIndex.reindex(notes.filter { isUnlocked($0.id) }, previews: Self.previews(texts, recognized))
         }
+    }
+
+    /// The opening text of each indexed note: a text note's first lines,
+    /// or a handwritten note's recognized writing.
+    private static func previews(_ texts: [UUID: TextNoteInfo], _ recognized: [UUID: String]) -> [UUID: String] {
+        var previews: [UUID: String] = [:]
+        for (id, info) in texts { previews[id] = info.preview }
+        for (id, text) in recognized { previews[id] = text }
+        return previews
+    }
+
+    /// The note's opening text, for one-note index updates.
+    private func spotlightPreview(for id: UUID) -> String? {
+        textIndex[id]?.preview ?? recognizedText[id]
     }
 
     private nonisolated static func readTexts(_ items: [(UUID, Bool, URL)]) -> (texts: [UUID: TextNoteInfo], recognized: [UUID: String]) {
@@ -465,6 +481,7 @@ final class LibraryStore: ObservableObject {
             textIndex.removeValue(forKey: id)
             recognizedText.removeValue(forKey: id)
             unlockedNoteIDs.remove(id)
+            SpotlightIndex.remove(id)
         } else {
             reloadTexts(for: id)
         }
@@ -481,6 +498,10 @@ final class LibraryStore: ObservableObject {
     /// Locks every unlocked note again (the app went to the background).
     func lockUnlockedNotes() {
         guard !unlockedNoteIDs.isEmpty else { return }
+        // Locked notes leave Spotlight too, together with the search index.
+        for id in unlockedNoteIDs where note(id)?.locked == true {
+            SpotlightIndex.remove(id)
+        }
         unlockedNoteIDs = []
         lockRevision += 1
     }
@@ -496,6 +517,7 @@ final class LibraryStore: ObservableObject {
             }.value
             for (key, info) in read.texts { textIndex[key] = info }
             for (key, text) in read.recognized { recognizedText[key] = text }
+            SpotlightIndex.update(note, preview: spotlightPreview(for: id))
         }
     }
 
@@ -700,7 +722,9 @@ final class LibraryStore: ObservableObject {
             return nil
         }
         textIndex[id] = TextNoteInfo(text: body)
-        return addNote(id: id, title: name, folderID: folderID, kind: .text)
+        let added = addNote(id: id, title: name, folderID: folderID, kind: .text)
+        SpotlightIndex.update(added, preview: textIndex[id]?.preview)
+        return added
     }
 
     func loadMarkdown(for id: UUID) throws -> String {
@@ -720,6 +744,7 @@ final class LibraryStore: ObservableObject {
         textIndex[id] = TextNoteInfo(text: text)
         notes[index].modifiedAt = Date()
         saveIndex()
+        SpotlightIndex.update(notes[index], preview: textIndex[id]?.preview)
         return true
     }
 
@@ -762,6 +787,7 @@ final class LibraryStore: ObservableObject {
         let newTitle = cleaned(title, fallback: oldTitle)
         notes[index].title = newTitle
         saveIndex()
+        SpotlightIndex.update(notes[index], preview: spotlightPreview(for: id))
         guard NoteLinks.key(oldTitle) != NoteLinks.key(newTitle) else { return }
         let oldKey = NoteLinks.key(oldTitle)
         for (otherID, info) in textIndex where otherID != id {
@@ -800,6 +826,7 @@ final class LibraryStore: ObservableObject {
             textIndex[newID] = TextNoteInfo(text: text)
         }
         saveIndex()
+        SpotlightIndex.update(copy, preview: spotlightPreview(for: newID))
         return copy
     }
 
@@ -819,6 +846,7 @@ final class LibraryStore: ObservableObject {
         textIndex[id] = nil
         recognizedText[id] = nil
         saveIndex()
+        SpotlightIndex.remove(id)
     }
 
     /// Puts a deleted note back, in its folder if that still exists.
@@ -840,6 +868,7 @@ final class LibraryStore: ObservableObject {
             recognizedText[id] = saved.text
         }
         saveIndex()
+        SpotlightIndex.update(note, preview: spotlightPreview(for: id))
     }
 
     /// Removes a deleted note's files for good. It stays in Recently

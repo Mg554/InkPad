@@ -64,10 +64,7 @@ enum PDFExporter {
                     ElementRenderer.draw(elements, on: pageRect, imageDirectory: content.imageDirectory, context: cgContext)
 
                     guard content.drawing.bounds.intersects(pageRect) else { return }
-                    var ink = UIImage()
-                    UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-                        ink = content.drawing.image(from: pageRect, scale: inkScale)
-                    }
+                    let ink = InkSnapshot.snapshot(of: content.drawing, from: pageRect, scale: inkScale)
                     ink.draw(in: pageRect)
                 }
             }

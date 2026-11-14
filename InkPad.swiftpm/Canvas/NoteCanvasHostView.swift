@@ -105,10 +105,7 @@ final class NoteCanvasHostView: UIView {
             for (index, pageRect) in background.layout.pageRects.enumerated() where pageRect.intersects(rect) {
                 background.drawPage(at: index, in: cg)
             }
-            var ink = UIImage()
-            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-                ink = drawing.image(from: rect, scale: scale)
-            }
+            let ink = InkSnapshot.snapshot(of: drawing, from: rect, scale: scale)
             ink.draw(in: rect)
         }
     }

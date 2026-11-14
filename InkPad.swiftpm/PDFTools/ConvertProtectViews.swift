@@ -570,10 +570,7 @@ struct PDFExtraToolSheet: View {
         case .sign:
             guard let document else { return }
             let url = PDFToolKit.temporaryURL(named: "\(baseTitle) (signed)")
-            var picture = UIImage()
-            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-                picture = signature.image(from: signature.bounds.insetBy(dx: -4, dy: -4), scale: 3)
-            }
+            let picture = InkSnapshot.snapshot(of: signature, from: signature.bounds.insetBy(dx: -4, dy: -4), scale: 3)
             guard let cg = picture.cgImage else { return }
             let pageIndex = signPage - 1
             let place = signPlace

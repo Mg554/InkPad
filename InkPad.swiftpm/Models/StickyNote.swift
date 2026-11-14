@@ -143,11 +143,8 @@ struct StickyNote: Codable, Equatable {
             inkArea = CGRect(x: rect.minX + 4, y: textBottom, width: rect.width - 8, height: rect.maxY - textBottom - 4)
         }
         if let drawing, !drawing.strokes.isEmpty {
-            var image = UIImage()
             let inkRect = CGRect(origin: .zero, size: Self.inkSize)
-            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-                image = drawing.image(from: inkRect, scale: 2)
-            }
+            let image = InkSnapshot.snapshot(of: drawing, from: inkRect, scale: 2)
             let side: CGFloat = min(inkArea.width, inkArea.height)
             let inkFrame = CGRect(x: inkArea.midX - side / 2, y: inkArea.midY - side / 2, width: side, height: side)
             image.draw(in: inkFrame)

@@ -189,10 +189,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         if hasSelection, selectionBounds.insetBy(dx: -16, dy: -16).contains(point) {
             let strokes = selected.flatMap { Self.dashed($0, style: dash) }
             let drawing = PKDrawing(strokes: strokes)
-            var image = UIImage()
-            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-                image = drawing.image(from: drawing.bounds.insetBy(dx: -4, dy: -4), scale: 2)
-            }
+            let image = InkSnapshot.snapshot(of: drawing, from: drawing.bounds.insetBy(dx: -4, dy: -4), scale: 2)
             return DragPayload(drawing: drawing, text: nil, image: image)
         }
         if let textHit, selectionBounds.contains(point) {
@@ -222,10 +219,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         drawingBeforeMove = host.canvas.drawing
         // Show the selection as an image while dragging; the canvas keeps the rest.
         let bounds = selectionBounds
-        var image = UIImage()
-        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-            image = PKDrawing(strokes: selected).image(from: bounds, scale: (host.window?.screen.scale ?? 2) * host.canvas.zoomScale)
-        }
+        let image = InkSnapshot.snapshot(of: PKDrawing(strokes: selected), from: bounds, scale: (host.window?.screen.scale ?? 2) * host.canvas.zoomScale)
         host.canvas.drawing = PKDrawing(strokes: others)
         overlay.beginSnapshot(image, frame: bounds)
     }
@@ -550,19 +544,12 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     private func readSelectedInk(_ done: @escaping @MainActor (String) -> Void) {
         guard let host, hasSelection else { return }
         let bounds = selected.reduce(CGRect.null) { $0.union($1.renderBounds) }.insetBy(dx: -12, dy: -12)
-        var ink = UIImage()
-        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-            ink = PKDrawing(strokes: selected).image(from: bounds, scale: max(2, host.window?.screen.scale ?? 2))
-        }
+        let drawing = PKDrawing(strokes: selected)
         // Dark ink on white reads best.
-        let picture = UIGraphicsImageRenderer(size: ink.size).image { context in
-            UIColor.white.setFill()
-            context.fill(CGRect(origin: .zero, size: ink.size))
-            ink.draw(at: .zero)
-        }
+        let picture = InkSnapshot.onWhite(of: drawing, from: bounds, scale: max(2, host.window?.screen.scale ?? 2))
         guard let image = picture.cgImage else { return }
         Task.detached(priority: .userInitiated) {
-            let text = NoteReader.recognizeText(in: image)
+            let text = InkOCR.text(in: image)
             await MainActor.run { done(text) }
         }
     }

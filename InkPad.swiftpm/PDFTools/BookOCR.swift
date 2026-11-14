@@ -1,57 +1,26 @@
 import CoreText
 import PDFKit
 import UIKit
-import Vision
 
 /// A line of text read from an image, with where it is (0...1, y down).
-struct OCRLine: Sendable {
-    let text: String
-    let box: CGRect
-}
+/// The reading itself lives in `InkOCR`, shared with the canvas and the
+/// mind map; this adds the PDF book layer on top.
+typealias OCRLine = InkOCR.Line
 
-/// Reads scanned pages on the iPad (Vision, English and Arabic) and gives
-/// PDFs an invisible text layer, so scans can be searched, selected,
-/// highlighted and read by Living Notes and AI.
+/// Reads scanned pages (InkOCR) and gives PDFs an invisible text layer, so
+/// scans can be searched, selected, highlighted and read by Living Notes
+/// and AI.
 enum BookOCR {
     // MARK: Reading
 
-    /// The languages to read: English and Arabic where this iPad supports them.
-    static func languages(for request: VNRecognizeTextRequest) -> [String] {
-        let wanted = ["en-US", "ar-SA", "ar"]
-        let supported = (try? request.supportedRecognitionLanguages()) ?? []
-        let picked = wanted.filter { supported.contains($0) }
-        return picked.isEmpty ? ["en-US"] : picked
-    }
-
     /// Lines of text in an image, top to bottom.
     static func lines(in image: CGImage) -> [OCRLine] {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        request.recognitionLanguages = languages(for: request)
-        request.automaticallyDetectsLanguage = true
-        do {
-            try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
-        } catch {
-            return []
-        }
-        let observations = request.results ?? []
-        return observations.compactMap { observation -> OCRLine? in
-            guard let text = observation.topCandidates(1).first?.string, !text.isEmpty else { return nil }
-            let box = observation.boundingBox
-            // Vision's origin is bottom-left; ours is top-left.
-            let flipped = CGRect(x: box.minX, y: 1 - box.maxY, width: box.width, height: box.height)
-            return OCRLine(text: text, box: flipped)
-        }
-        .sorted { (a: OCRLine, b: OCRLine) -> Bool in
-            if abs(a.box.midY - b.box.midY) > min(a.box.height, b.box.height) * 0.5 { return a.box.midY < b.box.midY }
-            return a.box.minX < b.box.minX
-        }
+        InkOCR.lines(in: image)
     }
 
     /// Plain text from lines, one line each.
     static func text(of lines: [OCRLine]) -> String {
-        lines.map(\.text).joined(separator: "\n")
+        InkOCR.text(of: lines)
     }
 
     /// Lines arranged as a Markdown table: rows by height, cells by the

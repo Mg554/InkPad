@@ -1,3 +1,4 @@
+import CoreSpotlight
 import SwiftUI
 
 @main
@@ -49,6 +50,14 @@ struct InkPadApp: App {
                         }
                         // Notes are saved on the way out; send them.
                         SyncEngine.shared.soon(delay: 1)
+                    }
+                }
+                // A Spotlight result was tapped: open that note (locked
+                // notes still ask for Face ID on the way in).
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    if let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                       let noteID = UUID(uuidString: id) {
+                        CommandCenter.shared.openFromSpotlight(noteID)
                     }
                 }
         }

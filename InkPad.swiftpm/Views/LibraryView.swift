@@ -248,6 +248,7 @@ struct LibraryView: View {
             .onAppear {
                 commands.navigate = { scope = $0 }
                 commands.openNote = { navigation.openNote($0) }
+                commands.flushPendingOpen()
             }
             .sheet(item: $commands.sheet, onDismiss: applyPendingTheme) { sheet in
                 commandSheet(sheet)
