@@ -71,6 +71,12 @@ struct SidebarView: View {
                     .tag(LibraryScope.graph)
                 Label("Study with AI", systemImage: "graduationcap")
                     .tag(LibraryScope.study)
+                Label("AI Chat", systemImage: "sparkles")
+                    .tag(LibraryScope.aiChat)
+                Label("Calculator", systemImage: "plus.forwardslash.minus")
+                    .tag(LibraryScope.calculator)
+                Label("Plugins", systemImage: "puzzlepiece.extension")
+                    .tag(LibraryScope.plugins)
                 Button {
                     showsRecentlyDeleted = true
                 } label: {
@@ -220,9 +226,6 @@ struct SidebarView: View {
                     Label("Settings", systemImage: "gearshape")
                 }
                 .keyboardShortcut(",", modifiers: .command)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                LanguageButton()
             }
         }
         .sheet(isPresented: $showsBackup) {

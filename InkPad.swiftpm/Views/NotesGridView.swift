@@ -56,6 +56,9 @@ struct NotesGridView: View {
         case .mindMaps: "Mind Maps"
         case .slides: "Slides"
         case .study: "Study"
+        case .aiChat: "AI Chat"
+        case .calculator: "Calculator"
+        case .plugins: "Plugins"
         case .flowmodoro: "Flowmodoro"
         case .reminders: "Reminders"
         case .graph: "Graph"
@@ -72,7 +75,7 @@ struct NotesGridView: View {
     private var targetFolderID: UUID? {
         switch scope {
         case let .folder(id): return id
-        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .pdfTools, .gps, .tag,
+        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .study, .aiChat, .calculator, .plugins, .flowmodoro, .reminders, .graph, .pdfTools, .gps, .tag,
              .favorites, .builtIn, .collection: return nil
         }
     }

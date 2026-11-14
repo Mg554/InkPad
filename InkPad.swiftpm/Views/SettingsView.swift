@@ -10,6 +10,7 @@ struct SettingsView: View {
     @ObservedObject private var ai = AISettings.shared
     @ObservedObject private var looks = FlowLookStore.shared
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
+    @AppStorage(ScrollAxis.storageKey) private var scrollDirection: ScrollAxis = .vertical
     @AppStorage(TextInputMode.defaultsKey) private var textInput: TextInputMode = .keyboard
     @AppStorage("pencilOnly") private var pencilOnly = true
     @AppStorage("transcriptionMethod") private var transcription: TranscriptionMethod = .automatic
@@ -174,6 +175,13 @@ struct SettingsView: View {
         Section("Writing") {
             Toggle(isOn: Binding(get: { !pencilOnly }, set: { pencilOnly = !$0 })) {
                 Label("Draw with Finger", systemImage: "hand.draw")
+            }
+            Picker(selection: $scrollDirection) {
+                ForEach(ScrollAxis.allCases) { option in
+                    Label(tr(option.title), systemImage: option.symbol).tag(option)
+                }
+            } label: {
+                Label("Scrolling Direction", systemImage: scrollDirection.symbol)
             }
             Picker(selection: Binding(get: { textInput }, set: { TextInputMode.set($0) })) {
                 Text("Opens the Keyboard").tag(TextInputMode.keyboard)

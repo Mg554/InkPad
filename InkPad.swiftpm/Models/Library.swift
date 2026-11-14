@@ -249,6 +249,12 @@ enum LibraryScope: Hashable {
     case slides
     /// Study with AI: chat, flashcards, quizzes.
     case study
+    /// A general chat with an AI service, not about any note.
+    case aiChat
+    /// The calculator: write an equation or use the scientific keys.
+    case calculator
+    /// The services InkPad can reach: mail, calendars and the owner's tools.
+    case plugins
     /// The Flowmodoro focus timer and its tasks.
     case flowmodoro
     /// Apple Reminders, shown and edited in InkPad.

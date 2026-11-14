@@ -24,7 +24,7 @@ final class NoteCanvasHostView: UIView {
     private var savedPanTouchTypes: [NSNumber]?
     private var savedPanMinimumTouches = 1
     private let pageBackground = PageBackgroundView()
-    private var background: NoteBackground?
+    private(set) var background: NoteBackground?
     private var fitScale: CGFloat = 0
     private lazy var textTap = UITapGestureRecognizer(target: self, action: #selector(handleTextTap(_:)))
     /// During playback, a finger tap on ink plays from when it was written.
@@ -118,6 +118,9 @@ final class NoteCanvasHostView: UIView {
     func configure(_ background: NoteBackground) {
         guard background != self.background else { return }
         self.background = background
+        elementLayer.axis = background.layout.axis
+        canvas.alwaysBounceVertical = background.layout.axis == .vertical
+        canvas.alwaysBounceHorizontal = background.layout.axis == .horizontal
         pageBackground.configure(background)
         updateZoomGeometry()
     }
@@ -367,11 +370,18 @@ final class NoteCanvasHostView: UIView {
 
     func scrollToPage(_ index: Int) {
         guard let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
+        let axis = background?.layout.axis ?? .vertical
         let inset = canvas.adjustedContentInset
         let zoom = canvas.zoomScale
-        let maxY = max(canvas.contentSize.height + inset.bottom - canvas.bounds.height, -inset.top)
-        let y = min(rects[index].minY * zoom - inset.top, maxY)
-        canvas.setContentOffset(CGPoint(x: canvas.contentOffset.x, y: y), animated: false)
+        if axis == .vertical {
+            let maxY = max(canvas.contentSize.height + inset.bottom - canvas.bounds.height, -inset.top)
+            let y = min(rects[index].minY * zoom - inset.top, maxY)
+            canvas.setContentOffset(CGPoint(x: canvas.contentOffset.x, y: y), animated: false)
+        } else {
+            let maxX = max(canvas.contentSize.width + inset.right - canvas.bounds.width, -inset.left)
+            let x = min(rects[index].minX * zoom - inset.left, maxX)
+            canvas.setContentOffset(CGPoint(x: x, y: canvas.contentOffset.y), animated: false)
+        }
     }
 
     /// The middle of the visible area, in canvas coordinates.
@@ -380,10 +390,16 @@ final class NoteCanvasHostView: UIView {
     }
 
     private func reportVisiblePage() {
-        guard let rects = background?.layout.pageRects, !rects.isEmpty, canvas.zoomScale > 0 else { return }
-        let middleY = (canvas.contentOffset.y + canvas.bounds.height / 2) / canvas.zoomScale
-        let current = rects.lastIndex { $0.minY <= middleY } ?? 0
-        onVisiblePageChange?(current, rects.count)
+        guard let layout = background?.layout, !layout.pageRects.isEmpty, canvas.zoomScale > 0 else { return }
+        let axis = layout.axis
+        let middle: CGFloat
+        if axis == .vertical {
+            middle = (canvas.contentOffset.y + canvas.bounds.height / 2) / canvas.zoomScale
+        } else {
+            middle = (canvas.contentOffset.x + canvas.bounds.width / 2) / canvas.zoomScale
+        }
+        let current = layout.pageRects.lastIndex { axis.minCorner(of: $0) <= middle } ?? 0
+        onVisiblePageChange?(current, layout.pageRects.count)
     }
 }
 

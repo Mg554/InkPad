@@ -16,6 +16,9 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var flashcardDecks: [FlashcardDeck] = []
     @Published private(set) var quizzes: [Quiz] = []
     @Published private(set) var studyChats: [StudyChat] = []
+    /// General chats with an AI service, kept with the rest of the
+    /// workspace.
+    @Published private(set) var aiChats: [AIChat] = []
     @Published private(set) var flowTasks: [FlowTask] = []
     @Published private(set) var flowSessions: [FlowSession] = []
     @Published private(set) var flowTimer: FlowTimer?
@@ -312,6 +315,27 @@ final class WorkspaceStore: ObservableObject {
         studyChats.filter { $0.isAbout(ids) }.sorted { $0.modifiedAt > $1.modifiedAt }
     }
 
+    func save(_ chat: AIChat) {
+        guard canWrite() else { return }
+        if let index = aiChats.firstIndex(where: { $0.id == chat.id }) {
+            aiChats[index] = chat
+        } else {
+            aiChats.append(chat)
+        }
+        persist()
+    }
+
+    func deleteAIChat(_ id: UUID) {
+        guard canWrite() else { return }
+        aiChats.removeAll { $0.id == id }
+        persist()
+    }
+
+    /// The saved general chats, newest first.
+    var recentAIChats: [AIChat] {
+        aiChats.sorted { $0.modifiedAt > $1.modifiedAt }
+    }
+
     func deleteQuiz(_ id: UUID) {
         guard canWrite() else { return }
         quizzes.removeAll { $0.id == id }
@@ -549,6 +573,7 @@ final class WorkspaceStore: ObservableObject {
         flashcardDecks = []
         quizzes = []
         studyChats = []
+        aiChats = []
         flowTasks = []
         flowSessions = []
         flowTimer = nil
@@ -576,6 +601,7 @@ final class WorkspaceStore: ObservableObject {
             flashcardDecks = file.flashcardDecks ?? []
             quizzes = file.quizzes ?? []
             studyChats = file.studyChats ?? []
+            aiChats = file.aiChats ?? []
             flowTasks = file.flowTasks ?? []
             flowSessions = file.flowSessions ?? []
             flowTimer = file.flowTimer
@@ -631,6 +657,7 @@ final class WorkspaceStore: ObservableObject {
             flashcardDecks: flashcardDecks,
             quizzes: quizzes,
             studyChats: studyChats,
+            aiChats: aiChats,
             flowTasks: flowTasks,
             flowSessions: flowSessions,
             flowTimer: flowTimer,

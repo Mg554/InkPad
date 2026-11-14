@@ -658,8 +658,8 @@ struct NoteEditorView: View {
 
     private func connectWritingTools() {
         canvas.onStickyTapped = { id, note in
-            let rects = session.background?.layout.pageRects ?? []
-            stickyRequest = StickyRequest(id: id, note: note, page: canvas.page(ofElement: id, pageRects: rects))
+            let layout = session.displayLayout
+            stickyRequest = StickyRequest(id: id, note: note, page: canvas.page(ofElement: id, layout: layout))
         }
         canvas.onEditorAction = { action in handleEditorAction(action) }
         canvas.onTouchBegan = { if split.active != .main { split.active = .main } }
@@ -832,7 +832,7 @@ struct NoteEditorView: View {
     }
 
     private var stickyItems: [StickyItem] {
-        canvas.stickies(pageRects: session.background?.layout.pageRects ?? [])
+        canvas.stickies(layout: session.displayLayout)
     }
 
     private var stickyGroups: [String] {
@@ -878,7 +878,9 @@ struct NoteEditorView: View {
     /// A new page after `page` with the sticky note's text and handwriting.
     private func turnIntoPage(_ note: StickyNote, after page: Int) {
         session.insertPage(after: page)
-        let rects = session.background?.layout.pageRects ?? []
+        // The canvas works in display coordinates: the new page's place is
+        // where the open canvas shows it.
+        let rects = session.displayLayout.pageRects
         guard rects.indices.contains(page + 1) else { return }
         let rect = rects[page + 1]
         var top: CGFloat = rect.minY + 48

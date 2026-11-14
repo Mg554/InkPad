@@ -19,13 +19,6 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         }
     }
 
-    var shortTitle: String {
-        switch self {
-        case .english: "EN"
-        case .arabic: "ع"
-        }
-    }
-
     var locale: Locale { Locale(identifier: rawValue) }
 
     var layoutDirection: LayoutDirection {
@@ -393,23 +386,5 @@ enum ArabicTable {
             }
         }
         return result
-    }
-}
-
-/// A small AR/EN switch for toolbars.
-struct LanguageButton: View {
-    @ObservedObject private var settings = LanguageSettings.shared
-
-    var body: some View {
-        Button {
-            let next = settings.language.other
-            // Let the tap finish before the whole app is rebuilt.
-            DispatchQueue.main.async { LanguageSettings.shared.set(next) }
-        } label: {
-            Text(verbatim: settings.language.other.shortTitle)
-                .font(.callout.weight(.bold))
-                .frame(minWidth: 26)
-        }
-        .accessibilityLabel(Text(verbatim: settings.language.other.title))
     }
 }

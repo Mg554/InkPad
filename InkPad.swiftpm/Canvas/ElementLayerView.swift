@@ -15,6 +15,8 @@ final class ElementLayerView: UIView {
 
     private(set) weak var selected: PageElementView?
     private var renderScale: CGFloat = 2
+    /// Which way the pages run, for the moves that follow page changes.
+    var axis: PageLayout.Axis = .vertical
 
     var isInteractive = false {
         didSet {
@@ -195,30 +197,41 @@ final class ElementLayerView: UIView {
         onChange?()
     }
 
-    /// Moves elements whose middle is below `y` by `delta`, and removes those
-    /// whose middle falls in `removing`. Used when pages are inserted or deleted.
-    func shiftElements(below y: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
+    /// Moves elements past `value` along the pages' direction by `delta`,
+    /// and removes those whose middle falls in `removing`. Used when pages
+    /// are inserted or deleted.
+    func shiftElements(below value: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
         var changed = false
         for case let view as PageElementView in subviews {
-            let middle = view.frame.midY
+            let middle = axis.mid(of: view.frame)
             if let removing, removing.contains(middle) {
                 if view === selected { selectElement(nil) }
                 view.removeFromSuperview()
                 changed = true
-            } else if middle > y {
-                view.center.y += delta
+            } else if middle > value {
+                if axis == .vertical {
+                    view.center.y += delta
+                } else {
+                    view.center.x += delta
+                }
                 changed = true
             }
         }
         if changed { elementsDidChange() }
     }
 
+    /// Moves elements along the pages' direction; `offset` says how far
+    /// content at a given position moves (used to reorder pages).
     func moveElements(by offset: (CGFloat) -> CGFloat) {
         var changed = false
         for case let view as PageElementView in subviews {
-            let delta = offset(view.frame.midY)
+            let delta = offset(axis.mid(of: view.frame))
             guard delta != 0 else { continue }
-            view.center.y += delta
+            if axis == .vertical {
+                view.center.y += delta
+            } else {
+                view.center.x += delta
+            }
             changed = true
         }
         if changed { elementsDidChange() }

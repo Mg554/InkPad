@@ -272,7 +272,7 @@ final class LibraryStore: ObservableObject {
         switch scope {
         case .allNotes: matching = notes
         case .unfiled: matching = notes.filter { $0.folderID == nil }
-        case .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .pdfTools, .gps: matching = []
+        case .planner, .expenses, .mindMaps, .slides, .study, .aiChat, .calculator, .plugins, .flowmodoro, .reminders, .graph, .pdfTools, .gps: matching = []
         case .favorites: matching = notes.filter(\.favorite)
         case let .builtIn(collection): matching = notes.filter { matches($0, builtIn: collection) }
         case let .collection(id):

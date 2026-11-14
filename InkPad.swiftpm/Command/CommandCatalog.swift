@@ -123,6 +123,18 @@ struct CommandCatalog {
 
     private func settingsItems() -> [PaletteItem] {
         var items: [PaletteItem] = [
+            PaletteItem(id: "go-ai-chat", title: "AI Chat", subtitle: "Ask Claude, ChatGPT, Gemini, Groq or another service", systemImage: "sparkles", section: .goTo,
+                        keywords: ["ai", "chat", "gpt", "claude", "gemini", "groq", "ذكاء", "محادثة"]) { [center] in
+                center.navigate(.aiChat)
+            },
+            PaletteItem(id: "go-calculator", title: "Calculator", subtitle: "Write an equation, or use the scientific keys", systemImage: "plus.forwardslash.minus", section: .goTo,
+                        keywords: ["calculator", "math", "equation", "حاسبة", "رياضيات", "معادلة"]) { [center] in
+                center.navigate(.calculator)
+            },
+            PaletteItem(id: "go-plugins", title: "Plugins", subtitle: "Mail, calendars and the tools you use", systemImage: "puzzlepiece.extension", section: .goTo,
+                        keywords: ["plugins", "mail", "calendar", "gmail", "إضافة", "بريد", "تقويم"]) { [center] in
+                center.navigate(.plugins)
+            },
             PaletteItem(id: "set-themes", title: "Themes & Theme Mixer…", systemImage: "paintbrush", section: .settings,
                         keywords: ["theme", "colors", "ثيم", "ألوان"]) { [center] in center.sheet = .themes },
             PaletteItem(id: "set-backup", title: "Back Up Now", subtitle: "Saved in InkPad Automatic Backups", systemImage: "externaldrive.badge.checkmark",
@@ -131,6 +143,13 @@ struct CommandCatalog {
                     let done = await store.makeAutomaticBackupIfDue(force: true, workspace: workspace)
                     center.say(done ? "Backed up to InkPad Automatic Backups" : "The backup couldn't be made")
                 }
+            },
+            PaletteItem(id: "set-language", title: "Switch Language", subtitle: "Switches InkPad's own words between English and Arabic", systemImage: "globe", section: .settings,
+                        keywords: ["language", "arabic", "english", "لغة", "عربي", "إنجليزي"]) {
+                let next = LanguageSettings.shared.language.other
+                // The switch rebuilds every view (like a theme change), so
+                // nothing else is said — the new language is its own feedback.
+                DispatchQueue.main.async { LanguageSettings.shared.set(next) }
             },
             PaletteItem(id: "set-spotlight", title: "Rebuild Spotlight Search", subtitle: "Put every unlocked note back in the iPad's search", systemImage: "sparkle.magnifyingglass", section: .settings,
                         keywords: ["spotlight", "search", "index", "سبوت لايت", "بحث"]) { [store, center] in

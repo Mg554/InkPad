@@ -88,6 +88,9 @@ struct LibraryView: View {
         case .mindMaps: "mindMaps"
         case .slides: "slides"
         case .study: "study"
+        case .aiChat: "aiChat"
+        case .calculator: "calculator"
+        case .plugins: "plugins"
         case .flowmodoro: "flowmodoro"
         case .reminders: "reminders"
         case .pdfTools: "pdfTools"
@@ -109,6 +112,12 @@ struct LibraryView: View {
             SlideDecksView()
         case .study:
             StudyView()
+        case .aiChat:
+            NavigationStack { AIChatView() }
+        case .calculator:
+            NavigationStack { CalculatorView() }
+        case .plugins:
+            NavigationStack { PluginsView() }
         case .flowmodoro:
             NavigationStack { FlowmodoroView() }
         case .reminders:

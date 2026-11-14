@@ -18,6 +18,10 @@ final class CanvasController: NSObject, ObservableObject {
     @Published private(set) var selection: Selection?
     /// Bumped after formatting changes so the toolbar re-reads the text state.
     @Published private(set) var formattingRevision = 0
+    /// The direction the pages run in this open note, fixed while it is
+    /// open (Settings › Scrolling Direction applies to the notes opened
+    /// next).
+    let axis: ScrollAxis = ScrollAxis.current
     @Published var isRulerActive = false {
         didSet { host?.canvas.isRulerActive = isRulerActive }
     }
@@ -444,35 +448,48 @@ final class CanvasController: NSObject, ObservableObject {
         host?.elementLayer.removeSelected()
     }
 
-    /// Moves ink and elements below `y` by `delta` and removes what lies in
-    /// `removing`, keeping content on its page when pages are inserted or deleted.
-    func shiftContent(below y: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
+    /// Moves ink and elements past `value` along the pages' direction by
+    /// `delta` and removes what lies in `removing`, keeping content on its
+    /// page when pages are inserted or deleted.
+    func shiftContent(below value: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
         guard let host else { return }
-        let move = CGAffineTransform(translationX: 0, y: delta)
+        let axis = host.background?.layout.axis ?? .vertical
+        let move: CGAffineTransform
+        if axis == .vertical {
+            move = CGAffineTransform(translationX: 0, y: delta)
+        } else {
+            move = CGAffineTransform(translationX: delta, y: 0)
+        }
         var strokes: [PKStroke] = []
         for var stroke in host.canvas.drawing.strokes {
-            let middle = stroke.renderBounds.midY
+            let middle = axis.mid(of: stroke.renderBounds)
             if let removing, removing.contains(middle) { continue }
-            if middle > y { stroke.transform = stroke.transform.concatenating(move) }
+            if middle > value { stroke.transform = stroke.transform.concatenating(move) }
             strokes.append(stroke)
         }
         host.canvas.drawing = PKDrawing(strokes: strokes)
         // Ink undo steps refer to the old positions.
         host.canvas.undoManager?.removeAllActions()
-        host.elementLayer.shiftElements(below: y, by: delta, removing: removing)
+        host.elementLayer.shiftElements(below: value, by: delta, removing: removing)
         contentDidChange()
     }
 
-    /// Moves ink and elements vertically; `offset` says how far content
-    /// centered at a given y moves (used to reorder pages).
+    /// Moves ink and elements along the pages' direction; `offset` says how
+    /// far content at a given position moves (used to reorder pages).
     func moveContent(by offset: (CGFloat) -> CGFloat) {
         guard let host else { return }
+        let axis = host.background?.layout.axis ?? .vertical
         var strokes = host.canvas.drawing.strokes
         for index in strokes.indices {
-            let delta = offset(strokes[index].renderBounds.midY)
+            let delta = offset(axis.mid(of: strokes[index].renderBounds))
             guard delta != 0 else { continue }
-            strokes[index].transform = strokes[index].transform
-                .concatenating(CGAffineTransform(translationX: 0, y: delta))
+            let move: CGAffineTransform
+            if axis == .vertical {
+                move = CGAffineTransform(translationX: 0, y: delta)
+            } else {
+                move = CGAffineTransform(translationX: delta, y: 0)
+            }
+            strokes[index].transform = strokes[index].transform.concatenating(move)
         }
         host.canvas.drawing = PKDrawing(strokes: strokes)
         // Ink undo steps refer to the old positions.
@@ -482,22 +499,33 @@ final class CanvasController: NSObject, ObservableObject {
     }
 
     /// Copies the ink and elements on a page (`rect`, with half the gap
-    /// around it) down by `delta`, for a duplicated page.
+    /// around it) along the pages' direction by `delta`, for a duplicated
+    /// page.
     func duplicateContent(in rect: CGRect, by delta: CGFloat) {
         guard let host else { return }
+        let axis = host.background?.layout.axis ?? .vertical
         let gap = PageLayout.pageGap / 2
-        let range = (rect.minY - gap)...(rect.maxY + gap)
-        let move = CGAffineTransform(translationX: 0, y: delta)
+        let range = (axis.minCorner(of: rect) - gap)...(axis.maxCorner(of: rect) + gap)
+        let move: CGAffineTransform
+        if axis == .vertical {
+            move = CGAffineTransform(translationX: 0, y: delta)
+        } else {
+            move = CGAffineTransform(translationX: delta, y: 0)
+        }
         var strokes = host.canvas.drawing.strokes
-        for var stroke in host.canvas.drawing.strokes where range.contains(stroke.renderBounds.midY) {
+        for var stroke in host.canvas.drawing.strokes where range.contains(axis.mid(of: stroke.renderBounds)) {
             stroke.transform = stroke.transform.concatenating(move)
             strokes.append(stroke)
         }
         host.canvas.drawing = PKDrawing(strokes: strokes)
         host.canvas.undoManager?.removeAllActions()
         let current = host.elementLayer.elements
-        let copies: [PageElement] = current.filter { range.contains($0.frame.midY) }.map { element in
-            PageElement(id: UUID(), frame: element.frame.offsetBy(dx: 0, dy: delta), content: element.content)
+        let copies: [PageElement] = current.filter { range.contains(axis.mid(of: $0.frame)) }.map { element in
+            PageElement(
+                id: UUID(),
+                frame: element.frame.offsetBy(dx: axis == .vertical ? 0 : delta, dy: axis == .vertical ? delta : 0),
+                content: element.content
+            )
         }
         if !copies.isEmpty { host.elementLayer.load(current + copies) }
         contentDidChange()
@@ -528,23 +556,25 @@ final class CanvasController: NSObject, ObservableObject {
     }
 
     /// Every sticky note in the note, with the page it is on.
-    func stickies(pageRects: [CGRect]) -> [StickyItem] {
+    func stickies(layout: PageLayout) -> [StickyItem] {
         let elements = self.elements ?? []
+        let axis = layout.axis
         var result: [StickyItem] = []
         for element in elements {
             guard case let .sticky(note) = element.content else { continue }
-            let middle = element.frame.minY + 10
-            let page = pageRects.lastIndex(where: { $0.minY - PageLayout.pageGap <= middle }) ?? 0
+            let middle = axis.mid(of: element.frame) + (axis == .vertical ? 10 : 0)
+            let page = layout.pageRects.lastIndex { axis.minCorner(of: $0) - PageLayout.pageGap <= middle } ?? 0
             result.append(StickyItem(id: element.id, note: note, page: page))
         }
         return result
     }
 
     /// The page a sticky note is on.
-    func page(ofElement id: UUID, pageRects: [CGRect]) -> Int {
+    func page(ofElement id: UUID, layout: PageLayout) -> Int {
         guard let element = (elements ?? []).first(where: { $0.id == id }) else { return currentPage }
-        let middle = element.frame.minY + 10
-        return pageRects.lastIndex(where: { $0.minY - PageLayout.pageGap <= middle }) ?? currentPage
+        let axis = layout.axis
+        let middle = axis.mid(of: element.frame) + (axis == .vertical ? 10 : 0)
+        return layout.pageRects.lastIndex { axis.minCorner(of: $0) - PageLayout.pageGap <= middle } ?? currentPage
     }
 
     /// A drop: ink, text and sticky notes are placed here; pictures, notes

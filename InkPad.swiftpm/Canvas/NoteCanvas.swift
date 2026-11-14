@@ -16,9 +16,14 @@ struct NoteCanvas: UIViewRepresentable {
 
     func makeUIView(context: Context) -> NoteCanvasHostView {
         let host = NoteCanvasHostView()
-        host.canvas.drawing = initialContent.drawing
+        // The note keeps its pages stacked down the screen; the canvas may
+        // show them across instead (Settings › Scrolling Direction).
+        let axis = controller.axis
+        context.coordinator.axis = axis
+        let display = axis.displayBackground(background)
+        host.canvas.drawing = ScrollAxis.toDisplay(drawing: initialContent.drawing, stored: background, display: display)
         host.elementLayer.imageDirectory = initialContent.imageDirectory
-        host.elementLayer.load(initialContent.metadata.elements ?? [])
+        host.elementLayer.load(ScrollAxis.toDisplay(elements: initialContent.metadata.elements ?? [], stored: background, display: display))
         // Connect change reporting after loading so loading is not reported as an edit.
         host.canvas.delegate = context.coordinator
         context.coordinator.host = host
@@ -42,7 +47,9 @@ struct NoteCanvas: UIViewRepresentable {
             host.canvas.drawingPolicy = policy
             host.refreshLassoMode()
         }
-        host.configure(background)
+        // The direction is fixed while the note is open: changing it in
+        // Settings applies to the notes opened next.
+        host.configure(context.coordinator.axis.displayBackground(background))
     }
 
     static func dismantleUIView(_ host: NoteCanvasHostView, coordinator: Coordinator) {
@@ -53,6 +60,8 @@ struct NoteCanvas: UIViewRepresentable {
     final class Coordinator: NSObject, PKCanvasViewDelegate {
         let controller: CanvasController
         weak var host: NoteCanvasHostView?
+        /// The direction the pages run in this open note.
+        var axis: ScrollAxis = .vertical
 
         init(controller: CanvasController) {
             self.controller = controller
