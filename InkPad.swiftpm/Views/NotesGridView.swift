@@ -26,6 +26,8 @@ struct NotesGridView: View {
     @State private var isOrganizing = false
     /// Open Beside…: the note to open, waiting for the second one.
     @State private var besideNote: NoteSummary?
+    /// The note whose details sheet (Note Info) is open.
+    @State private var infoNote: NoteSummary?
     @AppStorage(NoteSort.storageKey) private var sortRaw = NoteSort.edited.rawValue
     @AppStorage(LibraryLayout.storageKey) private var layoutRaw = LibraryLayout.grid.rawValue
 
@@ -210,6 +212,10 @@ struct NotesGridView: View {
                 CommandCenter.shared.openNote(note.id, beside: other)
             }
             .environmentObject(store)
+        }
+        .sheet(item: $infoNote) { note in
+            NoteInfoView(note: note)
+                .environmentObject(store)
         }
         .sheet(item: $coverNote) { note in
             CoverEditor(note: note)
@@ -466,6 +472,12 @@ struct NotesGridView: View {
             ) { store.renameNote(note.id, to: $0) }
         } label: {
             Label("Rename", systemImage: "pencil")
+        }
+
+        Button {
+            infoNote = note
+        } label: {
+            Label("Note Info", systemImage: "info.circle")
         }
 
         Button {

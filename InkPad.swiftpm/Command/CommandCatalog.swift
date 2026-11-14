@@ -132,6 +132,12 @@ struct CommandCatalog {
                     center.say(done ? "Backed up to InkPad Automatic Backups" : "The backup couldn't be made")
                 }
             },
+            PaletteItem(id: "set-spotlight", title: "Rebuild Spotlight Search", subtitle: "Put every unlocked note back in the iPad's search", systemImage: "sparkle.magnifyingglass", section: .settings,
+                        keywords: ["spotlight", "search", "index", "سبوت لايت", "بحث"]) { [store, center] in
+                Task {
+                    center.say(await store.rebuildSpotlightIndex())
+                }
+            },
             PaletteItem(id: "set-flow", title: "Start Focusing (Flowmodoro)", systemImage: "play.circle", tint: .green, section: .settings,
                         keywords: ["focus", "timer", "pomodoro", "تركيز", "ابدأ"]) { [workspace, center] in
                 center.navigate(.flowmodoro)

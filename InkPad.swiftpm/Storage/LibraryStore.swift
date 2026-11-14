@@ -190,7 +190,7 @@ final class LibraryStore: ObservableObject {
             textIndex = texts
             recognizedText = recognized
             // The library is what Spotlight shows; locked notes stay out.
-            SpotlightIndex.reindex(notes.filter { isUnlocked($0.id) }, previews: Self.previews(texts, recognized))
+            await SpotlightIndex.reindex(notes.filter { isUnlocked($0.id) }, previews: Self.previews(texts, recognized))
         }
     }
 
@@ -206,6 +206,12 @@ final class LibraryStore: ObservableObject {
     /// The note's opening text, for one-note index updates.
     private func spotlightPreview(for id: UUID) -> String? {
         textIndex[id]?.preview ?? recognizedText[id]
+    }
+
+    /// Puts every unlocked note into Spotlight again (`Rebuild Spotlight
+    /// Search` in the command palette). Returns a line for the owner.
+    func rebuildSpotlightIndex() async -> String {
+        await SpotlightIndex.reindex(notes.filter { isUnlocked($0.id) }, previews: Self.previews(textIndex, recognizedText))
     }
 
     private nonisolated static func readTexts(_ items: [(UUID, Bool, URL)]) -> (texts: [UUID: TextNoteInfo], recognized: [UUID: String]) {
@@ -462,6 +468,16 @@ final class LibraryStore: ObservableObject {
     }
 
     // MARK: Locked Notes
+
+    /// Saves the note's details the owner wrote in Note Info.
+    func setDetails(_ text: String, for id: UUID) {
+        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let details = trimmed.isEmpty ? nil : trimmed
+        guard notes[index].details != details else { return }
+        notes[index].details = details
+        saveIndex()
+    }
 
     /// Whether the note may open right now: not locked, or unlocked with
     /// Face ID since the app was last in the background.

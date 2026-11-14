@@ -111,6 +111,8 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     /// Locked with Face ID (or the device passcode): its text and ink stay
     /// out of search, previews and Living Notes until it is unlocked.
     var isLocked: Bool?
+    /// The owner's own details for the note (Note Info).
+    var details: String?
     /// When it was pinned; pinned notes come first in every list.
     var pinnedAt: Date?
     /// A cover shown instead of the first page.
