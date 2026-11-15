@@ -137,10 +137,10 @@ struct ToolbarDropPreview: View {
 
     var body: some View {
         let vertical = placement.edge.isVertical
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
+        RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous)
             .fill(Color.inkAccent.opacity(0.12))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous)
                     .strokeBorder(Color.inkAccent.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
             )
             .frame(width: vertical ? 100 : 380, height: vertical ? 380 : 100)

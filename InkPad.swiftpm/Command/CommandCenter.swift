@@ -79,6 +79,23 @@ final class CommandCenter: ObservableObject {
     var openNote: (UUID) -> Void = { _ in }
     /// A page to show when a note opens (a task made from a sticky note).
     private var pendingPages: [UUID: Int] = [:]
+    /// A Spotlight tap can arrive before the library view is up (cold
+    /// launch); the note waits here until navigation is ready.
+    private var pendingSpotlightOpen: UUID?
+
+    /// Opens a note tapped in Spotlight, whenever that happens.
+    func openFromSpotlight(_ id: UUID) {
+        pendingSpotlightOpen = id
+        flushPendingOpen()
+    }
+
+    /// Opens what Spotlight left behind. The library view calls this when
+    /// it appears.
+    func flushPendingOpen() {
+        guard let id = pendingSpotlightOpen else { return }
+        pendingSpotlightOpen = nil
+        openNote(id)
+    }
 
     func openNote(_ id: UUID, page: Int) {
         pendingPages[id] = page

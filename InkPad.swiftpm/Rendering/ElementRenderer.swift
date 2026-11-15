@@ -30,6 +30,19 @@ enum ElementRenderer {
                 image.draw(in: element.frame)
             case let .sticky(note):
                 note.draw(in: StickyNote.visibleFrame(element.frame, folded: note.isFolded), context: context)
+            case let .comment(comment):
+                // The same badge the editor shows (CommentPinView).
+                let image = UIImage(systemName: comment.isResolved ?? false ? "checkmark.seal.fill" : "bubble.left.and.bubble.right.fill")?
+                    .withTintColor(comment.isResolved ?? false ? .systemGray : .systemYellow, renderingMode: .alwaysOriginal)
+                image?.draw(in: element.frame)
+            case let .tape(tape):
+                // Draw an opaque rounded rect tape mask.
+                let cornerRadius: CGFloat = 8
+                let path = UIBezierPath(roundedRect: element.frame, byRoundingCorners: .allCorners, cornerRadii: CGSize(width: cornerRadius, height: cornerRadius))
+                context.addPath(path.cgPath)
+                context.setFillColor(UIColor(red: tape.red, green: tape.green, blue: tape.blue, alpha: 1).cgColor)
+                context.setAlpha(1)
+                context.drawPath(using: .fill)
             }
         }
     }

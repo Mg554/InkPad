@@ -35,12 +35,12 @@ struct RestoreOptionsView: View {
         NavigationStack {
             Form {
                 Section {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                         Text("Backup from \(contents.manifest.createdAt.formatted(date: .long, time: .shortened))")
                             .font(.headline)
                         Text(Self.count(contents.notes.count, "note") + " in " + Self.count(contents.folders.count, "folder"))
                             .foregroundStyle(.secondary)
-                        HStack(spacing: 14) {
+                        HStack(spacing: Theme.Spacing.xxl) {
                             badge("\(newCount) new", color: .green)
                             badge("\(newerCount) newer", color: .orange)
                             badge("\(contents.notes.count - newCount - newerCount) same", color: .secondary)
@@ -111,12 +111,12 @@ struct RestoreOptionsView: View {
     }
 
     private func option(_ title: String, detail: String, image: String, tint: Color, recommended: Bool = false) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Theme.Spacing.xxl) {
             Image(systemName: image)
                 .font(.title2)
                 .foregroundStyle(tint)
                 .frame(width: 32)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 HStack {
                     Text(tr(title))
                         .font(.headline)
@@ -179,13 +179,13 @@ private struct BackupNotePicker: View {
                     selection.insert(note.id)
                 }
             } label: {
-                HStack(spacing: 12) {
+                HStack(spacing: Theme.Spacing.xl) {
                     Image(systemName: selection.contains(note.id) ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
                         .foregroundStyle(selection.contains(note.id) ? Color.inkAccent : Color.secondary)
                     Image(systemName: note.isText ? "doc.text" : "pencil.and.scribble")
                         .foregroundStyle(.secondary)
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                         Text(tr(note.title))
                             .foregroundStyle(Color(uiColor: .label))
                         Text("\(folderName(note.folderID)) · \(note.modifiedAt.formatted(date: .abbreviated, time: .shortened))")

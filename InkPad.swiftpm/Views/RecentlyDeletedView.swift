@@ -91,7 +91,7 @@ struct RecentlyDeletedView: View {
     }
 
     private func row(_ note: NoteSummary) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             DeletedNoteThumbnail(note: note)
             VStack(alignment: .leading, spacing: 3) {
                 Text(tr(note.title))
@@ -136,8 +136,8 @@ private struct DeletedNoteThumbnail: View {
             }
         }
         .frame(width: 44, height: 58)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xs).stroke(.quaternary))
         .task(id: note.id) {
             if !note.isText { thumbnail = await store.cardThumbnail(for: note.id, modifiedAt: note.modifiedAt) }
         }

@@ -39,12 +39,12 @@ struct StickerStudioView: View {
     @State private var renaming: Sticker?
     @State private var newName = ""
 
-    private let columns = [GridItem(.adaptive(minimum: 86, maximum: 120), spacing: 12)]
+    private let columns = [GridItem(.adaptive(minimum: 86, maximum: 120), spacing: Theme.Spacing.xl)]
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxl2) {
                     Picker("Show", selection: $tab) {
                         ForEach(Tab.allCases) { Text(tr($0.title)).tag($0) }
                     }
@@ -60,7 +60,7 @@ struct StickerStudioView: View {
                 if isWorking {
                     ProgressView("Making the sticker…")
                         .padding(24)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
                 }
             }
         }
@@ -143,7 +143,7 @@ struct StickerStudioView: View {
         case .packs:
             ForEach(StickerPack.all) { pack in
                 Text(tr(pack.name)).font(.headline)
-                LazyVGrid(columns: columns, spacing: 12) {
+                LazyVGrid(columns: columns, spacing: Theme.Spacing.xl) {
                     ForEach(pack.stickers) { sticker in
                         builtInCell(sticker)
                     }
@@ -155,7 +155,7 @@ struct StickerStudioView: View {
             if mine.isEmpty {
                 emptyText("Add a picture with +, or circle handwriting with the lasso and choose Save as Sticker.")
             } else {
-                LazyVGrid(columns: columns, spacing: 12) {
+                LazyVGrid(columns: columns, spacing: Theme.Spacing.xl) {
                     ForEach(mine) { sticker in
                         ownCell(sticker)
                     }
@@ -166,7 +166,7 @@ struct StickerStudioView: View {
 
     private var folderBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.Spacing.md) {
                 folderChip(nil, title: tr("All"))
                 ForEach(store.folders, id: \.self) { name in
                     folderChip(name, title: name)
@@ -201,7 +201,7 @@ struct StickerStudioView: View {
         if keys.isEmpty {
             emptyText(empty)
         } else {
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: columns, spacing: Theme.Spacing.xl) {
                 ForEach(keys, id: \.self) { key in
                     if let builtIn = StickerPack.sticker(forKey: key) {
                         builtInCell(builtIn)
@@ -293,7 +293,7 @@ struct StickerStudioView: View {
 
     private func cell(_ image: UIImage?, isFavorite: Bool, isInk: Bool = false) -> some View {
         ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Theme.Radius.xl)
                 .fill(Color.primary.opacity(0.05))
             if let image {
                 Image(uiImage: image)
@@ -301,7 +301,7 @@ struct StickerStudioView: View {
                     .scaledToFit()
                     .padding(10)
             }
-            HStack(spacing: 2) {
+            HStack(spacing: Theme.Spacing.x2) {
                 if isInk { Image(systemName: "scribble") }
                 if isFavorite { Image(systemName: "star.fill").foregroundStyle(.yellow) }
             }

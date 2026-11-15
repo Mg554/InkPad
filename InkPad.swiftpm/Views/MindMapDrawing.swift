@@ -65,8 +65,8 @@ struct MindNodeChrome: ViewModifier {
                 .shadow(color: glow, radius: radius)
         case .rounded:
             content
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(fill))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(outline, lineWidth: width))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).fill(fill))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).stroke(outline, lineWidth: width))
                 .shadow(color: glow, radius: radius)
         case .box:
             content
@@ -112,7 +112,7 @@ struct MindNodeChrome: ViewModifier {
                 .shadow(color: glow, radius: radius / 2)
         case .plain:
             content
-                .background(isSelected ? AnyShapeStyle(color.opacity(0.15)) : AnyShapeStyle(Color.clear), in: RoundedRectangle(cornerRadius: 8))
+                .background(isSelected ? AnyShapeStyle(color.opacity(0.15)) : AnyShapeStyle(Color.clear), in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
         }
     }
 }
@@ -265,11 +265,6 @@ struct InkImage: View {
 
     private static func render(_ data: Data, dark: Bool) -> UIImage? {
         guard let drawing = try? PKDrawing(data: data), !drawing.strokes.isEmpty else { return nil }
-        let bounds = drawing.bounds.insetBy(dx: -4, dy: -4)
-        var image: UIImage?
-        UITraitCollection(userInterfaceStyle: dark ? .dark : .light).performAsCurrent {
-            image = drawing.image(from: bounds, scale: 2)
-        }
-        return image
+        return InkSnapshot.snapshot(of: drawing, from: drawing.bounds.insetBy(dx: -4, dy: -4), scale: 2, dark: dark)
     }
 }

@@ -108,7 +108,7 @@ struct PageTabSheet: View {
                     TextField("Tab name, like Chapter 2", text: $name)
                 }
                 Section("Color") {
-                    HStack(spacing: 10) {
+                    HStack(spacing: Theme.Spacing.lg) {
                         ForEach(FolderColor.allCases) { option in
                             Button {
                                 color = option
@@ -161,7 +161,7 @@ struct PageTabStrip: View {
         let tabs = session.tabs
         if !tabs.isEmpty {
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .trailing, spacing: 6) {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.sm) {
                     ForEach(tabs) { tab in
                         Button {
                             canvas.scrollToPage(tab.page)
@@ -278,7 +278,7 @@ struct MovePagesSheet: View {
             }
             .overlay {
                 if working {
-                    ProgressView().padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    ProgressView().padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
                 }
             }
             .alert("Move Pages", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {

@@ -29,7 +29,7 @@ struct SlidePresenter: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            VStack(spacing: 16) {
+            VStack(spacing: Theme.Spacing.xxl2) {
                 Spacer(minLength: 0)
                 slideArea
                 if showsNotes, let slide = currentSlide {
@@ -67,7 +67,7 @@ struct SlidePresenter: View {
             }
         }
         .aspectRatio(16.0 / 9.0, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
         .overlay {
             if usesLaser {
                 laserLayer
@@ -133,14 +133,14 @@ struct SlidePresenter: View {
                 .padding(16)
         }
         .frame(maxHeight: 150)
-        .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     // MARK: Controls
 
     private var controls: some View {
-        HStack(spacing: 18) {
+        HStack(spacing: Theme.Spacing.huge) {
             Button {
                 dismiss()
             } label: {

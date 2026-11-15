@@ -80,7 +80,7 @@ struct LivingBubble: View {
         let concepts = isOn ? living.concepts(in: noteID, liveText: liveText) : []
         let links = isOn ? living.suggestedLinks(for: noteID, store: store) : []
         let decks = isOn ? living.decks(for: noteID, workspace: workspace) : []
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Label("Living Notes", systemImage: "leaf")
                 .font(.headline)
                 .padding(.bottom, 6)
@@ -158,7 +158,7 @@ struct LivingPanel: View {
             .padding()
             Text(tr(tab.title)).font(.headline).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                     content
                 }
                 .padding()
@@ -219,7 +219,7 @@ struct LivingPanel: View {
 
     private func relatedCard(_ item: LivingNotes.Related, suggest: Bool) -> some View {
         let note = store.note(item.id)
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             HStack {
                 Image(systemName: note?.isText == true ? "doc.text" : "pencil.and.scribble").foregroundStyle(.green)
                 Text(note?.title ?? "Note").font(.headline).lineLimit(1)
@@ -232,7 +232,7 @@ struct LivingPanel: View {
                 .foregroundStyle(.green)
             Text(item.snippet).font(.caption).foregroundStyle(.secondary).lineLimit(3)
             if let explanation = explanations[item.id] {
-                Text(explanation).font(.callout).padding(10).background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                Text(explanation).font(.callout).padding(10).background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
             }
             HStack {
                 Button("Open") { navigation.openNote(item.id) }
@@ -300,12 +300,12 @@ private struct FlowChips: View {
     let tap: (LivingNotes.Concept) -> Void
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], alignment: .leading, spacing: 8) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: Theme.Spacing.md)], alignment: .leading, spacing: Theme.Spacing.md) {
             ForEach(items) { concept in
                 Button {
                     tap(concept)
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Theme.Spacing.xs) {
                         Text(concept.display).lineLimit(1)
                         Text("\(concept.otherNotes)").font(.caption2.bold()).foregroundStyle(.white)
                             .padding(.horizontal, 5).background(Color.green, in: Capsule())
@@ -345,7 +345,7 @@ struct ConceptCardView: View {
                             dismiss()
                             CommandCenter.shared.openNote(mention.noteID)
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                                 HStack {
                                     Text(tr(mention.title)).font(.headline).foregroundStyle(Color(uiColor: .label))
                                     Spacer()

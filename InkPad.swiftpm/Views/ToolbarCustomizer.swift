@@ -79,7 +79,7 @@ struct ToolbarCustomizer: View {
 
     private func row(_ tool: DrawingTool) -> some View {
         let isShown = palette.isShown(tool)
-        return HStack(spacing: 14) {
+        return HStack(spacing: Theme.Spacing.xxl) {
             Button {
                 palette.setShown(!isShown, for: tool)
                 onChange()

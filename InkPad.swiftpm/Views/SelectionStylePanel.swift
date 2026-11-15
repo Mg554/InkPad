@@ -15,12 +15,12 @@ struct SelectionStylePanel: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
             Text("Stroke")
                 .font(.headline)
             WidthLevelBar(level: $selection.level)
 
-            HStack(spacing: 10) {
+            HStack(spacing: Theme.Spacing.lg) {
                 ForEach(LassoSelection.DashStyle.allCases) { style in
                     Button {
                         selection.dash = style
@@ -46,7 +46,7 @@ struct SelectionStylePanel: View {
                         selection.setColor(customColor)
                     }
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 8), spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Theme.Spacing.lg), count: 8), spacing: Theme.Spacing.xl) {
                 ForEach(Self.colors, id: \.self) { color in
                     Button {
                         pickedColor = color

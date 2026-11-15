@@ -10,7 +10,7 @@ struct KnowledgeMapsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
                 Text("A map of what you're learning: a book's chapters, a subject's notes, or stations you make (like an exam syllabus). See where you are, what's next, and whether you'll be ready by the exam.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -18,7 +18,7 @@ struct KnowledgeMapsView: View {
                     ContentUnavailableView("No Maps Yet", systemImage: "location.north.circle", description: Text("Tap + to map a book, a subject or a syllabus."))
                         .padding(.top, 30)
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: Theme.Spacing.xxl2)], spacing: Theme.Spacing.xxl2) {
                     ForEach(workspace.knowledgeMaps) { map in
                         NavigationLink {
                             KnowledgeMapView(mapID: map.id)
@@ -68,7 +68,7 @@ private struct MapCard: View {
 
     var body: some View {
         let marked = map.stations.filter { $0.mark == .mastered }.count
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             HStack {
                 Image(systemName: map.style.systemImage).font(.title2).foregroundStyle(Color.inkAccent)
                 Spacer()
@@ -496,7 +496,7 @@ private struct KnowledgeMapCanvas: View {
 
     private func island(_ station: KnowledgeStation, state: StationProgress, isHere: Bool) -> some View {
         let tint = color(state.level)
-        return VStack(spacing: 4) {
+        return VStack(spacing: Theme.Spacing.xs) {
             if isHere {
                 Label("You are here", systemImage: "mappin.circle.fill")
                     .font(.caption.weight(.bold))
@@ -532,9 +532,9 @@ private struct KnowledgeMapCanvas: View {
 
     private func metroStop(_ station: KnowledgeStation, state: StationProgress, isHere: Bool) -> some View {
         let tint = color(state.level)
-        return VStack(spacing: 6) {
+        return VStack(spacing: Theme.Spacing.sm) {
             ZStack {
-                Circle().fill(state.level == .mastered ? tint : Color(uiColor: .systemBackground)).frame(width: 30, height: 30)
+                Circle().fill(state.level == .mastered ? tint : Theme.Colors.surface).frame(width: 30, height: 30)
                 Circle().stroke(tint, lineWidth: 5).frame(width: 30, height: 30)
                 if isHere {
                     Circle().stroke(Color.red, lineWidth: 3).frame(width: 44, height: 44)
@@ -548,7 +548,7 @@ private struct KnowledgeMapCanvas: View {
                 .frame(maxWidth: 130)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
             Text("\(Int(state.value * 100))%").font(.caption2).foregroundStyle(.secondary)
         }
         .offset(y: 26)
@@ -557,10 +557,10 @@ private struct KnowledgeMapCanvas: View {
     private func treeNode(_ station: KnowledgeStation, state: StationProgress, isHere: Bool, index: Int) -> some View {
         let tint = color(state.level)
         let locked: Bool = state.level == .fog && index > (here ?? 0) + 1
-        let content = HStack(spacing: 10) {
+        let content = HStack(spacing: Theme.Spacing.lg) {
             Image(systemName: locked ? "lock.fill" : (state.level == .mastered ? "star.fill" : "leaf.fill"))
                 .foregroundStyle(locked ? Color.gray : tint)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text(tr(station.title)).font(.callout.weight(.semibold)).lineLimit(2).foregroundStyle(Color(uiColor: .label))
                 ProgressView(value: state.value).tint(tint)
             }
@@ -570,8 +570,8 @@ private struct KnowledgeMapCanvas: View {
             .opacity(locked ? 0.5 : 1)
             .padding(12)
             .frame(width: 230)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(isHere ? Color.red : tint.opacity(0.5), lineWidth: isHere ? 2.5 : 1))
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl).stroke(isHere ? Color.red : tint.opacity(0.5), lineWidth: isHere ? 2.5 : 1))
     }
 }
 

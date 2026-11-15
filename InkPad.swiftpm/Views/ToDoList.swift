@@ -153,8 +153,8 @@ struct ToDoListView: View {
     // MARK: Header and quick add
 
     private var header: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: Theme.Spacing.xxl2) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text(Date(), format: .dateTime.weekday(.wide).day().month(.wide))
                     .font(.title2.bold())
                 Text("\(openCount) open · \(doneToday) done today")
@@ -178,8 +178,8 @@ struct ToDoListView: View {
     }
 
     private var addBar: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+            HStack(spacing: Theme.Spacing.lg) {
                 Image(systemName: "plus.circle.fill")
                     .font(.title2)
                     .foregroundStyle(Color.inkAccent)
@@ -199,7 +199,7 @@ struct ToDoListView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(newTitle.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.Spacing.md) {
                 ForEach(QuickDue.allCases) { due in
                     Button {
                         newDue = due
@@ -215,7 +215,7 @@ struct ToDoListView: View {
             }
         }
         .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
     }
 
     private func add() {
@@ -230,8 +230,8 @@ struct ToDoListView: View {
     private func row(_ task: PlanTask, tint: Color) -> some View {
         let done = task.status == .done
         let isOpen = expanded.contains(task.id)
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 12) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            HStack(alignment: .top, spacing: Theme.Spacing.xl) {
                 Button {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
                         workspace.setStatus(done ? .todo : .done, for: task.id)
@@ -244,7 +244,7 @@ struct ToDoListView: View {
                         .symbolEffect(.bounce, value: done)
                 }
                 .buttonStyle(.plain)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text(verbatim: task.title.isEmpty ? tr("Untitled") : task.title)
                         .font(.body.weight(.medium))
                         .strikethrough(done, color: .secondary)
@@ -276,7 +276,7 @@ struct ToDoListView: View {
         .contentShape(Rectangle())
         .onTapGesture { edit(task) }
         .listRowBackground(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
                 .fill(highlight == task.id ? Color.inkAccent.opacity(0.22) : Color(uiColor: .secondarySystemGroupedBackground))
                 .padding(.vertical, 2)
         )
@@ -314,7 +314,7 @@ struct ToDoListView: View {
     }
 
     private func chips(_ task: PlanTask) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Theme.Spacing.md) {
             if let due = task.dueDate {
                 let late: Bool = due < Date() && task.status != .done
                 Label(due.formatted(.dateTime.day().month(.abbreviated).hour().minute()), systemImage: "calendar")
@@ -337,9 +337,9 @@ struct ToDoListView: View {
     }
 
     private func steps(_ task: PlanTask) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             ForEach(task.subtasks ?? []) { step in
-                HStack(spacing: 10) {
+                HStack(spacing: Theme.Spacing.lg) {
                     Button {
                         withAnimation(.snappy) { workspace.toggleSubtask(step.id, in: task.id) }
                     } label: {
@@ -359,7 +359,7 @@ struct ToDoListView: View {
                     .buttonStyle(.plain)
                 }
             }
-            HStack(spacing: 10) {
+            HStack(spacing: Theme.Spacing.lg) {
                 Image(systemName: "plus").foregroundStyle(.secondary)
                 TextField("Add a step", text: Binding(
                     get: { stepDrafts[task.id] ?? "" },
@@ -396,7 +396,7 @@ struct SidebarToDo: View {
     var body: some View {
         Section {
             ForEach(shown) { task in
-                HStack(spacing: 10) {
+                HStack(spacing: Theme.Spacing.lg) {
                     Button {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
                             workspace.setStatus(.done, for: task.id)
@@ -414,7 +414,7 @@ struct SidebarToDo: View {
                     }
                 }
             }
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.Spacing.md) {
                 Image(systemName: "plus").foregroundStyle(Color.inkAccent)
                 TextField("Add a task for today", text: $draft)
                     .onSubmit {

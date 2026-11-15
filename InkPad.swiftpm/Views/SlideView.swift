@@ -209,7 +209,7 @@ struct SlideCanvas: View {
                     .lineLimit(3)
                     .minimumScaleFactor(0.6)
                 ForEach(Array(slide.visibleBullets.prefix(4).enumerated()), id: \.offset) { item in
-                    HStack(alignment: .firstTextBaseline, spacing: 18) {
+                    HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.huge) {
                         Circle()
                             .fill(theme.accent)
                             .frame(width: 12, height: 12)
@@ -226,7 +226,7 @@ struct SlideCanvas: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous))
                     .shadow(color: .black.opacity(0.35), radius: 24, y: 12)
                     .frame(maxWidth: 600, maxHeight: 560)
             }
@@ -236,9 +236,9 @@ struct SlideCanvas: View {
     private var summaryLayout: some View {
         VStack(alignment: .leading, spacing: 32) {
             header
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
                 ForEach(Array(slide.visibleBullets.prefix(5).enumerated()), id: \.offset) { item in
-                    HStack(alignment: .top, spacing: 18) {
+                    HStack(alignment: .top, spacing: Theme.Spacing.huge) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 32))
                             .foregroundStyle(theme.accent)
@@ -267,7 +267,7 @@ struct SlideCanvas: View {
                 .font(.system(size: 34, weight: .semibold))
                 .foregroundStyle(theme.onAccent)
                 .frame(width: 76, height: 76)
-                .background(theme.accent, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .background(theme.accent, in: RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous))
             Text(tr(slide.title))
                 .font(.system(size: 50, weight: .bold, design: .rounded))
                 .foregroundStyle(theme.titleColor)

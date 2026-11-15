@@ -236,7 +236,7 @@ struct LabeledSlider: View {
     let text: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
                 Label(tr(title), systemImage: systemImage)
                 Spacer()
@@ -252,7 +252,7 @@ struct BackdropPicker: View {
     @Binding var backdrop: ScreenBackdrop
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 10)], spacing: 12) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: Theme.Spacing.lg)], spacing: Theme.Spacing.xl) {
             ForEach(ScreenBackdrop.allCases) { option in
                 Button {
                     withAnimation { backdrop = option }
@@ -260,9 +260,9 @@ struct BackdropPicker: View {
                     VStack(spacing: 5) {
                         ScreenBackdropView(backdrop: option, animated: false)
                             .frame(height: 50)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 10)
+                                RoundedRectangle(cornerRadius: Theme.Radius.md)
                                     .stroke(backdrop == option ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: backdrop == option ? 3 : 1)
                             )
                         Text(tr(option.title))

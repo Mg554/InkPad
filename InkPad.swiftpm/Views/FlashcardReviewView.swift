@@ -81,7 +81,7 @@ struct FlashcardReviewView: View {
     }
 
     private func face(_ text: String, label: String, tint: Color) -> some View {
-        VStack(spacing: 18) {
+        VStack(spacing: Theme.Spacing.huge) {
             Text(tr(label.uppercased()))
                 .font(.caption.weight(.bold))
                 .foregroundStyle(tint)
@@ -92,12 +92,12 @@ struct FlashcardReviewView: View {
         }
         .padding(32)
         .frame(maxWidth: .infinity, minHeight: 320)
-        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .glowCard(tint)
     }
 
     private var ratingButtons: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             ForEach(Flashcard.Rating.allCases, id: \.self) { rating in
                 Button {
                     rate(rating)
@@ -184,7 +184,7 @@ struct QuizView: View {
     }
 
     private func questionView(_ question: QuizQuestion, count: Int) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
             ProgressView(value: Double(position), total: Double(count))
             Text("Question \(position + 1) of \(count)")
                 .font(.subheadline)
@@ -210,7 +210,7 @@ struct QuizView: View {
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(choiceColor(item.offset, answer: question.answer), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(choiceColor(item.offset, answer: question.answer), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
                 }
                 .buttonStyle(PressableStyle())
             }
@@ -237,14 +237,14 @@ struct QuizView: View {
     }
 
     private func choiceColor(_ index: Int, answer: Int) -> Color {
-        guard let picked else { return Color(uiColor: .secondarySystemBackground) }
+        guard let picked else { return Theme.Colors.secondarySurface }
         if index == answer { return Color.green.opacity(0.2) }
         if index == picked { return Color.red.opacity(0.2) }
-        return Color(uiColor: .secondarySystemBackground)
+        return Theme.Colors.secondarySurface
     }
 
     private func resultView(_ quiz: Quiz) -> some View {
-        VStack(spacing: 18) {
+        VStack(spacing: Theme.Spacing.huge) {
             Image(systemName: score * 2 >= quiz.questions.count ? "star.circle.fill" : "arrow.clockwise.circle.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(score * 2 >= quiz.questions.count ? Color.yellow : Color.orange)

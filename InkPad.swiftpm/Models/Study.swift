@@ -124,3 +124,16 @@ struct StudyChat: Codable, Identifiable, Equatable {
         Set(sourceNoteIDs) == Set(ids)
     }
 }
+
+/// A general chat with an AI service — not about any note: the owner asks
+/// anything, and the conversation is kept so it can be read and continued
+/// later.
+struct AIChat: Codable, Identifiable, Equatable {
+    let id: UUID
+    var title: String
+    /// Which service answered (Claude, ChatGPT, Gemini, Groq…).
+    var provider: String
+    var messages: [AIMessage]
+    let createdAt: Date
+    var modifiedAt: Date
+}

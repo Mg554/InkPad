@@ -71,6 +71,12 @@ struct SidebarView: View {
                     .tag(LibraryScope.graph)
                 Label("Study with AI", systemImage: "graduationcap")
                     .tag(LibraryScope.study)
+                Label("AI Chat", systemImage: "sparkles")
+                    .tag(LibraryScope.aiChat)
+                Label("Calculator", systemImage: "plus.forwardslash.minus")
+                    .tag(LibraryScope.calculator)
+                Label("Plugins", systemImage: "puzzlepiece.extension")
+                    .tag(LibraryScope.plugins)
                 Button {
                     showsRecentlyDeleted = true
                 } label: {
@@ -221,9 +227,6 @@ struct SidebarView: View {
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                LanguageButton()
-            }
         }
         .sheet(isPresented: $showsBackup) {
             BackupView()
@@ -269,7 +272,7 @@ struct SidebarView: View {
 
     private func folderRow(_ row: FolderRow) -> some View {
         let folder = row.folder
-        return HStack(spacing: 6) {
+        return HStack(spacing: Theme.Spacing.sm) {
             if row.hasChildren {
                 Button {
                     if collapsed.contains(folder.id) {
@@ -297,6 +300,12 @@ struct SidebarView: View {
                 Spacer()
                 AIAccessBadge(access: folder.aiAccess)
                     .font(.caption)
+            }
+            if folder.isLocked == true, !store.isFolderUnlocked(folder.id) {
+                Spacer()
+                Image(systemName: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.leading, CGFloat(row.depth) * 18)
@@ -331,6 +340,28 @@ struct SidebarView: View {
                 current: folder.aiAccess,
                 inherited: store.folderAIAccess(folder.parentID)
             ) { store.setAIAccess($0, forFolder: folder.id) }
+            Button {
+                if folder.isLocked == true {
+                    // Removing the protection needs Face ID too.
+                    Task {
+                        let reason = trMessage("Unlock \(folder.name).")
+                        switch await NoteLock.authenticate(reason: reason) {
+                        case .unlocked:
+                            store.setFolderLocked(false, for: folder.id)
+                            CommandCenter.shared.say("Folder unlocked.")
+                        case .failed:
+                            CommandCenter.shared.say("Locked folders open with Face ID or the passcode.")
+                        case .needsPasscode:
+                            CommandCenter.shared.say("Set a passcode on this iPad — locked folders open with Face ID or the passcode.")
+                        }
+                    }
+                } else {
+                    store.setFolderLocked(true, for: folder.id)
+                    CommandCenter.shared.say("Folder locked.")
+                }
+            } label: {
+                Label(folder.isLocked == true ? "Unlock Folder" : "Lock Folder", systemImage: folder.isLocked == true ? "lock.open" : "lock")
+            }
             Button(role: .destructive) {
                 folderToDelete = folder
             } label: {

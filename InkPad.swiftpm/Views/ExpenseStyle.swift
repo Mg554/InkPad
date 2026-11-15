@@ -124,7 +124,7 @@ struct ExpenseStyleView: View {
         NavigationStack {
             Form {
                 Section("Style") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 12)], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: Theme.Spacing.xl)], spacing: Theme.Spacing.xl) {
                         ForEach(ExpenseLook.Style.allCases) { style in
                             styleCard(style)
                         }
@@ -189,7 +189,7 @@ struct ExpenseStyleView: View {
         return Button {
             withAnimation(.snappy) { look.style = style }
         } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: Theme.Spacing.sm) {
                 HStack(alignment: .bottom, spacing: 5) {
                     ForEach(Array([0.5, 0.8, 0.35, 1, 0.65].enumerated()), id: \.offset) { item in
                         let category = Expense.Category.allCases[item.offset]
@@ -201,8 +201,8 @@ struct ExpenseStyleView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 60)
                 .background { sample.rowBackground }
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(isOn ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: isOn ? 3 : 1))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md).stroke(isOn ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: isOn ? 3 : 1))
                 Text(tr(style.title))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color(uiColor: .label))
@@ -258,9 +258,9 @@ struct BudgetRings: View {
             .animation(.spring(response: 1, dampingFraction: 0.8), value: shown)
             .onAppear { shown = true }
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
                 ForEach(rings) { ring in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                         Text(tr(ring.title))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(ring.color)

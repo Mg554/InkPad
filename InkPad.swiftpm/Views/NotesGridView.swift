@@ -8,6 +8,9 @@ struct NotesGridView: View {
     let openNote: (UUID) -> Void
 
     @State private var searchText = ""
+    /// Applied after typing pauses, so filtering and meaning search do not
+    /// run on every keystroke and freeze the keyboard.
+    @State private var appliedSearch = ""
     @State private var prompt: NamePrompt?
     @State private var isImportingPDF = false
     @State private var isShowingTemplates = false
@@ -26,6 +29,8 @@ struct NotesGridView: View {
     @State private var isOrganizing = false
     /// Open Beside…: the note to open, waiting for the second one.
     @State private var besideNote: NoteSummary?
+    /// The note whose details sheet (Note Info) is open.
+    @State private var infoNote: NoteSummary?
     @AppStorage(NoteSort.storageKey) private var sortRaw = NoteSort.edited.rawValue
     @AppStorage(LibraryLayout.storageKey) private var layoutRaw = LibraryLayout.grid.rawValue
 
@@ -41,8 +46,8 @@ struct NotesGridView: View {
 
     private var visibleNotes: [NoteSummary] {
         let notes = store.notes(in: scope)
-        guard !searchText.isEmpty else { return notes }
-        return notes.filter { store.matches($0, search: searchText) }
+        guard !appliedSearch.isEmpty else { return notes }
+        return notes.filter { store.matches($0, search: appliedSearch) }
     }
 
     private var title: String {
@@ -54,6 +59,9 @@ struct NotesGridView: View {
         case .mindMaps: "Mind Maps"
         case .slides: "Slides"
         case .study: "Study"
+        case .aiChat: "AI Chat"
+        case .calculator: "Calculator"
+        case .plugins: "Plugins"
         case .flowmodoro: "Flowmodoro"
         case .reminders: "Reminders"
         case .graph: "Graph"
@@ -70,7 +78,7 @@ struct NotesGridView: View {
     private var targetFolderID: UUID? {
         switch scope {
         case let .folder(id): return id
-        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .pdfTools, .gps, .tag,
+        case .allNotes, .unfiled, .planner, .expenses, .mindMaps, .slides, .study, .aiChat, .calculator, .plugins, .flowmodoro, .reminders, .graph, .pdfTools, .gps, .tag,
              .favorites, .builtIn, .collection: return nil
         }
     }
@@ -78,15 +86,15 @@ struct NotesGridView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading) {
-                if searchText.isEmpty {
+                if appliedSearch.isEmpty {
                     quickActions
                         .padding([.horizontal, .top], 24)
                 }
                 if visibleNotes.isEmpty {
                     ContentUnavailableView(
-                        searchText.isEmpty ? "No Notes" : "No Results",
-                        systemImage: searchText.isEmpty ? "square.and.pencil" : "magnifyingglass",
-                        description: Text(searchText.isEmpty ? "Create a note or import a PDF." : "")
+                        appliedSearch.isEmpty ? "No Notes" : "No Results",
+                        systemImage: appliedSearch.isEmpty ? "square.and.pencil" : "magnifyingglass",
+                        description: Text(appliedSearch.isEmpty ? "Create a note or import a PDF." : "")
                     )
                     .padding(.top, 40)
                     .frame(maxWidth: .infinity)
@@ -104,8 +112,8 @@ struct NotesGridView: View {
                 }
                 notesLayout(arranged.others, reorderable: sort == .custom && !isSelecting)
                 }
-                if !searchText.isEmpty {
-                    MeaningResults(query: searchText) { hit in
+                if appliedSearch.count >= 3 {
+                    MeaningResults(query: appliedSearch) { hit in
                         if let page = hit.pdfPage {
                             CommandCenter.shared.openNote(hit.noteID, pdfPage: page)
                         } else {
@@ -141,6 +149,16 @@ struct NotesGridView: View {
         .themedBackground()
         .navigationTitle(tr(title))
         .searchable(text: $searchText, prompt: "Search titles, text, handwriting and #tags")
+        .task(id: searchText) {
+            // Apply immediately when cleared; otherwise wait for typing to pause.
+            if searchText.isEmpty {
+                appliedSearch = ""
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            appliedSearch = searchText
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(isSelecting ? "Done" : "Select") {
@@ -211,6 +229,10 @@ struct NotesGridView: View {
             }
             .environmentObject(store)
         }
+        .sheet(item: $infoNote) { note in
+            NoteInfoView(note: note)
+                .environmentObject(store)
+        }
         .sheet(item: $coverNote) { note in
             CoverEditor(note: note)
                 .environmentObject(store)
@@ -248,7 +270,7 @@ struct NotesGridView: View {
         case .grid, .list:
             cardsOrRows(notes, reorderable: reorderable)
         case .icons:
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96, maximum: 110), spacing: 16)], spacing: 20) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96, maximum: 110), spacing: Theme.Spacing.xxl2)], spacing: 20) {
                 ForEach(notes) { note in
                     item(note, reorderable: reorderable) { NoteIcon(note: note) }
                 }
@@ -261,7 +283,7 @@ struct NotesGridView: View {
                     Divider().padding(.leading, 44)
                 }
             }
-            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
         case .bubbles:
@@ -292,7 +314,7 @@ struct NotesGridView: View {
                     Divider().padding(.leading, 72)
                 }
             }
-            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
         } else {
@@ -420,6 +442,29 @@ struct NotesGridView: View {
         }
 
         Button {
+            if note.locked {
+                // Removing the protection needs Face ID too.
+                Task {
+                    let reason = trMessage("Unlock \(note.title).")
+                    switch await NoteLock.authenticate(reason: reason) {
+                    case .unlocked:
+                        store.setLocked(false, for: note.id)
+                        CommandCenter.shared.say("Note unlocked.")
+                    case .failed:
+                        CommandCenter.shared.say("Locked notes open with Face ID or the passcode.")
+                    case .needsPasscode:
+                        CommandCenter.shared.say("Set a passcode on this iPad — locked notes open with Face ID or the passcode.")
+                    }
+                }
+            } else {
+                store.setLocked(true, for: note.id)
+                CommandCenter.shared.say("Note locked.")
+            }
+        } label: {
+            Label(note.locked ? "Unlock Note" : "Lock Note", systemImage: note.locked ? "lock.open" : "lock")
+        }
+
+        Button {
             coverNote = note
         } label: {
             Label("Cover…", systemImage: "book.closed")
@@ -443,6 +488,12 @@ struct NotesGridView: View {
             ) { store.renameNote(note.id, to: $0) }
         } label: {
             Label("Rename", systemImage: "pencil")
+        }
+
+        Button {
+            infoNote = note
+        } label: {
+            Label("Note Info", systemImage: "info.circle")
         }
 
         Button {
@@ -515,7 +566,7 @@ struct NotesGridView: View {
     private var selectionBar: some View {
         let ids = Array(selection)
         let none = ids.isEmpty
-        return HStack(spacing: 18) {
+        return HStack(spacing: Theme.Spacing.huge) {
             Button(selection.count == visibleNotes.count ? "Select None" : "Select All") {
                 if selection.count == visibleNotes.count {
                     selection = []
@@ -609,7 +660,7 @@ struct NotesGridView: View {
     private func treeView(_ notes: [NoteSummary]) -> some View {
         let lines = treeLines(notes)
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "folder.fill").foregroundStyle(Color.inkAccent)
                 Text(verbatim: tr(title)).font(.system(.body, design: .monospaced).weight(.bold))
                 Text("(\(notes.count))").font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
@@ -624,16 +675,51 @@ struct NotesGridView: View {
                                 if collapsedFolders.contains(folder.id) { collapsedFolders.remove(folder.id) } else { collapsedFolders.insert(folder.id) }
                             }
                         } label: {
-                            HStack(spacing: 6) {
+                            HStack(spacing: Theme.Spacing.sm) {
                                 Image(systemName: collapsedFolders.contains(folder.id) ? "folder" : "folder.fill")
                                     .foregroundStyle((folder.color ?? .blue).color)
                                 Text(verbatim: folder.name + "/").font(.system(.body, design: .monospaced).weight(.semibold))
+                                if folder.isLocked == true {
+                                    Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary)
+                                }
                             }
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                prompt = NamePrompt(
+                                    title: "Rename Folder",
+                                    initialText: folder.name,
+                                    confirmTitle: "Rename"
+                                ) { store.renameFolder(folder.id, to: $0) }
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                            Button {
+                                if folder.isLocked == true {
+                                    Task {
+                                        let reason = trMessage("Unlock \(folder.name).")
+                                        switch await NoteLock.authenticate(reason: reason) {
+                                        case .unlocked:
+                                            store.setFolderLocked(false, for: folder.id)
+                                            CommandCenter.shared.say("Folder unlocked.")
+                                        case .failed:
+                                            CommandCenter.shared.say("Locked folders open with Face ID or the passcode.")
+                                        case .needsPasscode:
+                                            CommandCenter.shared.say("Set a passcode on this iPad — locked folders open with Face ID or the passcode.")
+                                        }
+                                    }
+                                } else {
+                                    store.setFolderLocked(true, for: folder.id)
+                                    CommandCenter.shared.say("Folder locked.")
+                                }
+                            } label: {
+                                Label(folder.isLocked == true ? "Unlock Folder" : "Lock Folder", systemImage: folder.isLocked == true ? "lock.open" : "lock")
+                            }
+                        }
                     case let .note(note):
                         item(note, reorderable: false) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: Theme.Spacing.sm) {
                                 Image(systemName: note.isText ? "doc.text" : note.hasPDF == true ? "doc.richtext" : "doc")
                                     .foregroundStyle(.secondary)
                                 Text(verbatim: note.title).font(.system(.body, design: .monospaced))
@@ -646,7 +732,7 @@ struct NotesGridView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+        .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
         .padding(.horizontal, 24)
         .padding(.vertical, 12)
     }
@@ -709,7 +795,7 @@ struct NotesGridView: View {
         return VStack(spacing: 26) {
             ForEach(Array(shelves.enumerated()), id: \.offset) { shelf in
                 VStack(spacing: 0) {
-                    HStack(alignment: .bottom, spacing: 14) {
+                    HStack(alignment: .bottom, spacing: Theme.Spacing.xxl) {
                         ForEach(shelf.element) { note in
                             item(note, reorderable: false) { ShelfBook(note: note) }
                         }
@@ -736,7 +822,7 @@ struct NotesGridView: View {
                 months.append((month, [note]))
             }
         }
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             ForEach(months, id: \.key) { month in
                 Text(month.key, format: .dateTime.month(.wide).year())
                     .font(.title3.bold())
@@ -753,7 +839,7 @@ struct NotesGridView: View {
 
     /// Notability-style shortcut cards above the notes.
     private var quickActions: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Theme.Spacing.xxl2) {
             QuickActionCard(title: "New Note", systemImage: "square.and.pencil", tint: .indigo) {
                 createNote(.lined)
             }
@@ -839,7 +925,7 @@ private struct QuickActionLabel: View {
     let tint: Color
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: Theme.Spacing.lg) {
             Image(systemName: systemImage)
                 .font(.title2)
                 .foregroundStyle(tint)
@@ -848,8 +934,8 @@ private struct QuickActionLabel: View {
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, minHeight: 96)
-        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(tint.opacity(0.35)))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xxl).stroke(tint.opacity(0.35)))
+        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.xxl))
     }
 }

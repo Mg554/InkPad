@@ -228,7 +228,7 @@ struct OrganizeBanner: View {
 
     var body: some View {
         if let suggestion = advisor.pending, let note = store.note(suggestion.noteID) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 HStack {
                     Image(systemName: suggestion.byAI ? "sparkles" : "wand.and.stars").foregroundStyle(.purple)
                     Text("Tidy “\(note.title)”?").font(.subheadline.weight(.semibold)).lineLimit(1)
@@ -239,7 +239,7 @@ struct OrganizeBanner: View {
             }
             .padding(14)
             .frame(maxWidth: 560)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.huge))
             .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
             .padding(.bottom, 24)
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -255,7 +255,7 @@ struct SuggestionChips: View {
     @State private var applied: OrganizeAdvisor.Parts = []
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Theme.Spacing.md) {
             if let title = suggestion.title {
                 chip(Text("Rename: \(title)"), systemImage: "pencil", part: .title)
             }
@@ -285,7 +285,7 @@ struct SuggestionChips: View {
             OrganizeAdvisor.shared.apply(suggestion, parts: part, store: store)
             applied.insert(part)
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Spacing.xs) {
                 Image(systemName: applied.contains(part) ? "checkmark" : systemImage)
                 label.lineLimit(1)
             }
@@ -349,7 +349,7 @@ struct OrganizeLibraryView: View {
                     Section("Notes") {
                         ForEach(suggestions) { suggestion in
                             if let note = store.note(suggestion.noteID) {
-                                VStack(alignment: .leading, spacing: 8) {
+                                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                                     HStack {
                                         Text(verbatim: note.title).font(.subheadline.weight(.semibold))
                                         if suggestion.byAI { Image(systemName: "sparkles").font(.caption).foregroundStyle(.purple) }

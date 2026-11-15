@@ -315,11 +315,7 @@ final class StickerStore: ObservableObject {
             return UIImage(contentsOfFile: url.path)
         case .ink:
             guard let drawing = drawing(of: sticker) else { return nil }
-            var image = UIImage()
-            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-                image = drawing.image(from: drawing.bounds.insetBy(dx: -4, dy: -4), scale: 2)
-            }
-            return image
+            return InkSnapshot.snapshot(of: drawing, from: drawing.bounds.insetBy(dx: -4, dy: -4), scale: 2)
         }
     }
 

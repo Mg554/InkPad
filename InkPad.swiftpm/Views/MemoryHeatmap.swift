@@ -28,7 +28,7 @@ struct MemoryHeatmap: View {
 
     var body: some View {
         let items = ranked
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
             HStack {
                 Text("Memory")
                     .font(.title3.bold())
@@ -49,11 +49,11 @@ struct MemoryHeatmap: View {
                     .foregroundStyle(.red)
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                    .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 }
                 .buttonStyle(.plain)
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: Theme.Spacing.lg)], spacing: Theme.Spacing.lg) {
                 ForEach(items, id: \.deck.id) { item in
                     Button {
                         review(item.deck.id)
@@ -68,7 +68,7 @@ struct MemoryHeatmap: View {
 
     private func tile(_ deck: FlashcardDeck, strength: Double?) -> some View {
         let color = Self.color(for: strength)
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Text(tr(deck.title))
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(2, reservesSpace: true)
@@ -82,13 +82,13 @@ struct MemoryHeatmap: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(color.opacity(0.45)))
+        .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl).stroke(color.opacity(0.45)))
         .accessibilityElement(children: .combine)
     }
 
     private var legend: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Theme.Spacing.xs) {
             Text("Weak").font(.caption2).foregroundStyle(.secondary)
             ForEach([0.1, 0.4, 0.7, 0.95], id: \.self) { value in
                 RoundedRectangle(cornerRadius: 3)

@@ -64,10 +64,10 @@ struct HandwrittenIdeaEditor: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
+            VStack(spacing: Theme.Spacing.xl) {
                 InkCanvas(drawing: $drawing)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(.quaternary))
+                    .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xxl).stroke(.quaternary))
                     .frame(height: 280)
                 Text("Write the idea with Apple Pencil. It stays in your handwriting on the map.")
                     .font(.caption)
@@ -122,7 +122,7 @@ struct MindSketchView: View {
     var body: some View {
         NavigationStack {
             InkCanvas(drawing: $drawing, contentSize: CGSize(width: 2400, height: 1800))
-                .background(Color(uiColor: .systemBackground))
+                .background(Theme.Colors.surface)
                 .overlay(alignment: .top) {
                     if drawing.strokes.isEmpty {
                         Text("Write your central idea, ideas around it, and draw lines to link them. Then tap Reshape.")
@@ -137,7 +137,7 @@ struct MindSketchView: View {
                     if isWorking {
                         ProgressView("Reading your sketch…")
                             .padding(24)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.huge))
                     }
                 }
                 .navigationTitle("Sketch a Map")
@@ -269,32 +269,14 @@ enum MindSketchReader {
         let scale: CGFloat = min(2, 4000 / max(bounds.width, bounds.height))
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale
-        var ink = UIImage()
-        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-            ink = drawing.image(from: bounds, scale: scale)
-        }
+        let ink = InkSnapshot.snapshot(of: drawing, from: bounds, scale: scale)
         let picture = UIGraphicsImageRenderer(size: bounds.size, format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(origin: .zero, size: bounds.size))
             ink.draw(in: CGRect(origin: .zero, size: bounds.size))
         }
         guard let cgImage = picture.cgImage else { return [] }
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        request.automaticallyDetectsLanguage = true
-        try? VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
-        return (request.results ?? []).compactMap { observation in
-            guard let text = observation.topCandidates(1).first?.string else { return nil }
-            let box = observation.boundingBox
-            let rect = CGRect(
-                x: bounds.minX + box.minX * bounds.width,
-                y: bounds.minY + (1 - box.maxY) * bounds.height,
-                width: box.width * bounds.width,
-                height: box.height * bounds.height
-            )
-            return Idea(text: text, rect: rect)
-        }
+        return InkOCR.lines(in: cgImage, mappedTo: bounds).map { Idea(text: $0.text, rect: $0.rect) }
     }
 
     static func read(_ drawing: PKDrawing) -> Result {

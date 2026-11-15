@@ -194,7 +194,7 @@ struct PenPresetsEditor: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach(palette.presets) { preset in
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.xl) {
                         PenPresetChip(preset: preset, isSelected: false)
                         Text(tr(preset.tool.title))
                         Spacer()
@@ -231,7 +231,7 @@ struct PenPresetsEditor: View {
     }
 
     private func paletteRow(_ item: ColorPalette) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Theme.Spacing.lg) {
             Text(verbatim: item.displayName)
             Spacer()
             HStack(spacing: 3) {

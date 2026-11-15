@@ -55,6 +55,9 @@ struct NoteEditorView: View {
     @State private var stickyRequest: StickyRequest?
     @State private var isShowingStickies = false
     @State private var isShowingStickers = false
+    /// Threaded anchored comments.
+    @State private var commentRequest: CommentRequest?
+    @State private var isShowingComments = false
     @State private var isReading = false
     @State private var toolbarWasHiddenBeforeReading = false
     /// Split workspace: another note or PDF beside this one.
@@ -109,7 +112,7 @@ struct NoteEditorView: View {
             if isExporting {
                 ProgressView("Exporting…")
                     .padding(24)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
             }
         }
         .navigationTitle(tr(title))
@@ -194,6 +197,7 @@ struct NoteEditorView: View {
         .onAppear {
             focus.openEditors += 1
             SyncEngine.shared.openNotes.insert(noteID)
+            NoteOpsLog.append(.opened, to: store.noteDirectory(noteID))
         }
         .task {
             session.load(noteID: noteID, store: store)
@@ -245,10 +249,15 @@ struct NoteEditorView: View {
             stickyRequest: $stickyRequest,
             isShowingStickies: $isShowingStickies,
             isShowingStickers: $isShowingStickers,
+            commentRequest: $commentRequest,
+            isShowingComments: $isShowingComments,
             stickyGroups: { stickyGroups },
             stickyItems: { stickyItems },
             finishSticky: finishSticky,
             openSticky: openSticky,
+            commentItems: { commentItems },
+            finishComment: finishComment,
+            openComment: openComment,
             insertSticker: insertSticker,
             insertInk: insertInk
         ))
@@ -496,7 +505,7 @@ struct NoteEditorView: View {
         HStack(spacing: 0) {
             // Drag to make the notebook wider or narrower.
             Rectangle()
-                .fill(Color(uiColor: .separator))
+                .fill(Theme.Colors.hairline)
                 .frame(width: 1)
                 .overlay {
                     Capsule()
@@ -641,6 +650,14 @@ struct NoteEditorView: View {
                         keywords: ["sticky", "لاصقة"]) {
                 isShowingStickies = true
             },
+            PaletteItem(id: "ink-comment", title: "Add a Comment", systemImage: "plus.bubble", section: .thisNote,
+                        keywords: ["comment", "تعليق"]) {
+                addComment()
+            },
+            PaletteItem(id: "ink-comments", title: "Comments in This Note", systemImage: "bubble.left.and.bubble.right.fill", section: .thisNote,
+                        keywords: ["comment", "تعليق"]) {
+                isShowingComments = true
+            },
             PaletteItem(id: "ink-stickers", title: "Stickers…", systemImage: "seal", tint: .pink, section: .thisNote,
                         keywords: ["sticker", "emoji", "ملصق"]) {
                 isShowingStickers = true
@@ -658,8 +675,16 @@ struct NoteEditorView: View {
 
     private func connectWritingTools() {
         canvas.onStickyTapped = { id, note in
-            let rects = session.background?.layout.pageRects ?? []
-            stickyRequest = StickyRequest(id: id, note: note, page: canvas.page(ofElement: id, pageRects: rects))
+            let layout = session.displayLayout
+            stickyRequest = StickyRequest(id: id, note: note, page: canvas.page(ofElement: id, layout: layout))
+        }
+        canvas.onCommentTapped = { id, comment in
+            let layout = session.displayLayout
+            commentRequest = CommentRequest(id: id, comment: comment, page: canvas.page(ofElement: id, layout: layout))
+        }
+        canvas.onAddComment = { point in
+            guard let id = canvas.addComment(at: point) else { return }
+            commentRequest = CommentRequest(id: id, comment: NoteComment(), page: canvas.currentPage)
         }
         canvas.onEditorAction = { action in handleEditorAction(action) }
         canvas.onTouchBegan = { if split.active != .main { split.active = .main } }
@@ -832,7 +857,46 @@ struct NoteEditorView: View {
     }
 
     private var stickyItems: [StickyItem] {
-        canvas.stickies(pageRects: session.background?.layout.pageRects ?? [])
+        canvas.stickies(layout: session.displayLayout)
+    }
+
+    // MARK: Comments
+
+    private func addComment(at point: CGPoint? = nil) {
+        if isReading { setReading(false) }
+        guard let id = canvas.addComment(at: point ?? canvas.visibleCenter) else { return }
+        commentRequest = CommentRequest(id: id, comment: NoteComment(), page: canvas.currentPage)
+    }
+
+    private var commentItems: [CommentItem] {
+        canvas.comments(layout: session.displayLayout)
+    }
+
+    private func openComment(_ id: UUID, page: Int) {
+        canvas.scrollToPage(page)
+        guard let item = commentItems.first(where: { $0.id == id }) else { return }
+        Task {
+            // After the list sheet has gone.
+            try? await Task.sleep(for: .milliseconds(450))
+            commentRequest = CommentRequest(id: id, comment: item.comment, page: page)
+        }
+    }
+
+    /// Saves or removes a comment pin. A pin whose thread is still empty is
+    /// taken off the page, so an abandoned thread leaves no pin behind.
+    private func finishComment(_ request: CommentRequest, _ outcome: CommentOutcome) {
+        switch outcome {
+        case let .save(comment):
+            let empty = comment.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && (comment.replies ?? []).isEmpty
+            if empty {
+                canvas.removeElement(request.id)
+            } else {
+                canvas.updateComment(request.id, with: comment)
+            }
+        case .delete:
+            canvas.removeElement(request.id)
+        }
     }
 
     private var stickyGroups: [String] {
@@ -878,7 +942,9 @@ struct NoteEditorView: View {
     /// A new page after `page` with the sticky note's text and handwriting.
     private func turnIntoPage(_ note: StickyNote, after page: Int) {
         session.insertPage(after: page)
-        let rects = session.background?.layout.pageRects ?? []
+        // The canvas works in display coordinates: the new page's place is
+        // where the open canvas shows it.
+        let rects = session.displayLayout.pageRects
         guard rects.indices.contains(page + 1) else { return }
         let rect = rects[page + 1]
         var top: CGFloat = rect.minY + 48
@@ -1374,7 +1440,7 @@ private struct FocusHUD: ViewModifier {
     }
 
     private var hud: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             Image(systemName: "scope").foregroundStyle(.green)
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text(Flowmodoro.clock(FocusSession.shared.elapsed(at: context.date)))
@@ -1400,7 +1466,7 @@ private struct FocusHUD: ViewModifier {
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
         // Solid enough to read over the page's text.
-        .background(Color(uiColor: .systemBackground).opacity(0.94), in: Capsule())
+        .background(Theme.Colors.surface.opacity(0.94), in: Capsule())
         .overlay(Capsule().stroke(Color.green.opacity(0.45), lineWidth: 1))
         .shadow(color: .black.opacity(0.18), radius: 10, y: 3)
         .padding(.top, 8)
@@ -1523,10 +1589,15 @@ private struct WritingSheets: ViewModifier {
     @Binding var stickyRequest: StickyRequest?
     @Binding var isShowingStickies: Bool
     @Binding var isShowingStickers: Bool
+    @Binding var commentRequest: CommentRequest?
+    @Binding var isShowingComments: Bool
     let stickyGroups: () -> [String]
     let stickyItems: () -> [StickyItem]
     let finishSticky: (StickyRequest, StickyOutcome) -> Void
     let openSticky: (UUID, Int) -> Void
+    let commentItems: () -> [CommentItem]
+    let finishComment: (CommentRequest, CommentOutcome) -> Void
+    let openComment: (UUID, Int) -> Void
     let insertSticker: (UIImage) -> Void
     let insertInk: (PKDrawing) -> Void
 
@@ -1540,6 +1611,14 @@ private struct WritingSheets: ViewModifier {
             }
             .sheet(isPresented: $isShowingStickies) {
                 StickyListView(items: stickyItems(), open: openSticky)
+            }
+            .sheet(item: $commentRequest) { request in
+                CommentThreadEditor(request: request) { outcome in
+                    finishComment(request, outcome)
+                }
+            }
+            .sheet(isPresented: $isShowingComments) {
+                CommentListView(items: commentItems(), open: openComment)
             }
             .sheet(isPresented: $isShowingStickers) {
                 StickerStudioView(insertImage: insertSticker, insertInk: insertInk)
@@ -1602,7 +1681,7 @@ private struct SplitPane: View {
                 }
             }
         }
-        .background(Color(uiColor: .systemBackground))
+        .background(Theme.Colors.surface)
     }
 }
 

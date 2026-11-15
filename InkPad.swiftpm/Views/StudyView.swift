@@ -53,7 +53,7 @@ struct StudyView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
                     if let problem = ai.problem {
                         setupCard(problem)
                     }
@@ -151,11 +151,11 @@ struct StudyView: View {
     // MARK: Cards
 
     private func setupCard(_ problem: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Theme.Spacing.xxl) {
             Image(systemName: "sparkles")
                 .font(.title2)
                 .foregroundStyle(.purple)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Text("Connect an AI service")
                     .font(.headline)
                 Text(trMessage(problem))
@@ -172,10 +172,10 @@ struct StudyView: View {
     }
 
     private var firewallCard: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Theme.Spacing.xxl) {
             AIAccessBadge(access: .never)
                 .font(.title2)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Text("Protected by the AI Firewall")
                     .font(.headline)
                 Text(NoteTexts.firewallMessage(onDevice: ai.provider.isOnDevice))
@@ -189,7 +189,7 @@ struct StudyView: View {
     }
 
     private var chatCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Text("Chat with your notes")
                 .font(.title2.bold())
             Text("Ask questions, explore topics and study with \(sources.isEmpty ? "all of your notes" : scopeTitle).")
@@ -207,8 +207,8 @@ struct StudyView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .themedCard(cornerRadius: 18)
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.teal.opacity(0.35)))
+            .themedCard(cornerRadius: Theme.Radius.huge)
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous).stroke(Color.teal.opacity(0.35)))
             chatHistory
         }
         .padding(20)
@@ -220,7 +220,7 @@ struct StudyView: View {
     private var chatHistory: some View {
         let chats = workspace.chats(about: sources)
         if !chats.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 Text(sources.count == 1 ? "Chats about this note" : "Earlier chats")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -229,10 +229,10 @@ struct StudyView: View {
                     Button {
                         path.append(.savedChat(chat.id))
                     } label: {
-                        HStack(spacing: 10) {
+                        HStack(spacing: Theme.Spacing.lg) {
                             Image(systemName: "bubble.left.and.text.bubble.right")
                                 .foregroundStyle(.teal)
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                                 Text(tr(chat.title))
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(.primary)
@@ -248,7 +248,7 @@ struct StudyView: View {
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
-                        .background(Color(uiColor: .systemBackground).opacity(0.7), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(Theme.Colors.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                     }
                     .buttonStyle(PressableStyle())
                     .contextMenu {
@@ -274,10 +274,10 @@ struct StudyView: View {
         return Button {
             path.append(.review(nil))
         } label: {
-            HStack(spacing: 14) {
+            HStack(spacing: Theme.Spacing.xxl) {
                 Image(systemName: "rectangle.on.rectangle")
                     .font(.title2)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text(due > 0 ? "Keep it up!" : "All caught up")
                         .font(.headline)
                     Text(due > 0 ? "\(due) flashcards ready for review" : "No flashcards are due. Make some from your notes below.")
@@ -300,10 +300,10 @@ struct StudyView: View {
         Button {
             isPickingNotes = true
         } label: {
-            HStack(spacing: 14) {
+            HStack(spacing: Theme.Spacing.xxl) {
                 Image(systemName: "list.bullet.indent")
                     .font(.title3)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                     Text("Select study content")
                         .font(.headline)
                     Text("Studying: \(scopeTitle)")
@@ -321,7 +321,7 @@ struct StudyView: View {
     }
 
     private var toolsCard: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 14)], spacing: 14) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: Theme.Spacing.xxl)], spacing: Theme.Spacing.xxl) {
             toolButton("Flashcards", systemImage: "rectangle.stack.badge.plus", tint: .orange, action: makeFlashcards)
             toolButton("Quiz", systemImage: "checklist", tint: .green, action: makeQuiz)
             toolButton("Smart Notes", systemImage: "doc.text.magnifyingglass", tint: .purple, action: makeSmartNotes)
@@ -343,7 +343,7 @@ struct StudyView: View {
     }
 
     private func toolLabel(_ title: String, systemImage: String, tint: Color) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Theme.Spacing.md) {
             Image(systemName: systemImage)
                 .font(.title2)
                 .foregroundStyle(tint)
@@ -356,7 +356,7 @@ struct StudyView: View {
     }
 
     private var savedSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             if !workspace.flashcardDecks.isEmpty {
                 Text("Flashcards")
                     .font(.headline)
@@ -406,11 +406,11 @@ struct StudyView: View {
     }
 
     private func savedRow(_ title: String, detail: String, systemImage: String, tint: Color) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             Image(systemName: systemImage)
                 .foregroundStyle(tint)
                 .frame(width: 28)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                 Text(tr(title))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
@@ -430,7 +430,7 @@ struct StudyView: View {
     private func progressCard(_ stage: String) -> some View {
         ZStack {
             Color.black.opacity(0.2).ignoresSafeArea()
-            VStack(spacing: 14) {
+            VStack(spacing: Theme.Spacing.xxl) {
                 ProgressView()
                     .controlSize(.large)
                 Text(trMessage(stage))
@@ -439,7 +439,7 @@ struct StudyView: View {
             }
             .padding(28)
             .frame(maxWidth: 340)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous))
         }
     }
 

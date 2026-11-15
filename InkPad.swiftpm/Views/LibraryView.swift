@@ -45,6 +45,11 @@ struct LibraryView: View {
 
     /// Opens a note from anywhere, leaving workspace pages for the notes area.
     private func open(_ id: UUID) {
+        // Locked notes open only after Face ID (or the passcode).
+        guard store.isUnlocked(id) else {
+            unlockThenOpen(id)
+            return
+        }
         switch scope {
         case .planner?, .expenses?, .mindMaps?, .slides?, .study?, .flowmodoro?, .reminders?, .pdfTools?, .gps?:
             // Changing the scope clears the path; the note opens once the
@@ -56,6 +61,25 @@ struct LibraryView: View {
         }
     }
 
+    /// Asks for Face ID first; the note opens only on success.
+    private func unlockThenOpen(_ id: UUID) {
+        let title = store.note(id)?.title ?? ""
+        Task {
+            let outcome = await NoteLock.authenticate(
+                reason: trMessage("Unlock \(title).")
+            )
+            switch outcome {
+            case .unlocked:
+                store.unlockNote(id)
+                open(id)
+            case .failed:
+                CommandCenter.shared.say("Locked notes open with Face ID or the passcode.")
+            case .needsPasscode:
+                CommandCenter.shared.say("Set a passcode on this iPad — locked notes open with Face ID or the passcode.")
+            }
+        }
+    }
+
     /// Which kind of page a scope shows; each has its own navigation stack.
     private func section(of scope: LibraryScope?) -> String {
         switch scope {
@@ -64,6 +88,9 @@ struct LibraryView: View {
         case .mindMaps: "mindMaps"
         case .slides: "slides"
         case .study: "study"
+        case .aiChat: "aiChat"
+        case .calculator: "calculator"
+        case .plugins: "plugins"
         case .flowmodoro: "flowmodoro"
         case .reminders: "reminders"
         case .pdfTools: "pdfTools"
@@ -85,6 +112,12 @@ struct LibraryView: View {
             SlideDecksView()
         case .study:
             StudyView()
+        case .aiChat:
+            NavigationStack { AIChatView() }
+        case .calculator:
+            NavigationStack { CalculatorView() }
+        case .plugins:
+            NavigationStack { PluginsView() }
         case .flowmodoro:
             NavigationStack { FlowmodoroView() }
         case .reminders:
@@ -99,18 +132,29 @@ struct LibraryView: View {
                     if shownScope == .graph {
                         GraphView()
                     } else {
-                        NotesGridView(scope: shownScope ?? .allNotes) { path.append($0) }
+                        FolderLockGate(folderID: folderScopeID(shownScope ?? .allNotes)) {
+                            NotesGridView(scope: shownScope ?? .allNotes) { open($0) }
+                        }
                     }
                 }
                 .navigationDestination(for: UUID.self) { noteID in
-                    if store.note(noteID)?.isText == true {
-                        MarkdownNoteView(noteID: noteID)
-                    } else {
-                        NoteEditorView(noteID: noteID)
+                    NoteLockGate(noteID: noteID) {
+                        if store.note(noteID)?.isText == true {
+                            MarkdownNoteView(noteID: noteID)
+                        } else {
+                            NoteEditorView(noteID: noteID)
+                        }
                     }
                 }
             }
         }
+    }
+
+    /// The folder a scope shows, when the scope is a folder: what the
+    /// folder lock (Face ID) gates.
+    private func folderScopeID(_ scope: LibraryScope) -> UUID? {
+        if case let .folder(id) = scope { return id }
+        return nil
     }
 
     /// Changes section in two steps. SwiftUI keeps one navigation state for
@@ -152,9 +196,18 @@ struct LibraryView: View {
                 path = []
                 scope = .allNotes
             }
+            .onChange(of: store.lockRevision) {
+                // A locked note cannot stay open on screen.
+                path.removeAll { !store.isUnlocked($0) }
+            }
             .onChange(of: path) {
                 // Give the editor the whole screen; bring the sidebar back in the library.
                 columnVisibility = path.isEmpty ? .automatic : .detailOnly
+            }
+            // inkpad:// links (App Intents' Open Note, reminders made from
+            // notes, Markdown links inside rendered text).
+            .onOpenURL { url in
+                _ = InkPadLink.handle(url, with: navigation)
             }
             .alert("InkPad", isPresented: storeErrorShown) {
                 Button("OK", role: .cancel) {}
@@ -218,6 +271,7 @@ struct LibraryView: View {
             .onAppear {
                 commands.navigate = { scope = $0 }
                 commands.openNote = { navigation.openNote($0) }
+                commands.flushPendingOpen()
             }
             .sheet(item: $commands.sheet, onDismiss: applyPendingTheme) { sheet in
                 commandSheet(sheet)

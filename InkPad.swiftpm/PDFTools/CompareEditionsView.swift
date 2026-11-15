@@ -95,13 +95,13 @@ struct CompareEditionsView: View {
     @ViewBuilder
     private var progressOverlay: some View {
         if let progress {
-            VStack(spacing: 10) {
+            VStack(spacing: Theme.Spacing.lg) {
                 ProgressView(value: progress)
                     .frame(width: 220)
                 Text("Reading both editions…").font(.callout)
             }
             .padding(24)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
         }
     }
 
@@ -243,9 +243,9 @@ struct CompareEditionsView: View {
     }
 
     private func summary(_ comparison: EditionComparison) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             ForEach([ChapterChangeKind.added, .removed, .changed, .same]) { kind in
-                VStack(spacing: 4) {
+                VStack(spacing: Theme.Spacing.xs) {
                     Text("\(comparison.count(kind))")
                         .font(.title2.bold())
                         .foregroundStyle(kind.color)
@@ -258,7 +258,7 @@ struct CompareEditionsView: View {
     }
 
     private func row(_ change: ChapterChange) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             Image(systemName: change.kind.systemImage)
                 .font(.title3)
                 .foregroundStyle(change.kind.color)
@@ -354,7 +354,7 @@ struct ChapterCompareView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxl2) {
                 header
                 pagesView
                 aiSection
@@ -390,7 +390,7 @@ struct ChapterCompareView: View {
     // MARK: Pages
 
     private var pagesView: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: Theme.Spacing.lg) {
             HStack {
                 Button {
                     offset -= 1
@@ -409,11 +409,11 @@ struct ChapterCompareView: View {
                 .disabled(offset >= steps.count - 1)
             }
             .buttonStyle(.bordered)
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: Theme.Spacing.xl) {
                 pageColumn("Old", image: oldImage, missing: shownPages.old == nil)
                 pageColumn("New", image: newImage, missing: shownPages.new == nil)
             }
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.xxl2) {
                 Label("Removed", systemImage: "square.fill").foregroundStyle(.red)
                 Label("Added", systemImage: "square.fill").foregroundStyle(.green)
             }
@@ -430,17 +430,17 @@ struct ChapterCompareView: View {
     }
 
     private func pageColumn(_ title: String, image: UIImage?, missing: Bool) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Theme.Spacing.sm) {
             Text(tr(title)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             if let image {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
                     .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
                     .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
             } else {
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: Theme.Radius.xs)
                     .fill(Color(uiColor: .tertiarySystemFill))
                     .aspectRatio(0.75, contentMode: .fit)
                     .overlay {
@@ -491,7 +491,7 @@ struct ChapterCompareView: View {
     // MARK: AI
 
     private var aiSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             HStack {
                 Label("What Changed (AI)", systemImage: "sparkles").font(.headline)
                 Spacer()
@@ -556,13 +556,13 @@ struct ChapterCompareView: View {
     private func sentenceList(_ title: String, _ items: [String], color: Color) -> some View {
         if !items.isEmpty {
             DisclosureGroup {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     ForEach(Array(items.enumerated()), id: \.offset) { item in
                         Text(tr(item.element))
                             .font(.callout)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
-                            .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                            .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
                     }
                 }
                 .padding(.top, 6)

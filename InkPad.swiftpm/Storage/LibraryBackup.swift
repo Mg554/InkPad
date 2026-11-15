@@ -502,6 +502,9 @@ extension LibraryStore {
     /// even when the library opened read-only: restoring is the way out.
     func restoreBackup(at url: URL) async throws {
         let root = rootURL
+        // Pending index changes land on disk first, so the safety copy
+        // taken by the restore holds everything made up to now.
+        await flushIndex()
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             writeQueue.async {
                 continuation.resume(with: Result { try LibraryBackup.restore(from: url, into: root) })
@@ -586,7 +589,9 @@ extension LibraryStore {
     /// Writes an automatic backup if one is due; returns true when it did.
     @discardableResult
     /// With `force`, backs up now whatever the schedule (Back Up Now).
-    func makeAutomaticBackupIfDue(force: Bool = false) async -> Bool {
+    /// `workspace` is flushed first too, so the archive always holds every
+    /// change made up to this moment.
+    func makeAutomaticBackupIfDue(force: Bool = false, workspace: WorkspaceStore? = nil) async -> Bool {
         let defaults = UserDefaults.standard
         let frequency = AutoBackupFrequency(rawValue: defaults.string(forKey: AutoBackupFrequency.storageKey) ?? "") ?? .weekly
         guard !isReadOnly, !notes.isEmpty else { return false }
@@ -595,6 +600,9 @@ extension LibraryStore {
             let last = defaults.double(forKey: AutoBackupFrequency.lastKey)
             guard Date().timeIntervalSince1970 - last >= interval else { return false }
         }
+        // Pending index and planner changes land on disk before the copy.
+        await flushIndex()
+        await workspace?.flushWorkspace()
         let keep = defaults.object(forKey: AutoBackupFrequency.keepKey) as? Int ?? 5
         let root = rootURL
         let folder = LibraryBackup.automaticBackupsURL

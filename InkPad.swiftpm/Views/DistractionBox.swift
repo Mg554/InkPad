@@ -18,7 +18,7 @@ struct DistractionCapture: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
                 if let timer = workspace.flowTimer, timer.phase == .working {
                     Label("While focusing on “\(timer.taskTitle)”", systemImage: "timer")
                         .font(.caption)
@@ -36,7 +36,7 @@ struct DistractionCapture: View {
                 } else if writes {
                     InkCanvas(drawing: $drawing, showsToolPicker: false)
                         .frame(height: 180)
-                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                        .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
                         .overlay(alignment: .topLeading) {
                             if drawing.strokes.isEmpty {
                                 Text("Write the thought here…").foregroundStyle(.tertiary).padding(12).allowsHitTesting(false)
@@ -47,7 +47,7 @@ struct DistractionCapture: View {
                         .lineLimit(2...5)
                         .focused($isTyping)
                         .padding(12)
-                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                        .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 }
                 Text("It goes into the Distraction Box. Deal with it after your session.")
                     .font(.caption)
@@ -73,7 +73,7 @@ struct DistractionCapture: View {
 
     /// Say the thought; it is written out on the iPad as you speak.
     private var speakArea: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: Theme.Spacing.xxl) {
             Button {
                 if voice.isListening {
                     voice.stop()
@@ -99,7 +99,7 @@ struct DistractionCapture: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
     }
 
     private func save() {
@@ -112,12 +112,12 @@ struct DistractionCapture: View {
             let ink = drawing.dataRepresentation()
             let item = Distraction(text: "", ink: ink, duringTask: during)
             workspace.addDistraction(item)
-            let picture = DistractionInk.image(of: drawing)
+            let picture = InkSnapshot.onWhite(of: drawing, from: drawing.bounds.insetBy(dx: -12, dy: -12), scale: 2)
             // The handwriting is read on the iPad, so it can become a reminder.
             Task {
-                guard let cgImage = picture?.cgImage else { return }
-                let lines = await Task.detached(priority: .utility) { BookOCR.lines(in: cgImage) }.value
-                let read = BookOCR.text(of: lines).replacingOccurrences(of: "\n", with: " ")
+                guard let cgImage = picture.cgImage else { return }
+                let lines = await Task.detached(priority: .utility) { InkOCR.lines(in: cgImage) }.value
+                let read = InkOCR.text(of: lines).replacingOccurrences(of: "\n", with: " ")
                 guard !read.isEmpty else { return }
                 workspace.setDistractionText(read, for: item.id)
             }
@@ -145,7 +145,7 @@ struct DistractionInkThumbnail: View {
                     .resizable()
                     .scaledToFit()
                     .frame(maxHeight: height, alignment: .leading)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
             } else {
                 Color.clear.frame(height: 40)
             }
@@ -158,31 +158,12 @@ struct DistractionInkThumbnail: View {
             }
             let data = data
             let made: UIImage? = await Task.detached(priority: .utility) { () -> UIImage? in
-                guard let drawing = try? PKDrawing(data: data) else { return nil }
-                return DistractionInk.image(of: drawing)
+                guard let drawing = try? PKDrawing(data: data), !drawing.strokes.isEmpty else { return nil }
+                return InkSnapshot.onWhite(of: drawing, from: drawing.bounds.insetBy(dx: -12, dy: -12), scale: 2)
             }.value
             if let made { Self.cache.setObject(made, forKey: key) }
             picture = made
         }
-    }
-}
-
-enum DistractionInk {
-    /// The handwriting on white, dark ink, for showing and reading.
-    static func image(of drawing: PKDrawing) -> UIImage? {
-        guard !drawing.strokes.isEmpty else { return nil }
-        var picture: UIImage?
-        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-            let bounds = drawing.bounds.insetBy(dx: -12, dy: -12)
-            let ink = drawing.image(from: bounds, scale: 2)
-            let renderer = UIGraphicsImageRenderer(size: ink.size)
-            picture = renderer.image { _ in
-                UIColor.white.setFill()
-                UIRectFill(CGRect(origin: .zero, size: ink.size))
-                ink.draw(at: .zero)
-            }
-        }
-        return picture
     }
 }
 

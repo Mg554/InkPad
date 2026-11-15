@@ -70,7 +70,7 @@ struct SlideDeckView: View {
                             number: index + 1,
                             total: deck.slides.count
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
                         .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
                         SlideFields(slide: slide)
                     }
@@ -79,19 +79,19 @@ struct SlideDeckView: View {
                 .frame(maxWidth: 900)
                 .frame(maxWidth: .infinity)
             }
-            .background(Color(uiColor: .secondarySystemBackground))
+            .background(Theme.Colors.secondarySurface)
         }
     }
 
     private func slideList(_ deck: SlideDeck) -> some View {
         ScrollView {
-            LazyVStack(spacing: 14) {
+            LazyVStack(spacing: Theme.Spacing.xxl) {
                 ForEach(Array(deck.slides.enumerated()), id: \.element.id) { item in
                     let isSelected = item.element.id == selection
                     Button {
                         selection = item.element.id
                     } label: {
-                        VStack(spacing: 4) {
+                        VStack(spacing: Theme.Spacing.xs) {
                             SlideView(
                                 slide: item.element,
                                 theme: deck.theme,
@@ -99,9 +99,9 @@ struct SlideDeckView: View {
                                 number: item.offset + 1,
                                 total: deck.slides.count
                             )
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
                                     .stroke(isSelected ? Color.inkAccent : Color.secondary.opacity(0.25), lineWidth: isSelected ? 3 : 1)
                             )
                             Text("\(item.offset + 1)")
@@ -369,7 +369,7 @@ private struct SlideFields: View {
     @State private var keyboardHelp: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
             HStack {
                 Picker("Layout", selection: $slide.layout) {
                     ForEach(Slide.Layout.allCases) { layout in
@@ -448,13 +448,13 @@ private struct SlideFields: View {
     }
 
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Text(tr(title))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             content()
                 .padding(10)
-                .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
     }
 }

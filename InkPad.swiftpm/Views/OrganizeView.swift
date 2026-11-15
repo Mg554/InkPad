@@ -27,7 +27,7 @@ struct OrganizeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
                     if let blockedMessage {
                         notice("Protected by the AI Firewall", blockedMessage, image: "lock.shield.fill", tint: .green)
                     } else if let problem = ai.problem {
@@ -35,7 +35,7 @@ struct OrganizeView: View {
                     } else if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         notice("Nothing to Organize", "Write or paste something in the note first.", image: "doc", tint: .orange)
                     } else if isWorking {
-                        HStack(spacing: 12) {
+                        HStack(spacing: Theme.Spacing.xl) {
                             ProgressView()
                             Text("Organizing \"\(noteTitle)\"…")
                                 .foregroundStyle(.secondary)
@@ -46,8 +46,8 @@ struct OrganizeView: View {
                             .font(.title3.bold())
                         MarkdownPreview(text: organized) { _ in }
                             .padding(18)
-                            .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 16))
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.purple.opacity(0.3)))
+                            .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
+                            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xxl).stroke(Color.purple.opacity(0.3)))
                     }
                     if let error {
                         Label(trMessage(error), systemImage: "exclamationmark.triangle")
@@ -58,7 +58,7 @@ struct OrganizeView: View {
                 .frame(maxWidth: 820, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
-            .background(Color(uiColor: .secondarySystemBackground))
+            .background(Theme.Colors.secondarySurface)
             .navigationTitle("Organize This")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -90,11 +90,11 @@ struct OrganizeView: View {
     }
 
     private func notice(_ title: String, _ message: String, image: String, tint: Color) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Theme.Spacing.xxl) {
             Image(systemName: image)
                 .font(.title2)
                 .foregroundStyle(tint)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Text(tr(title)).font(.headline)
                 Text(trMessage(message))
                     .font(.subheadline)

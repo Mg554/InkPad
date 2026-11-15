@@ -12,7 +12,7 @@ struct NoteBackground: Equatable {
     let pdf: PDFBackground?
     let layout: PageLayout
 
-    init(template: PageTemplate, paper: PaperColor, pages: [PageSource], pdf: PDFBackground?) {
+    init(template: PageTemplate, paper: PaperColor, pages: [PageSource], pdf: PDFBackground?, axis: PageLayout.Axis = .vertical) {
         self.template = template
         self.paper = paper
         self.pages = pages
@@ -25,7 +25,15 @@ struct NoteBackground: Equatable {
                   size.width > 0, size.height > 0
             else { return PageLayout.templatePageSize }
             return CGSize(width: PageLayout.pageWidth, height: PageLayout.pageWidth * size.height / size.width)
-        })
+        }, axis: axis)
+    }
+
+    /// The same note with pages laid out the other way, for the open
+    /// canvas. Everything else (thumbnails, export, page moves) stays on
+    /// the stored layout.
+    func withAxis(_ axis: PageLayout.Axis) -> NoteBackground {
+        guard axis != layout.axis else { return self }
+        return NoteBackground(template: template, paper: paper, pages: pages, pdf: pdf, axis: axis)
     }
 
     /// The PDF page shown on this page, if it is a readable PDF page.

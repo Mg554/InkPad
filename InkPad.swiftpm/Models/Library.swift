@@ -21,6 +21,10 @@ struct Folder: Codable, Identifiable, Hashable {
     /// AI Firewall: only Apple Intelligence on the iPad may read them.
     var aiOnDeviceOnly: Bool?
 
+    /// Face ID (or the passcode) is needed before this folder's notes may
+    /// show. `nil` = not protected.
+    var isLocked: Bool?
+
     var aiAccess: AIAccess {
         hiddenFromAI == true ? .never : aiOnDeviceOnly == true ? .onDeviceOnly : .allowed
     }
@@ -108,6 +112,11 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     var aiOnDeviceOnly: Bool?
     /// Starred: listed under Favorites.
     var isFavorite: Bool?
+    /// Locked with Face ID (or the device passcode): its text and ink stay
+    /// out of search, previews and Living Notes until it is unlocked.
+    var isLocked: Bool?
+    /// The owner's own details for the note (Note Info).
+    var details: String?
     /// When it was pinned; pinned notes come first in every list.
     var pinnedAt: Date?
     /// A cover shown instead of the first page.
@@ -124,6 +133,7 @@ struct NoteSummary: Codable, Identifiable, Hashable {
     var isText: Bool { kind == .text }
     var favorite: Bool { isFavorite == true }
     var isPinned: Bool { pinnedAt != nil }
+    var locked: Bool { isLocked == true }
 }
 
 /// A reusable starting text for new text notes. `{{title}}`, `{{date}}`
@@ -243,6 +253,12 @@ enum LibraryScope: Hashable {
     case slides
     /// Study with AI: chat, flashcards, quizzes.
     case study
+    /// A general chat with an AI service, not about any note.
+    case aiChat
+    /// The calculator: write an equation or use the scientific keys.
+    case calculator
+    /// The services InkPad can reach: mail, calendars and the owner's tools.
+    case plugins
     /// The Flowmodoro focus timer and its tasks.
     case flowmodoro
     /// Apple Reminders, shown and edited in InkPad.

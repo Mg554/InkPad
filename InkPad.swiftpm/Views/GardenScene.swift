@@ -17,7 +17,7 @@ struct GardenPlantCard: View {
     @ObservedObject private var settings = GardenSettings.shared
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Theme.Spacing.sm) {
             LivingPlant(
                 growth: growth ?? plant.growth,
                 species: settings.species(for: plant.subject),
@@ -93,11 +93,11 @@ struct FocusGardenView: View {
 
     private func cards(_ plants: [GardenPlant]) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
                 Text("Each subject grows a plant as you focus on it: a planner task's first tag is its subject. Tap a plant to choose its kind.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: Theme.Spacing.xxl)], spacing: Theme.Spacing.xxl) {
                     ForEach(plants) { plant in
                         GardenPlantCard(plant: plant, size: 140, growth: shown[plant.subject])
                             .onTapGesture { picked = plant }
@@ -111,7 +111,7 @@ struct FocusGardenView: View {
     @ViewBuilder
     private var newsBanner: some View {
         if !news.isEmpty {
-            VStack(spacing: 4) {
+            VStack(spacing: Theme.Spacing.xs) {
                 ForEach(news, id: \.self) { line in
                     Text(verbatim: line).font(.subheadline.weight(.semibold))
                 }
@@ -195,7 +195,7 @@ struct GardenSceneView: View {
         let x: CGFloat = 60 + step * (CGFloat(index) + 0.5)
         let ground: CGFloat = height - (back ? 150 : 96)
         let plantHeight: CGFloat = min(height * 0.62, 340)
-        return VStack(spacing: 4) {
+        return VStack(spacing: Theme.Spacing.xs) {
             LivingPlant(
                 growth: shown[plant.subject] ?? plant.growth,
                 species: settings.species(for: plant.subject),
@@ -541,7 +541,7 @@ struct GardenGrowthToast: View {
     var body: some View {
         let before = GardenPlant(subject: toast.subject, minutes: toast.from)
         let after = GardenPlant(subject: toast.subject, minutes: toast.to)
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             LivingPlant(
                 growth: growth,
                 species: settings.species(for: toast.subject),
@@ -568,7 +568,7 @@ struct GardenGrowthToast: View {
             .accessibilityLabel("Close")
         }
         .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous))
         .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
         .contentShape(Rectangle())
         .onTapGesture {

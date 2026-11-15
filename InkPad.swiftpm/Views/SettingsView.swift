@@ -10,6 +10,7 @@ struct SettingsView: View {
     @ObservedObject private var ai = AISettings.shared
     @ObservedObject private var looks = FlowLookStore.shared
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
+    @AppStorage(ScrollAxis.storageKey) private var scrollDirection: ScrollAxis = .vertical
     @AppStorage(TextInputMode.defaultsKey) private var textInput: TextInputMode = .keyboard
     @AppStorage("pencilOnly") private var pencilOnly = true
     @AppStorage("transcriptionMethod") private var transcription: TranscriptionMethod = .automatic
@@ -105,7 +106,7 @@ struct SettingsView: View {
     // MARK: Sections
 
     private var proBanner: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             AppBadge(size: 54)
             VStack(alignment: .leading, spacing: 3) {
                 Text("InkPad Pro").font(.headline)
@@ -174,6 +175,13 @@ struct SettingsView: View {
         Section("Writing") {
             Toggle(isOn: Binding(get: { !pencilOnly }, set: { pencilOnly = !$0 })) {
                 Label("Draw with Finger", systemImage: "hand.draw")
+            }
+            Picker(selection: $scrollDirection) {
+                ForEach(ScrollAxis.allCases) { option in
+                    Label(tr(option.title), systemImage: option.symbol).tag(option)
+                }
+            } label: {
+                Label("Scrolling Direction", systemImage: scrollDirection.symbol)
             }
             Picker(selection: Binding(get: { textInput }, set: { TextInputMode.set($0) })) {
                 Text("Opens the Keyboard").tag(TextInputMode.keyboard)
@@ -287,7 +295,7 @@ struct AboutView: View {
     var body: some View {
         List {
             Section {
-                VStack(spacing: 10) {
+                VStack(spacing: Theme.Spacing.lg) {
                     AppBadge(size: 96)
                     Text("InkPad").font(.title.bold())
                     Text("Version \(version)")
@@ -350,29 +358,29 @@ struct ProView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
-                VStack(spacing: 10) {
+                VStack(spacing: Theme.Spacing.lg) {
                     AppBadge(size: 84)
                     Text("InkPad Pro").font(.largeTitle.bold())
                     Text("Support InkPad and get more when Pro arrives.")
                         .foregroundStyle(.secondary)
                 }
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                     ForEach(features, id: \.0) { feature in
                         Label(tr(feature.0), systemImage: feature.1)
                     }
                 }
                 .frame(maxWidth: 420, alignment: .leading)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: Theme.Spacing.xxl)], spacing: Theme.Spacing.xxl) {
                     ForEach(plans) { plan in
-                        VStack(spacing: 6) {
+                        VStack(spacing: Theme.Spacing.sm) {
                             Text(tr(plan.name)).font(.headline)
                             Text(verbatim: plan.price).font(.title.bold()).foregroundStyle(plan.tint)
                             Text(tr(plan.note)).font(.caption).foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
-                        .background(RoundedRectangle(cornerRadius: 18).fill(plan.tint.opacity(0.1)))
-                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(plan.tint.opacity(0.4), lineWidth: plan.id == "free" ? 2 : 1))
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.huge).fill(plan.tint.opacity(0.1)))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.huge).stroke(plan.tint.opacity(0.4), lineWidth: plan.id == "free" ? 2 : 1))
                     }
                 }
                 .frame(maxWidth: 760)

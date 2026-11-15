@@ -73,27 +73,6 @@ enum PageParagraphs {
             scale: 1
         )
         guard let cgImage = picture.cgImage else { return [] }
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        request.automaticallyDetectsLanguage = true
-        do {
-            try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
-        } catch {
-            return []
-        }
-        var lines: [(text: String, rect: CGRect)] = []
-        for observation in request.results ?? [] {
-            guard let text = observation.topCandidates(1).first?.string else { continue }
-            let box = observation.boundingBox
-            let rect = CGRect(
-                x: pageRect.minX + box.minX * pageRect.width,
-                y: pageRect.minY + (1 - box.maxY) * pageRect.height,
-                width: box.width * pageRect.width,
-                height: box.height * pageRect.height
-            )
-            lines.append((text, rect))
-        }
-        return lines.sorted { $0.rect.minY < $1.rect.minY }
+        return InkOCR.lines(in: cgImage, mappedTo: pageRect)
     }
 }

@@ -551,7 +551,7 @@ struct CoverEditor: View {
                     NoteCoverView(cover: cover, title: note.title)
                         .aspectRatio(0.72, contentMode: .fit)
                         .frame(maxHeight: 280)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
                         .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
                         .modifier(CoverTilt())
                         .frame(maxWidth: .infinity)
@@ -563,15 +563,15 @@ struct CoverEditor: View {
                 }
                 Section("Ready-Made") {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: Theme.Spacing.xl) {
                             ForEach(presets) { preset in
                                 Button {
                                     withAnimation(.snappy) { cover = preset.cover }
                                 } label: {
-                                    VStack(spacing: 4) {
+                                    VStack(spacing: Theme.Spacing.xs) {
                                         NoteCoverView(cover: preset.cover, title: "")
                                             .frame(width: 58, height: 80)
-                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
                                         Text(tr(preset.name)).font(.caption2).lineLimit(1).frame(width: 74)
                                     }
                                 }
@@ -583,12 +583,12 @@ struct CoverEditor: View {
                 }
                 Section("Material") {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
+                        HStack(spacing: Theme.Spacing.lg) {
                             ForEach(NoteCover.Style.allCases) { style in
                                 Button {
                                     withAnimation(.snappy) { cover.style = style }
                                 } label: {
-                                    VStack(spacing: 4) {
+                                    VStack(spacing: Theme.Spacing.xs) {
                                         NoteCoverView(cover: sample(style), title: "")
                                             .frame(width: 46, height: 62)
                                             .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -640,12 +640,12 @@ struct CoverEditor: View {
     private var titleSection: some View {
         Section("Title") {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: Theme.Spacing.md) {
                     ForEach(NoteCover.TitleFont.allCases) { font in
                         Button {
                             cover.font = font
                         } label: {
-                            VStack(spacing: 2) {
+                            VStack(spacing: Theme.Spacing.x2) {
                                 Text(verbatim: font.isArabic ? "أبجد" : "Aa")
                                     .font(CoverFonts.font(font, size: 22))
                                     .fontDesign(CoverFonts.design(font))
@@ -653,7 +653,7 @@ struct CoverEditor: View {
                                 Text(tr(font.title)).font(.caption2).lineLimit(1)
                             }
                             .frame(width: 78, height: 58)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(cover.font == font ? Color.inkAccent.opacity(0.2) : Color.primary.opacity(0.05)))
+                            .background(RoundedRectangle(cornerRadius: Theme.Radius.md).fill(cover.font == font ? Color.inkAccent.opacity(0.2) : Color.primary.opacity(0.05)))
                         }
                         .buttonStyle(.plain)
                     }
@@ -684,7 +684,7 @@ struct CoverEditor: View {
             }
             .pickerStyle(.segmented)
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: Theme.Spacing.md) {
                     Button {
                         cover.emblem = nil
                         emblemText = ""
@@ -736,7 +736,7 @@ struct CoverEditor: View {
     }
 
     private func colorRow(selection: Binding<FolderColor>) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Theme.Spacing.lg) {
             ForEach(FolderColor.allCases) { color in
                 Button {
                     selection.wrappedValue = color

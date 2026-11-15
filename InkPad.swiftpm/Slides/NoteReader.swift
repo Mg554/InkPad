@@ -1,6 +1,5 @@
 import PencilKit
 import UIKit
-import Vision
 
 /// Reads a handwritten note's pages for slides: the writing and printed text
 /// on each page (recognized on the iPad with Vision) and a picture of it.
@@ -27,23 +26,7 @@ enum NoteReader {
             background: background,
             scale: 1
         )
-        let text = picture.cgImage.map { recognizeText(in: $0) } ?? ""
+        let text = picture.cgImage.map { InkOCR.text(in: $0) } ?? ""
         return Page(text: text, image: wantsImage ? picture.jpegData(compressionQuality: 0.75) : nil)
-    }
-
-    /// Lines of text, top to bottom.
-    static func recognizeText(in image: CGImage) -> String {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        request.automaticallyDetectsLanguage = true
-        do {
-            try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
-        } catch {
-            return ""
-        }
-        return (request.results ?? [])
-            .compactMap { $0.topCandidates(1).first?.string }
-            .joined(separator: "\n")
     }
 }

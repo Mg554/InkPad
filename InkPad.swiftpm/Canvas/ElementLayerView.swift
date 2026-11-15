@@ -12,9 +12,12 @@ final class ElementLayerView: UIView {
     var onTextStateChange: (() -> Void)?
     /// Called when a sticky note is tapped, to open it.
     var onStickyTap: ((StickyNoteView) -> Void)?
+    var onCommentTap: ((CommentPinView) -> Void)?
 
     private(set) weak var selected: PageElementView?
     private var renderScale: CGFloat = 2
+    /// Which way the pages run, for the moves that follow page changes.
+    var axis: PageLayout.Axis = .vertical
 
     var isInteractive = false {
         didSet {
@@ -46,22 +49,28 @@ final class ElementLayerView: UIView {
     func load(_ elements: [PageElement]) {
         subviews.forEach { $0.removeFromSuperview() }
         for element in elements {
+            let locked = element.isLocked ?? false
             switch element.content {
             case let .text(rtf):
                 let text = TextBoxStyle.attributedString(fromRTF: rtf) ?? NSAttributedString()
-                add(TextBoxView(id: element.id, frame: element.frame, text: text))
+                add(TextBoxView(id: element.id, frame: element.frame, text: text, isLocked: locked))
             case let .image(file):
                 guard isPlainFileName(file),
                       let directory = imageDirectory,
                       let image = UIImage(contentsOfFile: directory.appendingPathComponent(file).path)
                 else {
                     // Keep the reference so a missing file is not silently dropped on save.
-                    add(ImageElementView(id: element.id, frame: element.frame, file: file, image: nil))
+                    add(ImageElementView(id: element.id, frame: element.frame, file: file, image: nil, isLocked: locked))
                     continue
                 }
-                add(ImageElementView(id: element.id, frame: element.frame, file: file, image: image))
+                add(ImageElementView(id: element.id, frame: element.frame, file: file, image: image, isLocked: locked))
             case let .sticky(note):
-                add(StickyNoteView(id: element.id, frame: element.frame, note: note))
+                add(StickyNoteView(id: element.id, frame: element.frame, note: note, isLocked: locked))
+            case let .comment(comment):
+                add(CommentPinView(id: element.id, frame: element.frame, comment: comment, isLocked: locked))
+            case let .tape(tape):
+                let tapeView = TapeElementView(id: element.id, frame: tape.frame, red: CGFloat(tape.red), green: CGFloat(tape.green), blue: CGFloat(tape.blue), style: tape.style)
+                add(tapeView)
             }
         }
     }
@@ -89,6 +98,16 @@ final class ElementLayerView: UIView {
         add(box)
         selectElement(box)
         elementsDidChange()
+    }
+
+    /// A text box holding `text` at an exact spot, where handwriting
+    /// becomes editable text (Lasso › Make Editable Text).
+    @discardableResult
+    func addTextBox(_ text: NSAttributedString, at frame: CGRect) -> TextBoxView {
+        let box = TextBoxView(id: UUID(), frame: frame, text: text)
+        add(box)
+        elementsDidChange()
+        return box
     }
 
     @discardableResult
@@ -154,9 +173,57 @@ final class ElementLayerView: UIView {
         elementsDidChange()
     }
 
+    // MARK: Comments
+
+    /// A new comment pin centered at `center`.
+    @discardableResult
+    func addComment(_ comment: NoteComment, centeredAt center: CGPoint) -> CommentPinView {
+        let size = CommentPinView.size
+        let frame = CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2, width: size.width, height: size.height)
+        let view = CommentPinView(id: UUID(), frame: frame, comment: comment)
+        add(view)
+        elementsDidChange()
+        return view
+    }
+
+    func commentPin(_ id: UUID) -> CommentPinView? {
+        subviews.first(where: { ($0 as? CommentPinView)?.id == id }) as? CommentPinView
+    }
+
+    /// The top comment pin under `point` (layer coordinates).
+    func comment(at point: CGPoint) -> CommentPinView? {
+        for case let view as CommentPinView in subviews.reversed() where view.frame.contains(point) {
+            return view
+        }
+        return nil
+    }
+
+    func updateComment(_ id: UUID, with comment: NoteComment) {
+        guard let view = commentPin(id) else { return }
+        view.update(comment)
+        bringSubviewToFront(view)
+        elementsDidChange()
+    }
+
     func removeElement(_ id: UUID) {
         guard let view = subviews.first(where: { ($0 as? PageElementView)?.id == id }) as? PageElementView else { return }
         remove(view)
+    }
+
+    /// Takes the element with `id` out of the layer and hands it back, so an
+    /// undo can put it where it was. Its text and frame are untouched.
+    @discardableResult
+    func detach(_ id: UUID) -> PageElementView? {
+        guard let view = subviews.first(where: { ($0 as? PageElementView)?.id == id }) as? PageElementView else { return nil }
+        if view === selected { selectElement(nil) }
+        view.removeFromSuperview()
+        return view
+    }
+
+    /// Puts a detached element back (undo of a handwriting conversion).
+    func restore(_ view: PageElementView) {
+        add(view)
+        elementsDidChange()
     }
 
     private func add(_ view: PageElementView) {
@@ -179,7 +246,7 @@ final class ElementLayerView: UIView {
     }
 
     func removeSelected() {
-        guard let selected else { return }
+        guard let selected, !selected.isElementLocked else { return }
         remove(selected)
     }
 
@@ -195,30 +262,41 @@ final class ElementLayerView: UIView {
         onChange?()
     }
 
-    /// Moves elements whose middle is below `y` by `delta`, and removes those
-    /// whose middle falls in `removing`. Used when pages are inserted or deleted.
-    func shiftElements(below y: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
+    /// Moves elements past `value` along the pages' direction by `delta`,
+    /// and removes those whose middle falls in `removing`. Used when pages
+    /// are inserted or deleted.
+    func shiftElements(below value: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
         var changed = false
         for case let view as PageElementView in subviews {
-            let middle = view.frame.midY
+            let middle = axis.mid(of: view.frame)
             if let removing, removing.contains(middle) {
                 if view === selected { selectElement(nil) }
                 view.removeFromSuperview()
                 changed = true
-            } else if middle > y {
-                view.center.y += delta
+            } else if middle > value {
+                if axis == .vertical {
+                    view.center.y += delta
+                } else {
+                    view.center.x += delta
+                }
                 changed = true
             }
         }
         if changed { elementsDidChange() }
     }
 
+    /// Moves elements along the pages' direction; `offset` says how far
+    /// content at a given position moves (used to reorder pages).
     func moveElements(by offset: (CGFloat) -> CGFloat) {
         var changed = false
         for case let view as PageElementView in subviews {
-            let delta = offset(view.frame.midY)
+            let delta = offset(axis.mid(of: view.frame))
             guard delta != 0 else { continue }
-            view.center.y += delta
+            if axis == .vertical {
+                view.center.y += delta
+            } else {
+                view.center.x += delta
+            }
             changed = true
         }
         if changed { elementsDidChange() }
@@ -231,19 +309,119 @@ final class ElementLayerView: UIView {
             view.setRenderScale(scale)
         }
     }
+
+    // MARK: Z-order and lock
+
+    /// The element views in drawing order (back to front).
+    private var elementViews: [PageElementView] {
+        subviews.compactMap { $0 as? PageElementView }
+    }
+
+    func bringSelectedForward() {
+        guard let selected else { return }
+        let views = elementViews
+        guard let index = views.firstIndex(where: { $0 === selected }), index < views.count - 1 else { return }
+        exchangeSubview(at: subviews.firstIndex(of: selected)!, withSubviewAt: subviews.firstIndex(of: views[index + 1])!)
+        elementsDidChange()
+    }
+
+    func sendSelectedBackward() {
+        guard let selected else { return }
+        let views = elementViews
+        guard let index = views.firstIndex(where: { $0 === selected }), index > 0 else { return }
+        exchangeSubview(at: subviews.firstIndex(of: selected)!, withSubviewAt: subviews.firstIndex(of: views[index - 1])!)
+        elementsDidChange()
+    }
+
+    func bringSelectedToFront() {
+        guard let selected else { return }
+        bringSubviewToFront(selected)
+        elementsDidChange()
+    }
+
+    func sendSelectedToBack() {
+        guard let selected else { return }
+        sendSubviewToBack(selected)
+        elementsDidChange()
+    }
+
+    func toggleLockSelected() {
+        guard let selected else { return }
+        selected.setLocked(!selected.isElementLocked)
+    }
+
+    var isSelectedLocked: Bool { selected?.isElementLocked ?? false }
 }
 
-/// Base class for a movable element on the page.
+/// A tape mask element view that displays an opaque rounded rect.
+/// The user can move and select it; delete via the toolbar.
+final class TapeElementView: PageElementView {
+    private let red: CGFloat, green: CGFloat, blue: CGFloat
+    private let style: TapeStyle
+
+    init(id: UUID, frame: CGRect, red: CGFloat, green: CGFloat, blue: CGFloat, style: TapeStyle) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.style = style
+        super.init(id: id, frame: frame, isLocked: false)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    private func setup() {
+        backgroundColor = .clear
+        layer.cornerRadius = 8
+        layer.masksToBounds = true
+        // Set background color from RGB components
+        backgroundColor = UIColor(red: red, green: green, blue: blue, alpha: 1)
+        // Tap to select the element
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+        // Pan to move the element
+        addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:))))
+    }
+
+    @objc func handleTap() {
+        layerView?.selectElement(self)
+    }
+
+    @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
+        guard !isElementLocked else { return }
+        switch gesture.state {
+        case .began:
+            layerView?.endEditing(true)
+            layerView?.selectElement(self)
+        case .changed:
+            let translation = takeTranslation(gesture)
+            center = CGPoint(x: center.x + translation.x, y: center.y + translation.y)
+        case .possible, .failed, .ended, .cancelled:
+            layerView?.elementsDidChange()
+        @unknown default:
+            layerView?.elementsDidChange()
+        }
+    }
+
+    override func makeElement() -> PageElement? {
+        PageElement(id: id, frame: frame, content: .tape(TapeMask(id: id, frame: frame, red: Double(red), green: Double(green), blue: Double(blue), style: style)), isLocked: isElementLocked ? true : nil)
+    }
+}
+
+// Base class for a movable element on the page.
 class PageElementView: UIView {
     let id: UUID
     weak var layerView: ElementLayerView?
+    private(set) var isElementLocked: Bool
 
     var isSelected = false {
         didSet { updateSelectionAppearance() }
     }
 
-    init(id: UUID, frame: CGRect) {
+    init(id: UUID, frame: CGRect, isLocked: Bool = false) {
         self.id = id
+        self.isElementLocked = isLocked
         super.init(frame: frame)
         layer.borderColor = UIColor.systemBlue.cgColor
     }
@@ -253,6 +431,13 @@ class PageElementView: UIView {
     }
 
     func makeElement() -> PageElement? { nil }
+
+    /// Toggles the lock and refreshes handles/appearance.
+    func setLocked(_ locked: Bool) {
+        isElementLocked = locked
+        updateSelectionAppearance()
+        layerView?.elementsDidChange()
+    }
 
     func updateSelectionAppearance() {
         layer.borderWidth = isSelected ? 1.5 : 0

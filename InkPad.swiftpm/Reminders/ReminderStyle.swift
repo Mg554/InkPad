@@ -134,7 +134,7 @@ struct ReminderStyleView: View {
                         ForEach(ReminderLook.Tiles.allCases) { Text(tr($0.title)).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.xl) {
                         ForEach([ReminderCenter.SmartList.today, .scheduled, .priority], id: \.self) { smart in
                             HStack {
                                 Image(systemName: smart.systemImage)
@@ -146,7 +146,7 @@ struct ReminderStyleView: View {
                             }
                             .padding(10)
                             .frame(maxWidth: .infinity)
-                            .modifier(ReminderTileBackground(tiles: store.look.tiles, tint: smart.tint, cornerRadius: 12))
+                            .modifier(ReminderTileBackground(tiles: store.look.tiles, tint: smart.tint, cornerRadius: Theme.Radius.lg))
                         }
                     }
                     .padding(.vertical, 6)
@@ -235,7 +235,7 @@ struct ReminderListEditor: View {
                         .multilineTextAlignment(.center)
                 }
                 Section("Color") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: Theme.Spacing.xl) {
                         ForEach(Self.colors, id: \.self) { option in
                             colorDot(option)
                         }
@@ -245,7 +245,7 @@ struct ReminderListEditor: View {
                     .padding(.vertical, 6)
                 }
                 Section("Icon") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 14) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: Theme.Spacing.xxl) {
                         ForEach(Self.symbols, id: \.self) { symbol in
                             Image(systemName: symbol)
                                 .font(.title3)

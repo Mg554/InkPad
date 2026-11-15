@@ -49,12 +49,12 @@ struct DrawingToolbar<InsertMenu: View>: View {
         .padding(.vertical, isVertical ? 10 : 6)
         .background {
             // Dragging the bar itself (between its buttons) moves it, like Notability.
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous)
                 .fill(.regularMaterial)
                 .contentShape(Rectangle())
                 .gesture(moveGesture)
         }
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.primary.opacity(0.08)).allowsHitTesting(false))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous).stroke(Color.primary.opacity(0.08)).allowsHitTesting(false))
         .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
         .animation(.snappy(duration: 0.2), value: isCollapsed)
         .animation(.snappy(duration: 0.15), value: palette.tool)
@@ -67,7 +67,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     @ViewBuilder
     private var fullBar: some View {
         if isVertical {
-            HStack(alignment: .top, spacing: 4) {
+            HStack(alignment: .top, spacing: Theme.Spacing.xs) {
                 if edge == .trailing {
                     optionsStack
                     toolsStack
@@ -81,7 +81,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 }
             }
         } else {
-            VStack(spacing: 4) {
+            VStack(spacing: Theme.Spacing.xs) {
                 toolsStack
                     .padding(.bottom, 4)
                     .overlay(alignment: .bottom) { hairline }
@@ -119,7 +119,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     }
 
     private var collapsedBar: some View {
-        AxisStack(vertical: isVertical, spacing: 8) {
+        AxisStack(vertical: isVertical, spacing: Theme.Spacing.md) {
             grip
             undoRedoButtons
             Image(systemName: palette.tool.systemImage)
@@ -234,7 +234,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             widthButtons(style)
 
         case .lasso:
-            hint("Circle ink or PDF text to select it. Drag ink to move it; tap the selection for Style, Copy as Text, Highlight and more.")
+            hint("Circle ink or PDF text to select it. Drag ink to move it; tap the selection for Style, Make Editable Text, Highlight and more.")
 
         case .laser:
             ForEach(style.colors, id: \.self) { color in
@@ -253,9 +253,21 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 textFormattingItems
             case .image:
                 hint("Drag to move. Use the corner handle to resize.")
+                barDivider
+                elementArrangementControls
+                barDivider
                 deleteButton
             case .sticky:
                 hint("Drag the sticky note to move it, or the corner to resize. Tap it to write in it.")
+                barDivider
+                elementArrangementControls
+                barDivider
+                deleteButton
+            case .comment:
+                hint("Drag the comment pin to move it. Tap it to open its thread.")
+                barDivider
+                elementArrangementControls
+                barDivider
                 deleteButton
             case nil:
                 textInputModeButton
@@ -335,6 +347,9 @@ struct DrawingToolbar<InsertMenu: View>: View {
         return Group {
             formatButton("textformat.size.smaller", label: "Smaller") { canvas.formatText { $0.adjustFontSize(by: -2) } }
             formatButton("textformat.size.larger", label: "Larger") { canvas.formatText { $0.adjustFontSize(by: 2) } }
+            fontMenu
+            alignmentMenu
+            lineSpacingMenu
             barDivider
             formatButton("bold", label: "Bold", isOn: textView?.hasFontTrait(.traitBold) ?? false) {
                 canvas.formatText { $0.toggleFontTrait(.traitBold) }
@@ -359,8 +374,118 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 }
             }
             barDivider
+            rewriteMenu
+            barDivider
+            elementArrangementControls
+            barDivider
             deleteButton
         }
+    }
+
+    /// Rewrites the text in the box with the AI service (fix, shorten,
+    /// expand, re-tone or bulletize), on the selection or the whole box.
+    private var rewriteMenu: some View {
+        Menu {
+            ForEach(AIRewriteMode.allCases) { mode in
+                Button {
+                    Task { await canvas.rewriteSelectedText(mode) }
+                } label: {
+                    Label(tr(mode.title), systemImage: mode.systemImage)
+                }
+            }
+        } label: {
+            Image(systemName: "wand.and.stars.text")
+                .frame(width: 34, height: 32)
+        }
+        .accessibilityLabel(tr("Rewrite with AI"))
+    }
+
+    /// The font the writing is in, as Goodnotes' font family picker.
+    private var fontMenu: some View {
+        _ = canvas.formattingRevision
+        let current = canvas.selectedTextView?.currentTextFont
+        return Menu {
+            ForEach(TextFont.allCases) { family in
+                Button {
+                    canvas.formatText { $0.applyTextFont(family) }
+                } label: {
+                    if current == family {
+                        Label(tr(family.title), systemImage: "checkmark")
+                    } else {
+                        Text(tr(family.title))
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "textformat")
+                .frame(width: 34, height: 32)
+        }
+        .accessibilityLabel(trMessage("Font"))
+    }
+
+    /// Where the lines of the selected text sit (left, center, right or
+    /// justified).
+    private var alignmentMenu: some View {
+        _ = canvas.formattingRevision
+        let current = canvas.selectedTextView?.currentTextAlignment ?? .natural
+        return Menu {
+            ForEach([NSTextAlignment.left, .center, .right, .justified], id: \.rawValue) { alignment in
+                let item = alignmentItem(alignment)
+                Button {
+                    canvas.formatText { $0.applyTextAlignment(alignment) }
+                } label: {
+                    if isCurrent(alignment, in: current) {
+                        Label(tr(item.title), systemImage: "checkmark")
+                    } else {
+                        Label(tr(item.title), systemImage: item.symbol)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: alignmentItem(current).symbol)
+                .frame(width: 34, height: 32)
+        }
+        .accessibilityLabel(trMessage("Alignment"))
+    }
+
+    /// What an alignment option is called and drawn as.
+    private func alignmentItem(_ alignment: NSTextAlignment) -> (title: String, symbol: String) {
+        switch alignment {
+        case .center: ("Align Center", "text.aligncenter")
+        case .right: ("Align Right", "text.alignright")
+        case .justified: ("Justify", "text.justify")
+        default: ("Align Left", "text.alignleft")
+        }
+    }
+
+    private func isCurrent(_ alignment: NSTextAlignment, in current: NSTextAlignment) -> Bool {
+        switch (alignment, current) {
+        case (.left, .left), (.left, .natural): true
+        default: alignment == current
+        }
+    }
+
+    /// How far the lines of the selected text sit apart.
+    private var lineSpacingMenu: some View {
+        _ = canvas.formattingRevision
+        let current = canvas.selectedTextView?.currentLineSpacingMultiple ?? 1
+        return Menu {
+            ForEach(TextLineSpacing.allCases) { spacing in
+                Button {
+                    canvas.formatText { $0.applyLineSpacing(multiple: spacing.multiple) }
+                } label: {
+                    if abs(current - spacing.multiple) < 0.01 {
+                        Label(tr(spacing.title), systemImage: "checkmark")
+                    } else {
+                        Label(tr(spacing.title), systemImage: "arrow.up.and.down.text.horizontal")
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "arrow.up.and.down.text.horizontal")
+                .frame(width: 34, height: 32)
+        }
+        .accessibilityLabel(trMessage("Line Spacing"))
     }
 
     // MARK: Eraser
@@ -370,6 +495,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         if isVertical {
             toggleButton("Pixel Eraser", systemImage: "eraser", isOn: eraserMode(wholeStrokes: false))
             toggleButton("Whole Stroke Eraser", systemImage: "eraser.line.dashed", isOn: eraserMode(wholeStrokes: true))
+            toggleButton("Highlighter Only", systemImage: "highlighter", isOn: $palette.eraseHighlighterOnly)
         } else {
             Picker("Eraser", selection: $palette.erasesWholeStrokes) {
                 Text("Pixel").tag(false)
@@ -378,6 +504,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
             .pickerStyle(.segmented)
             .frame(width: 220)
             .onChange(of: palette.erasesWholeStrokes) { canvas.applyTool() }
+            // Highlighter-only toggle for horizontal (upright) layout.
+            toggleButton("Highlighter Only", systemImage: "highlighter", isOn: $palette.eraseHighlighterOnly)
         }
     }
 
@@ -400,7 +528,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             palette.laserLeavesTail.toggle()
             canvas.applyTool()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "scribble")
                 if !isVertical {
                     Text("Tail")
@@ -422,7 +550,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         return Button {
             palette.returnsAfterErasing.toggle()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "arrow.uturn.backward")
                 if !isVertical {
                     Text("Back to Last Tool")
@@ -522,7 +650,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     private func widthButtons(_ style: ToolStyle) -> some View {
         let widths = style.widths(for: palette.tool)
         let range = palette.tool.widthRange
-        return AxisStack(vertical: isVertical, spacing: 6) {
+        return AxisStack(vertical: isVertical, spacing: Theme.Spacing.sm) {
             ForEach(widths.indices, id: \.self) { index in
                 Button {
                     if index == style.widthIndex {
@@ -563,7 +691,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         let previewHeight: CGFloat = 92
         let previewScale = min(1, (previewHeight - 28) / max(range.upperBound, 1))
 
-        return VStack(spacing: 14) {
+        return VStack(spacing: Theme.Spacing.xxl) {
             // Preview of the stroke at the chosen width.
             Canvas { context, size in
                 var wave = Path()
@@ -619,7 +747,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     get: { !palette.style(for: tool).ignoresPressure(for: tool) },
                     set: { palette.setIgnoresPressure(!$0) }
                 )) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                         Text("Pressure Sensitivity")
                         Text("Off keeps the width even however hard you press.")
                             .font(.caption)
@@ -693,7 +821,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             canvas.showKeyboard()
             KeyboardHelp.checkAfterShowing { keyboardHelp = $0 }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "keyboard")
                 if !isVertical {
                     Text("Show Keyboard")
@@ -723,7 +851,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         return Button {
             canvas.toggleTextInputMode()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: mode.switchSymbol)
                 if !isVertical {
                     Text(mode == .keyboard ? "Write with Pencil" : "Use Keyboard")
@@ -742,7 +870,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             Image(systemName: systemImage)
                 .frame(width: 34, height: 32)
                 .foregroundStyle(isOn ? Color.inkAccent : Color.primary)
-                .background(isOn ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                .background(isOn ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
         }
         .accessibilityLabel(trMessage(label))
     }
@@ -754,7 +882,38 @@ struct DrawingToolbar<InsertMenu: View>: View {
             Image(systemName: "trash")
                 .frame(width: 34, height: 32)
         }
+        .disabled(canvas.selectedElementIsLocked)
         .accessibilityLabel("Delete")
+    }
+
+    /// Lock and stacking order for the selected element.
+    private var elementArrangementControls: some View {
+        Group {
+            let locked = canvas.selectedElementIsLocked
+            Button {
+                canvas.toggleLockSelectedElement()
+            } label: {
+                Image(systemName: locked ? "lock.fill" : "lock.open")
+                    .frame(width: 34, height: 32)
+                    .foregroundStyle(locked ? Color.inkAccent : Color.primary)
+                    .background(locked ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
+            }
+            .accessibilityLabel(tr(locked ? "Unlock" : "Lock"))
+            Button {
+                canvas.sendSelectedElementBackward()
+            } label: {
+                Image(systemName: "square.2.layers.3d.bottom.filled")
+                    .frame(width: 34, height: 32)
+            }
+            .accessibilityLabel(tr("Send Backward"))
+            Button {
+                canvas.bringSelectedElementForward()
+            } label: {
+                Image(systemName: "square.2.layers.3d.top.filled")
+                    .frame(width: 34, height: 32)
+            }
+            .accessibilityLabel(tr("Bring Forward"))
+        }
     }
 
     private func toggleButton(_ title: String, systemImage: String, isOn: Binding<Bool>) -> some View {

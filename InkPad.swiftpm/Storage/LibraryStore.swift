@@ -71,6 +71,10 @@ struct TextNoteInfo: Equatable {
 ///   (derived, safe to lose; used by search and AI study)
 @MainActor
 final class LibraryStore: ObservableObject {
+    /// The library the app is showing; App Intents (Siri and Shortcuts)
+    /// reach the library through it. Set when the app opens.
+    static weak var active: LibraryStore?
+
     @Published private(set) var folders: [Folder] = []
     @Published private(set) var notes: [NoteSummary] = []
     @Published var errorMessage: String?
@@ -99,6 +103,14 @@ final class LibraryStore: ObservableObject {
     let writeQueue = DispatchQueue(label: "InkPad.noteWrites", qos: .userInitiated)
     /// Changes when a restored backup replaces the library, so open screens close.
     @Published private(set) var libraryGeneration = 0
+    /// Notes unlocked with Face ID (or the passcode) in this session.
+    /// They lock again when the app goes to the background.
+    @Published private(set) var unlockedNoteIDs: Set<UUID> = []
+    /// Folders unlocked with Face ID since the app was last in the
+    /// background; everything inside them shows again.
+    @Published private(set) var unlockedFolderIDs: Set<UUID> = []
+    /// Bumps whenever a note is locked or unlocked, so open screens react.
+    @Published private(set) var lockRevision = 0
 
     private var indexURL: URL { rootURL.appendingPathComponent("library.json") }
 
@@ -171,7 +183,11 @@ final class LibraryStore: ObservableObject {
     /// Reads text notes and the recognized text of handwritten notes off
     /// the main thread, then adds what wasn't saved meanwhile.
     private func loadTextsInBackground() {
-        let items: [(UUID, Bool, URL)] = notes.map { ($0.id, $0.isText, noteDirectory($0.id)) }
+        // Locked notes stay out of the text index, so search, previews,
+        // links and Living Notes never see their contents.
+        let items: [(UUID, Bool, URL)] = notes
+            .filter { isUnlocked($0.id) }
+            .map { ($0.id, $0.isText, noteDirectory($0.id)) }
         Task {
             let read = await Task.detached(priority: .userInitiated) { Self.readTexts(items) }.value
             var texts = textIndex
@@ -180,7 +196,29 @@ final class LibraryStore: ObservableObject {
             for (id, text) in read.recognized where recognized[id] == nil { recognized[id] = text }
             textIndex = texts
             recognizedText = recognized
+            // The library is what Spotlight shows; locked notes stay out.
+            await SpotlightIndex.reindex(notes.filter { isUnlocked($0.id) }, previews: Self.previews(texts, recognized))
         }
+    }
+
+    /// The opening text of each indexed note: a text note's first lines,
+    /// or a handwritten note's recognized writing.
+    private static func previews(_ texts: [UUID: TextNoteInfo], _ recognized: [UUID: String]) -> [UUID: String] {
+        var previews: [UUID: String] = [:]
+        for (id, info) in texts { previews[id] = info.preview }
+        for (id, text) in recognized { previews[id] = text }
+        return previews
+    }
+
+    /// The note's opening text, for one-note index updates.
+    private func spotlightPreview(for id: UUID) -> String? {
+        textIndex[id]?.preview ?? recognizedText[id]
+    }
+
+    /// Puts every unlocked note into Spotlight again (`Rebuild Spotlight
+    /// Search` in the command palette). Returns a line for the owner.
+    func rebuildSpotlightIndex() async -> String {
+        await SpotlightIndex.reindex(notes.filter { isUnlocked($0.id) }, previews: Self.previews(textIndex, recognizedText))
     }
 
     private nonisolated static func readTexts(_ items: [(UUID, Bool, URL)]) -> (texts: [UUID: TextNoteInfo], recognized: [UUID: String]) {
@@ -207,6 +245,8 @@ final class LibraryStore: ObservableObject {
     }
 
     /// Reads everything again from disk, after a backup was restored.
+    /// The note texts load in the background, so the library appears
+    /// right away however many notes there are.
     func reload() {
         folders = []
         notes = []
@@ -218,9 +258,8 @@ final class LibraryStore: ObservableObject {
         collections = []
         isReadOnly = false
         loadIndex()
-        loadTextIndex()
-        loadRecognizedText()
         removeExpiredTrash()
+        loadTextsInBackground()
         refreshFactsInBackground()
         libraryGeneration += 1
     }
@@ -240,7 +279,7 @@ final class LibraryStore: ObservableObject {
         switch scope {
         case .allNotes: matching = notes
         case .unfiled: matching = notes.filter { $0.folderID == nil }
-        case .planner, .expenses, .mindMaps, .slides, .study, .flowmodoro, .reminders, .graph, .pdfTools, .gps: matching = []
+        case .planner, .expenses, .mindMaps, .slides, .study, .aiChat, .calculator, .plugins, .flowmodoro, .reminders, .graph, .pdfTools, .gps: matching = []
         case .favorites: matching = notes.filter(\.favorite)
         case let .builtIn(collection): matching = notes.filter { matches($0, builtIn: collection) }
         case let .collection(id):
@@ -435,8 +474,152 @@ final class LibraryStore: ObservableObject {
         saveIndex()
     }
 
-    func thumbnail(for id: UUID) -> UIImage? {
-        UIImage(contentsOfFile: noteDirectory(id).appendingPathComponent(NoteFiles.thumbnailFile).path)
+    // MARK: Locked Notes
+
+    /// Saves the note's details the owner wrote in Note Info.
+    func setDetails(_ text: String, for id: UUID) {
+        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let details = trimmed.isEmpty ? nil : trimmed
+        guard notes[index].details != details else { return }
+        notes[index].details = details
+        saveIndex()
+    }
+
+    /// Whether the note may open right now: not locked, not inside a
+    /// locked folder, or unlocked with Face ID since the app was last in
+    /// the background.
+    func isUnlocked(_ id: UUID) -> Bool {
+        guard let found = note(id) else { return true }
+        if found.locked { return unlockedNoteIDs.contains(id) }
+        return !isInLockedFolder(found) || isFolderUnlocked(found.folderID)
+    }
+
+    // MARK: Locked folders
+
+    /// Whether a folder's notes may show: every folder on the note's path
+    /// must be unlocked (Face ID since the app was last in the background).
+    func isFolderUnlocked(_ folderID: UUID?) -> Bool {
+        guard let id = folderID, let folder = folder(id) else { return true }
+        if folder.isLocked == true, !unlockedFolderIDs.contains(id) { return false }
+        return isFolderUnlocked(folder.parentID)
+    }
+
+    /// Whether any locked folder holds `note` (directly or through a
+    /// subfolder), so the note itself opens only after Face ID.
+    func isInLockedFolder(_ note: NoteSummary) -> Bool {
+        var current = note.folderID
+        while let id = current, let folder = folder(id) {
+            if folder.isLocked == true { return true }
+            current = folder.parentID
+        }
+        return false
+    }
+
+    /// Locks or unlocks a folder (`Lock Folder` in the sidebar menu).
+    /// Locking pulls the folder's notes out of search and Spotlight.
+    func setFolderLocked(_ locked: Bool, for folderID: UUID) {
+        guard canWrite(), let index = folders.firstIndex(where: { $0.id == folderID }) else { return }
+        folders[index].isLocked = locked ? true : nil
+        saveIndex()
+        if locked {
+            for note in notes where isInLockedFolder(note) {
+                textIndex.removeValue(forKey: note.id)
+                recognizedText.removeValue(forKey: note.id)
+                unlockedNoteIDs.remove(note.id)
+                SpotlightIndex.remove(note.id)
+            }
+            unlockedFolderIDs.remove(folderID)
+        } else {
+            unlockedFolderIDs.remove(folderID)
+            loadTextsInBackground()
+        }
+        lockRevision += 1
+    }
+
+    /// Marks a locked folder unlocked for the rest of the session, and
+    /// brings its notes' text back into the search index.
+    func unlockFolder(_ folderID: UUID) {
+        unlockedFolderIDs.insert(folderID)
+        loadTextsInBackground()
+        lockRevision += 1
+    }
+
+    /// Locks every unlocked folder again (the app went to the background).
+    func lockUnlockedFolders() {
+        guard !unlockedFolderIDs.isEmpty else { return }
+        for id in unlockedFolderIDs where folder(id)?.isLocked == true {
+            for note in notes where isInLockedFolder(note) {
+                SpotlightIndex.remove(note.id)
+            }
+        }
+        unlockedFolderIDs = []
+        lockRevision += 1
+    }
+
+    /// Locks or unlocks a note (`Lock Note` in the card menu). Locking also
+    /// pulls the note's text and recognized handwriting out of the index,
+    /// so nothing of it stays searchable or visible anywhere.
+    func setLocked(_ locked: Bool, for id: UUID) {
+        guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes[index].isLocked = locked ? true : nil
+        saveIndex()
+        if locked {
+            textIndex.removeValue(forKey: id)
+            recognizedText.removeValue(forKey: id)
+            unlockedNoteIDs.remove(id)
+            SpotlightIndex.remove(id)
+        } else {
+            reloadTexts(for: id)
+        }
+        lockRevision += 1
+    }
+
+    /// Marks a note unlocked for the rest of the session.
+    func unlockNote(_ id: UUID) {
+        unlockedNoteIDs.insert(id)
+        reloadTexts(for: id)
+        lockRevision += 1
+    }
+
+    /// Locks every unlocked note and folder again (the app went to the
+    /// background): both kinds leave Spotlight, together with the search
+    /// index.
+    func lockUnlockedNotes() {
+        let hadNotes = !unlockedNoteIDs.isEmpty
+        let hadFolders = !unlockedFolderIDs.isEmpty
+        guard hadNotes || hadFolders else { return }
+        // Locked notes leave Spotlight too, together with the search index.
+        if hadNotes {
+            for id in unlockedNoteIDs where note(id)?.locked == true {
+                SpotlightIndex.remove(id)
+            }
+            unlockedNoteIDs = []
+        }
+        if hadFolders {
+            for id in unlockedFolderIDs where folder(id)?.isLocked == true {
+                for note in notes where isInLockedFolder(note) {
+                    SpotlightIndex.remove(note.id)
+                }
+            }
+            unlockedFolderIDs = []
+        }
+        lockRevision += 1
+    }
+
+    /// Reads one note's text back into the index (after an unlock).
+    private func reloadTexts(for id: UUID) {
+        guard let note = note(id) else { return }
+        let directory = noteDirectory(id)
+        let isText = note.isText
+        Task {
+            let read = await Task.detached(priority: .userInitiated) {
+                Self.readTexts([(id, isText, directory)])
+            }.value
+            for (key, info) in read.texts { textIndex[key] = info }
+            for (key, text) in read.recognized { recognizedText[key] = text }
+            SpotlightIndex.update(note, preview: spotlightPreview(for: id))
+        }
     }
 
     /// Whether the note has an imported PDF (a book).
@@ -601,16 +784,20 @@ final class LibraryStore: ObservableObject {
         guard canWrite() else { return nil }
         let id = UUID()
         let directory = noteDirectory(id)
+        var importedPageCount = 0
         do {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
             let pdfURL = directory.appendingPathComponent(NoteFiles.pdfFile)
+            importedPageCount = 0
             let isScoped = sourceURL.startAccessingSecurityScopedResource()
             defer { if isScoped { sourceURL.stopAccessingSecurityScopedResource() } }
             try fileManager.copyItem(at: sourceURL, to: pdfURL)
+            let pdf = try PDFBackground(url: pdfURL)
+            importedPageCount = pdf.pageCount
             let content = NoteContent(
                 metadata: NoteMetadata(template: .blank, pageCount: 0, pdfFile: NoteFiles.pdfFile),
                 drawing: PKDrawing(),
-                pdf: try PDFBackground(url: pdfURL),
+                pdf: pdf,
                 directory: directory
             )
             try Self.write(content, thumbnail: true)
@@ -620,6 +807,7 @@ final class LibraryStore: ObservableObject {
             return nil
         }
         let title = sourceURL.deletingPathExtension().lastPathComponent
+        NoteOpsLog.append(.pdfImported, detail: "\(importedPageCount) pages", to: directory)
         return addNote(id: id, title: cleaned(title, fallback: "Imported PDF"), folderID: folderID)
     }
 
@@ -640,7 +828,9 @@ final class LibraryStore: ObservableObject {
             return nil
         }
         textIndex[id] = TextNoteInfo(text: body)
-        return addNote(id: id, title: name, folderID: folderID, kind: .text)
+        let added = addNote(id: id, title: name, folderID: folderID, kind: .text)
+        SpotlightIndex.update(added, preview: textIndex[id]?.preview)
+        return added
     }
 
     func loadMarkdown(for id: UUID) throws -> String {
@@ -659,8 +849,47 @@ final class LibraryStore: ObservableObject {
         }
         textIndex[id] = TextNoteInfo(text: text)
         notes[index].modifiedAt = Date()
+        NoteOpsLog.append(.textSaved, detail: "\(text.count) characters", to: noteDirectory(id))
         saveIndex()
+        SpotlightIndex.update(notes[index], preview: textIndex[id]?.preview)
         return true
+    }
+
+    /// Adds text at the end of a note (Siri › Add to Note). Text notes get
+    /// Markdown; ink notes get a text box on their last page. Fails when the
+    /// note is open in an editor (the open copy would overwrite this change)
+    /// or writing did not go through.
+    func appendText(_ text: String, to noteID: UUID) async -> Bool {
+        guard canWrite(), let note = note(noteID) else { return false }
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !body.isEmpty else { return false }
+        if note.isText {
+            let url = noteDirectory(noteID).appendingPathComponent(NoteFiles.markdownFile)
+            let existing = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+            var updated = existing
+            if !updated.hasSuffix("\n") && !updated.isEmpty { updated += "\n" }
+            updated += "\n" + body + "\n"
+            return saveMarkdown(updated, for: noteID)
+        }
+        // An ink note: a text box near the bottom of its last page.
+        guard SyncEngine.shared.openNotes.contains(noteID) == false,
+              var content = try? loadContent(for: noteID) else { return false }
+        let background = content.makeBackground()
+        guard let lastPage = background.layout.pageRects.last else { return false }
+        let writing = NSAttributedString(string: body, attributes: TextBoxStyle.defaultAttributes)
+        guard let rtf = TextBoxStyle.rtfData(from: writing) else { return false }
+        let element = PageElement(
+            id: UUID(),
+            frame: CGRect(
+                x: lastPage.minX + 24,
+                y: max(lastPage.minY + 24, lastPage.maxY - 200),
+                width: min(TextBoxStyle.defaultWidth, lastPage.width - 48),
+                height: 44
+            ),
+            content: .text(rtf: rtf)
+        )
+        content.metadata.elements = (content.metadata.elements ?? []) + [element]
+        return await saveContent(content, for: noteID, thumbnail: true)
     }
 
     /// Opens today's note in "Daily Notes", creating both if needed.
@@ -695,16 +924,6 @@ final class LibraryStore: ObservableObject {
         try Data(text.utf8).write(to: directory.appendingPathComponent(NoteFiles.markdownFile), options: .atomic)
     }
 
-    private func loadTextIndex() {
-        var index: [UUID: TextNoteInfo] = [:]
-        for note in notes where note.isText {
-            if let text = try? String(contentsOf: noteDirectory(note.id).appendingPathComponent(NoteFiles.markdownFile), encoding: .utf8) {
-                index[note.id] = TextNoteInfo(text: text)
-            }
-        }
-        textIndex = index
-    }
-
     /// Renames the note and, like Obsidian, updates [[links]] to it in text notes.
     func renameNote(_ id: UUID, to title: String) {
         guard canWrite(), let index = notes.firstIndex(where: { $0.id == id }) else { return }
@@ -712,6 +931,7 @@ final class LibraryStore: ObservableObject {
         let newTitle = cleaned(title, fallback: oldTitle)
         notes[index].title = newTitle
         saveIndex()
+        SpotlightIndex.update(notes[index], preview: spotlightPreview(for: id))
         guard NoteLinks.key(oldTitle) != NoteLinks.key(newTitle) else { return }
         let oldKey = NoteLinks.key(oldTitle)
         for (otherID, info) in textIndex where otherID != id {
@@ -750,6 +970,7 @@ final class LibraryStore: ObservableObject {
             textIndex[newID] = TextNoteInfo(text: text)
         }
         saveIndex()
+        SpotlightIndex.update(copy, preview: spotlightPreview(for: newID))
         return copy
     }
 
@@ -769,6 +990,7 @@ final class LibraryStore: ObservableObject {
         textIndex[id] = nil
         recognizedText[id] = nil
         saveIndex()
+        SpotlightIndex.remove(id)
     }
 
     /// Puts a deleted note back, in its folder if that still exists.
@@ -790,6 +1012,7 @@ final class LibraryStore: ObservableObject {
             recognizedText[id] = saved.text
         }
         saveIndex()
+        SpotlightIndex.update(note, preview: spotlightPreview(for: id))
     }
 
     /// Removes a deleted note's files for good. It stays in Recently
@@ -1002,17 +1225,6 @@ final class LibraryStore: ObservableObject {
         recognizedText[id] = text
     }
 
-    private func loadRecognizedText() {
-        var index: [UUID: String] = [:]
-        for note in notes where !note.isText {
-            if let data = try? Data(contentsOf: noteDirectory(note.id).appendingPathComponent(NoteFiles.textFile)),
-               let saved = try? JSONDecoder().decode(RecognizedText.self, from: data) {
-                index[note.id] = saved.text
-            }
-        }
-        recognizedText = index
-    }
-
     // MARK: Persistence
 
     func noteDirectory(_ id: UUID) -> URL {
@@ -1083,7 +1295,35 @@ final class LibraryStore: ObservableObject {
         }
     }
 
+    /// The index has changes that are not on disk yet.
+    private var indexNeedsWrite = false
+    private var indexWriteTask: Task<Void, Never>?
+
+    /// Marks the index for a background write. Bursts of edits coalesce
+    /// into one write a moment later, so the interface never waits for
+    /// `library.json` (it used to be re-encoded on the main thread on
+    /// every change, which stalled with larger libraries).
     private func saveIndex() {
+        indexNeedsWrite = true
+        indexWriteTask?.cancel()
+        indexWriteTask = Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            await writeIndexNow()
+        }
+    }
+
+    /// Writes a pending index change right away, off the main thread.
+    /// Backups, restores, syncs and leaving the app wait for this first.
+    func flushIndex() async {
+        indexWriteTask?.cancel()
+        indexWriteTask = nil
+        await writeIndexNow()
+    }
+
+    private func writeIndexNow() async {
+        guard indexNeedsWrite, !isReadOnly else { return }
+        indexNeedsWrite = false
         let index = LibraryIndex(
             version: LibraryIndex.currentVersion,
             folders: folders,
@@ -1093,10 +1333,22 @@ final class LibraryStore: ObservableObject {
             customOrders: customOrders.isEmpty ? nil : customOrders,
             collections: collections.isEmpty ? nil : collections
         )
-        do {
-            try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
-            try JSONEncoder.inkpad.encode(index).write(to: indexURL, options: .atomic)
-        } catch {
+        let url = indexURL
+        let root = rootURL
+        let result: Result<Void, Error> = await withCheckedContinuation { continuation in
+            // The same serial queue that writes note files, so an index
+            // write never lands between a note's parts.
+            writeQueue.async {
+                continuation.resume(returning: Result {
+                    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                    try JSONEncoder.inkpad.encode(index).write(to: url, options: .atomic)
+                })
+            }
+        }
+        if case .failure(let error) = result {
+            // Try again with the next flush, so a full disk or a hiccup
+            // does not silently drop the change.
+            indexNeedsWrite = true
             errorMessage = "Could not save the library: \(error.localizedDescription)"
         }
     }

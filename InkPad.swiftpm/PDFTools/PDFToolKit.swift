@@ -213,7 +213,7 @@ enum PDFToolKit {
         let size = CGSize(width: bounds.width * scale, height: bounds.height * scale)
         let image = page.thumbnail(of: size, for: .cropBox)
         guard let cgImage = image.cgImage else { return "" }
-        return NoteReader.recognizeText(in: cgImage)
+        return InkOCR.text(in: cgImage)
     }
 
     /// Which PDF page a layout page shows, for a note made of a PDF and paper.

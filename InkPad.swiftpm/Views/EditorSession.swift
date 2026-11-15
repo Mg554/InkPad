@@ -87,14 +87,16 @@ final class EditorSession: ObservableObject {
     /// Inserts a paper page after `index` (the size of that page when it is
     /// paper, else A4), moving later ink and elements down.
     func insertPage(after index: Int, size: PaperSize? = nil) {
-        guard let content = baseContent, let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
+        guard let content = baseContent else { return }
+        let rects = displayRects()
+        guard rects.indices.contains(index) else { return }
         var pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
         guard pages.indices.contains(index) else { return }
         let paper: PaperSize = size ?? pages[index].paperSize ?? PaperSize.standard
         pages.insert(PageSource.paper(of: paper), at: index + 1)
         canvas.shiftContent(
-            below: rects[index].maxY + PageLayout.pageGap / 2,
-            by: paper.layoutHeight + PageLayout.pageGap,
+            below: axis.maxCorner(of: rects[index]) + PageLayout.pageGap / 2,
+            by: pageStep(for: paper) + PageLayout.pageGap,
             removing: nil
         )
         remapTabs { $0 > index ? $0 + 1 : $0 }
@@ -104,13 +106,17 @@ final class EditorSession: ObservableObject {
 
     /// Changes a paper page's size; later pages move with what is written on them.
     func setPageSize(at index: Int, to size: PaperSize) {
-        guard let content = baseContent, let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
+        guard let content = baseContent else { return }
+        let rects = displayRects()
+        guard rects.indices.contains(index) else { return }
         var pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
         guard pages.indices.contains(index), pages[index].isPaper else { return }
         let delta: CGFloat = size.layoutHeight - rects[index].height
         pages[index] = PageSource.paper(of: size)
-        if abs(delta) > 0.5 {
-            canvas.shiftContent(below: rects[index].maxY + PageLayout.pageGap / 2, by: delta, removing: nil)
+        // Pages side by side all have the same width, so only the vertical
+        // direction moves what is written below.
+        if abs(delta) > 0.5, axis == .vertical {
+            canvas.shiftContent(below: axis.maxCorner(of: rects[index]) + PageLayout.pageGap / 2, by: delta, removing: nil)
         }
         setPages(pages)
     }
@@ -124,13 +130,15 @@ final class EditorSession: ObservableObject {
 
     /// Puts a copy of the page, with what is written on it, right after it.
     func duplicatePage(at index: Int) {
-        guard let content = baseContent, let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
+        guard let content = baseContent else { return }
+        let rects = displayRects()
+        guard rects.indices.contains(index) else { return }
         var pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
         guard pages.indices.contains(index) else { return }
         let rect = rects[index]
-        let step: CGFloat = rect.height + PageLayout.pageGap
+        let step: CGFloat = axis.length(of: rect) + PageLayout.pageGap
         pages.insert(pages[index], at: index + 1)
-        canvas.shiftContent(below: rect.maxY + PageLayout.pageGap / 2, by: step, removing: nil)
+        canvas.shiftContent(below: axis.maxCorner(of: rect) + PageLayout.pageGap / 2, by: step, removing: nil)
         canvas.duplicateContent(in: rect, by: step)
         remapTabs { $0 > index ? $0 + 1 : $0 }
         setPages(pages)
@@ -179,16 +187,17 @@ final class EditorSession: ObservableObject {
     /// Deletes a page and what is written on it; later pages move up.
     /// The imported PDF file itself is never changed.
     func deletePage(at index: Int) {
-        guard let content = baseContent, let rects = background?.layout.pageRects,
-              rects.count > 1, rects.indices.contains(index) else { return }
+        guard let content = baseContent else { return }
+        let rects = displayRects()
+        guard rects.count > 1, rects.indices.contains(index) else { return }
         var pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
         pages.remove(at: index)
         let rect = rects[index]
         let gap = PageLayout.pageGap
         canvas.shiftContent(
-            below: rect.maxY + gap / 2,
-            by: -(rect.height + gap),
-            removing: (rect.minY - gap / 2)...(rect.maxY + gap / 2)
+            below: axis.maxCorner(of: rect) + gap / 2,
+            by: -(axis.length(of: rect) + gap),
+            removing: (axis.minCorner(of: rect) - gap / 2)...(axis.maxCorner(of: rect) + gap / 2)
         )
         remapTabs { page in page == index ? nil : (page > index ? page - 1 : page) }
         setPages(pages)
@@ -197,24 +206,24 @@ final class EditorSession: ObservableObject {
 
     /// Moves a page to a new position, with what is written on it.
     func movePage(from source: Int, to destination: Int) {
-        guard let content = baseContent, let rects = background?.layout.pageRects,
-              rects.indices.contains(source), rects.indices.contains(destination), source != destination
-        else { return }
+        guard let content = baseContent else { return }
+        let rects = displayRects()
+        guard rects.indices.contains(source), rects.indices.contains(destination), source != destination else { return }
         let pages = content.metadata.resolvedPages(pdfPageCount: content.pdf?.pageCount ?? 0)
         guard pages.count == rects.count else { return }
         var order = Array(rects.indices)
         order.insert(order.remove(at: source), at: destination)
-        let newRects = PageLayout(pageSizes: order.map { rects[$0].size }).pageRects
-        var newTop = Array(repeating: CGFloat(0), count: rects.count)
+        let newRects = PageLayout(pageSizes: order.map { rects[$0].size }, axis: axis).pageRects
+        var newStart = Array(repeating: CGFloat(0), count: rects.count)
         for (newIndex, oldIndex) in order.enumerated() {
-            newTop[oldIndex] = newRects[newIndex].minY
+            newStart[oldIndex] = axis.minCorner(of: newRects[newIndex])
         }
         let gap = PageLayout.pageGap
-        canvas.moveContent { y in
-            // Content belongs to the page it is on, or the nearest one below
-            // the gap; anything past the last page stays with it.
-            let page = rects.firstIndex { y < $0.maxY + gap / 2 } ?? rects.count - 1
-            return newTop[page] - rects[page].minY
+        canvas.moveContent { position in
+            // Content belongs to the page it is on, or the nearest one past
+            // the gap; anything beyond the last page stays with it.
+            let page = rects.firstIndex { position < axis.maxCorner(of: $0) + gap / 2 } ?? rects.count - 1
+            return newStart[page] - axis.minCorner(of: rects[page])
         }
         var newIndex: [Int: Int] = [:]
         for (position, oldIndex) in order.enumerated() { newIndex[oldIndex] = position }
@@ -227,7 +236,9 @@ final class EditorSession: ObservableObject {
     /// moving later ink and elements down. The note gets a new PDF file
     /// with its old pages followed by the new ones.
     func insertPDFPages(_ newPages: [Int], from source: PDFDocument, after index: Int) throws {
-        guard let content = baseContent, let rects = background?.layout.pageRects, !newPages.isEmpty else { return }
+        guard let content = baseContent else { return }
+        let rects = displayRects()
+        guard !newPages.isEmpty else { return }
         let after = min(max(index, -1), rects.count - 1)
         let existing: PDFDocument? = content.pdf?.pdfDocument
         let oldCount: Int = content.pdf?.pageCount ?? 0
@@ -261,8 +272,8 @@ final class EditorSession: ObservableObject {
         // Move what was written on later pages down by the room the new pages take.
         let firstLater = after + 1
         if firstLater < rects.count, firstLater + inserted.count < newRects.count {
-            let shift: CGFloat = newRects[firstLater + inserted.count].minY - rects[firstLater].minY
-            let below: CGFloat = after >= 0 ? rects[after].maxY + PageLayout.pageGap / 2 : rects[0].minY - PageLayout.pageGap / 2
+            let shift: CGFloat = axis.minCorner(of: newRects[firstLater + inserted.count]) - axis.minCorner(of: rects[firstLater])
+            let below: CGFloat = after >= 0 ? axis.maxCorner(of: rects[after]) + PageLayout.pageGap / 2 : axis.minCorner(of: rects[0]) - PageLayout.pageGap / 2
             canvas.shiftContent(below: below, by: shift, removing: nil)
         }
         if let old = content.pdf?.fileURL { replacedFiles.append(old) }
@@ -309,9 +320,17 @@ final class EditorSession: ObservableObject {
     }
 
     private func setPages(_ pages: [PageSource]) {
+        let before = metadata?.pageCount ?? 0
         updateMetadata {
             $0.pages = pages
             $0.pageCount = pages.filter(\.isPaper).count
+        }
+        let after = pages.filter(\.isPaper).count
+        // A page count change is the one structural edit worth its own
+        // record; moves and resizes land in the next save's record.
+        if let noteID, let store, after != before {
+            let kind: NoteOpsLog.Kind = after > before ? .pageInserted : .pageRemoved
+            NoteOpsLog.append(kind, detail: "\(before) pages -> \(after)", to: store.noteDirectory(noteID))
         }
         snapshot = currentContent()
     }
@@ -378,11 +397,43 @@ final class EditorSession: ObservableObject {
 
     // MARK: Saving
 
+    /// The direction the pages run in this note.
+    private var axis: PageLayout.Axis { canvas.axis.layoutAxis }
+
+    /// The pages as they are laid out on the open canvas (the canvas works
+    /// in display coordinates, the file keeps them stacked down).
+    private func displayRects() -> [CGRect] {
+        displayLayout.pageRects
+    }
+
+    /// The open canvas's page layout, in display coordinates.
+    var displayLayout: PageLayout {
+        guard let background else { return PageLayout(pageSizes: [PageLayout.templatePageSize], axis: axis) }
+        return canvas.axis.displayBackground(background).layout
+    }
+
+    /// How much room a new paper page takes along the pages' direction.
+    private func pageStep(for paper: PaperSize) -> CGFloat {
+        axis == .vertical ? paper.layoutHeight : PageLayout.pageWidth
+    }
+
     /// Everything as it is on screen now.
     func currentContent() -> NoteContent? {
         guard var content = baseContent else { return nil }
-        if let drawing = canvas.drawing { content.drawing = drawing }
-        if let elements = canvas.elements { content.metadata.elements = elements }
+        // The canvas may show the pages across instead of down; the file
+        // always keeps them down.
+        if let background {
+            let display = canvas.axis.displayBackground(background)
+            if let drawing = canvas.drawing {
+                content.drawing = ScrollAxis.toStored(drawing: drawing, stored: background, display: display)
+            }
+            if let elements = canvas.elements {
+                content.metadata.elements = ScrollAxis.toStored(elements: elements, stored: background, display: display)
+            }
+        } else {
+            if let drawing = canvas.drawing { content.drawing = drawing }
+            if let elements = canvas.elements { content.metadata.elements = elements }
+        }
         return content
     }
 
@@ -436,6 +487,9 @@ final class EditorSession: ObservableObject {
             let saved = await store.saveContent(content, for: noteID, thumbnail: needsThumbnail)
             isSaving = false
             if saved {
+                let strokes = content.drawing.strokes.count
+                let elements = content.metadata.elements?.count ?? 0
+                NoteOpsLog.append(.inkSaved, detail: "\(strokes) strokes, \(elements) elements", to: store.noteDirectory(noteID))
                 for file in replacedFiles where file != content.pdf?.fileURL {
                     try? FileManager.default.removeItem(at: file)
                 }

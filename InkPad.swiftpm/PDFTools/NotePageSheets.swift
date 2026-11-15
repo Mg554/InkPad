@@ -69,7 +69,7 @@ struct InsertPagesSheet: View {
                 if let working {
                     ProgressView(working)
                         .padding(24)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
                 }
             }
             .alert("Insert Pages", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
@@ -176,7 +176,7 @@ struct SendPagesSheet: View {
                 if working {
                     ProgressView("Making the note…")
                         .padding(24)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
                 }
             }
             .alert("Send Pages", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {

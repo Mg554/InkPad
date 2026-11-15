@@ -8,10 +8,10 @@ final class StickyNoteView: PageElementView {
     private var fullSize: CGSize
     private var resizeHandle: UIView!
 
-    init(id: UUID, frame: CGRect, note: StickyNote) {
+    init(id: UUID, frame: CGRect, note: StickyNote, isLocked: Bool = false) {
         self.note = note
         fullSize = frame.size
-        super.init(id: id, frame: StickyNote.visibleFrame(frame, folded: note.isFolded))
+        super.init(id: id, frame: StickyNote.visibleFrame(frame, folded: note.isFolded), isLocked: isLocked)
         backgroundColor = .clear
         isOpaque = false
         contentMode = .redraw
@@ -54,11 +54,11 @@ final class StickyNoteView: PageElementView {
     override func updateSelectionAppearance() {
         super.updateSelectionAppearance()
         layer.cornerRadius = 4
-        resizeHandle.isHidden = !isSelected || note.isFolded
+        resizeHandle.isHidden = !isSelected || note.isFolded || isElementLocked
     }
 
     override func makeElement() -> PageElement? {
-        PageElement(id: id, frame: fullFrame, content: .sticky(note))
+        PageElement(id: id, frame: fullFrame, content: .sticky(note), isLocked: isElementLocked ? true : nil)
     }
 
     @objc private func handleTap() {
@@ -68,6 +68,7 @@ final class StickyNoteView: PageElementView {
     }
 
     @objc private func handleMove(_ gesture: UIPanGestureRecognizer) {
+        guard !isElementLocked else { return }
         if gesture.state == .began {
             layerView?.endEditing(true)
             layerView?.selectElement(self)
@@ -78,7 +79,7 @@ final class StickyNoteView: PageElementView {
     }
 
     @objc private func handleResize(_ gesture: UIPanGestureRecognizer) {
-        guard !note.isFolded else { return }
+        guard !isElementLocked, !note.isFolded else { return }
         let translation = takeTranslation(gesture)
         let width = min(max(100, frame.width + translation.x), 600)
         let height = min(max(100, frame.height + translation.y), 600)

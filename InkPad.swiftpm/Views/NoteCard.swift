@@ -5,11 +5,20 @@ struct NoteCard: View {
     let note: NoteSummary
     @State private var thumbnail: UIImage?
 
+    /// Locked notes show a lock instead of their contents until they are
+    /// unlocked with Face ID (or the passcode).
+    private var showsLock: Bool { note.locked && !store.isUnlocked(note.id) }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             ZStack(alignment: .topLeading) {
                 Color.white
-                if let cover = note.cover {
+                if showsLock {
+                    Image(systemName: "lock.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let cover = note.cover {
                     NoteCoverView(cover: cover, title: note.title)
                 } else if note.isText {
                     // Text notes show their opening lines.
@@ -29,12 +38,12 @@ struct NoteCard: View {
                 }
             }
             .aspectRatio(PageLayout.templatePageSize.width / PageLayout.templatePageSize.height, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md).stroke(.quaternary))
             .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
             .overlay(alignment: .topTrailing) { badges }
 
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Spacing.xs) {
                 Text(tr(note.title))
                     .font(.headline)
                     .lineLimit(1)
@@ -55,20 +64,24 @@ struct NoteCard: View {
                 .foregroundStyle(.secondary)
         }
         .contentShape(Rectangle())
-        .task(id: note.modifiedAt) {
+        .task(id: "\(note.id)-\(note.modifiedAt.timeIntervalSince1970)-\(showsLock)") {
+            if showsLock { thumbnail = nil; return }
             if !note.isText, note.cover == nil { thumbnail = await store.cardThumbnail(for: note.id, modifiedAt: note.modifiedAt) }
         }
     }
 
     @ViewBuilder
     private var badges: some View {
-        if note.isPinned || note.favorite {
-            HStack(spacing: 4) {
+        if note.isPinned || note.favorite || showsLock {
+            HStack(spacing: Theme.Spacing.xs) {
                 if note.isPinned {
                     Image(systemName: "pin.fill").foregroundStyle(Color.orange)
                 }
                 if note.favorite {
                     Image(systemName: "star.fill").foregroundStyle(Color.yellow)
+                }
+                if showsLock {
+                    Image(systemName: "lock.fill").foregroundStyle(Color.brown)
                 }
             }
             .font(.caption)

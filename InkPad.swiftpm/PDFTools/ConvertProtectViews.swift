@@ -154,7 +154,7 @@ struct PDFExtraToolSheet: View {
                 if let working {
                     ProgressView(working)
                         .padding(24)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
                 }
             }
             .alert(tool.title, isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
@@ -207,7 +207,7 @@ struct PDFExtraToolSheet: View {
                         HStack {
                             ForEach(Array(images.enumerated()), id: \.offset) { item in
                                 Image(uiImage: item.element).resizable().scaledToFit().frame(height: 90)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
                             }
                         }
                     }
@@ -330,7 +330,7 @@ struct PDFExtraToolSheet: View {
             Section {
                 InkCanvas(drawing: $signature, showsToolPicker: false)
                     .frame(height: 150)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+                    .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
                     .overlay(alignment: .bottomLeading) {
                         if signature.strokes.isEmpty {
                             Text("Sign here").foregroundStyle(.tertiary).padding(10).allowsHitTesting(false)
@@ -570,10 +570,7 @@ struct PDFExtraToolSheet: View {
         case .sign:
             guard let document else { return }
             let url = PDFToolKit.temporaryURL(named: "\(baseTitle) (signed)")
-            var picture = UIImage()
-            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-                picture = signature.image(from: signature.bounds.insetBy(dx: -4, dy: -4), scale: 3)
-            }
+            let picture = InkSnapshot.snapshot(of: signature, from: signature.bounds.insetBy(dx: -4, dy: -4), scale: 3)
             guard let cg = picture.cgImage else { return }
             let pageIndex = signPage - 1
             let place = signPlace

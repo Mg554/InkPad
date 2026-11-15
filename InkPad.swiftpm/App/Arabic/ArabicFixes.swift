@@ -62,6 +62,7 @@ Add a step => أضف خطوة
 Steps => الخطوات
 All Tasks => كل المهام
 High => عالية
+Highlighter Only => فقط التحديد
 Old Leather => جلد قديم
 Cloth => قماش
 Wood => خشب

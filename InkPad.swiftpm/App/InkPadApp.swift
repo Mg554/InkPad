@@ -1,3 +1,4 @@
+import CoreSpotlight
 import SwiftUI
 
 @main
@@ -15,7 +16,7 @@ struct InkPadApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(content: {
             LibraryView()
                 // A theme change rebuilds the views, so every color and
                 // font picks it up.
@@ -30,19 +31,36 @@ struct InkPadApp: App {
                 .preferredColorScheme(appearance.colorScheme)
                 // Automatic backups run when InkPad opens or comes back.
                 .task {
+                    LibraryStore.active = store
                     SyncEngine.shared.start(store: store, workspace: workspace)
                     SyncEngine.shared.soon(delay: 3)
-                    await store.makeAutomaticBackupIfDue()
+                    await store.makeAutomaticBackupIfDue(workspace: workspace)
                 }
                 .onChange(of: scenePhase) {
                     if scenePhase == .active {
-                        Task { await store.makeAutomaticBackupIfDue() }
+                        Task { await store.makeAutomaticBackupIfDue(workspace: workspace) }
                         SyncEngine.shared.soon(delay: 2)
                     } else if scenePhase == .background {
+                        // Locked notes lock again when the app leaves.
+                        store.lockUnlockedNotes()
+                        // Pending index and planner changes land on disk
+                        // before the app leaves, then the notes go out.
+                        Task {
+                            await store.flushIndex()
+                            await workspace.flushWorkspace()
+                        }
                         // Notes are saved on the way out; send them.
                         SyncEngine.shared.soon(delay: 1)
                     }
                 }
-        }
+                // A Spotlight result was tapped: open that note (locked
+                // notes still ask for Face ID on the way in).
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    if let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                       let noteID = UUID(uuidString: id) {
+                        CommandCenter.shared.openFromSpotlight(noteID)
+                    }
+                }
+        })
     }
 }

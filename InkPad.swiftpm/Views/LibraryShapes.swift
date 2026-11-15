@@ -6,10 +6,16 @@ struct NotePreview: View {
     let note: NoteSummary
     @State private var thumbnail: UIImage?
 
+    /// Locked notes show a lock instead of their contents until they are
+    /// unlocked with Face ID (or the passcode).
+    private var showsLock: Bool { note.locked && !store.isUnlocked(note.id) }
+
     var body: some View {
         ZStack {
             Color.white
-            if let cover = note.cover {
+            if showsLock {
+                Image(systemName: "lock.fill").foregroundStyle(.secondary)
+            } else if let cover = note.cover {
                 NoteCoverView(cover: cover, title: "")
             } else if note.isText {
                 Image(systemName: "doc.text").foregroundStyle(.purple)
@@ -17,7 +23,8 @@ struct NotePreview: View {
                 Image(uiImage: thumbnail).resizable().scaledToFill()
             }
         }
-        .task(id: note.modifiedAt) {
+        .task(id: "\(note.id)-\(note.modifiedAt.timeIntervalSince1970)-\(showsLock)") {
+            if showsLock { thumbnail = nil; return }
             if !note.isText, note.cover == nil {
                 thumbnail = await store.cardThumbnail(for: note.id, modifiedAt: note.modifiedAt)
             }
@@ -30,11 +37,11 @@ struct NoteIcon: View {
     let note: NoteSummary
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Theme.Spacing.sm) {
             NotePreview(note: note)
                 .frame(width: 64, height: 84)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xs).stroke(.quaternary))
                 .shadow(color: .black.opacity(0.08), radius: 3, y: 2)
             Text(verbatim: note.title)
                 .font(.caption)
@@ -50,7 +57,7 @@ struct NoteCompactRow: View {
     let note: NoteSummary
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Theme.Spacing.lg) {
             NotePreview(note: note)
                 .frame(width: 20, height: 26)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
@@ -80,7 +87,7 @@ struct NoteBubble: View {
 
     var body: some View {
         let size = Self.diameter(note)
-        VStack(spacing: 4) {
+        VStack(spacing: Theme.Spacing.xs) {
             NotePreview(note: note)
                 .frame(width: size, height: size)
                 .clipShape(Circle())
@@ -204,7 +211,7 @@ struct CircleHub: View {
     let count: Int
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: Theme.Spacing.xs) {
             Image(systemName: "folder.fill").font(.title).foregroundStyle(Color.inkAccent)
             Text(verbatim: title).font(.headline).lineLimit(1)
             Text("\(count) notes").font(.caption).foregroundStyle(.secondary)
@@ -283,7 +290,7 @@ struct TimelineEntry: View {
     let isLast: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Theme.Spacing.xxl) {
             VStack(spacing: 0) {
                 Circle().fill(Color.inkAccent).frame(width: 12, height: 12).padding(.top, 14)
                 if !isLast {
@@ -291,11 +298,11 @@ struct TimelineEntry: View {
                 }
             }
             .frame(width: 14)
-            HStack(spacing: 12) {
+            HStack(spacing: Theme.Spacing.xl) {
                 NotePreview(note: note)
                     .frame(width: 34, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                     Text(verbatim: note.title).font(.headline).lineLimit(1)
                     Text(note.modifiedAt, format: .dateTime.weekday(.wide).day().hour().minute())
                         .font(.caption)
@@ -304,7 +311,7 @@ struct TimelineEntry: View {
                 Spacer()
             }
             .padding(10)
-            .background(.background.opacity(0.7), in: RoundedRectangle(cornerRadius: 12))
+            .background(.background.opacity(0.7), in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
             .padding(.bottom, 8)
         }
     }

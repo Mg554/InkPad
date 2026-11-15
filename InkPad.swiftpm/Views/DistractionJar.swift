@@ -183,7 +183,7 @@ struct DistractionJarView: View {
                 .animation(.spring(response: 0.18, dampingFraction: 0.2), value: shakes)
                 .animation(.spring(response: 0.6, dampingFraction: 0.62), value: shown.map(\.id))
                 summary(total: waiting.count, shown: shown.count)
-                HStack(spacing: 12) {
+                HStack(spacing: Theme.Spacing.xl) {
                     Button(action: capture) {
                         Label("Catch a Thought", systemImage: "plus")
                     }
@@ -261,11 +261,11 @@ struct DistractionJarView: View {
                 }
             }
         } label: {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
                 .fill(LinearGradient(colors: [Color(red: 0.72, green: 0.52, blue: 0.3), Color(red: 0.5, green: 0.33, blue: 0.18)], startPoint: .top, endPoint: .bottom))
                 .frame(width: Self.jarSize.width - 50, height: 34)
                 .overlay {
-                    HStack(spacing: 6) {
+                    HStack(spacing: Theme.Spacing.sm) {
                         ForEach(0..<12, id: \.self) { _ in
                             Rectangle().fill(Color.black.opacity(0.12)).frame(width: 2)
                         }
@@ -279,7 +279,7 @@ struct DistractionJarView: View {
     }
 
     private func summary(total: Int, shown: Int) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: Theme.Spacing.xs) {
             if total == 0 {
                 Text("The jar is empty").font(.headline)
                 Text("Catch a stray thought while you focus; it lands here.").font(.callout).foregroundStyle(.secondary)
@@ -349,7 +349,7 @@ struct DistractionDetail: View {
     let close: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
             if let data = item.ink {
                 DistractionInkThumbnail(id: item.id, data: data, height: 110)
             }
@@ -442,7 +442,7 @@ struct DistractionSortView: View {
     }
 
     private func cardFace(_ item: Distraction) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             if let data = item.ink {
                 DistractionInkThumbnail(id: item.id, data: data, height: 120)
             }
@@ -459,7 +459,7 @@ struct DistractionSortView: View {
         }
         .padding(20)
         .frame(width: 340, height: 230, alignment: .topLeading)
-        .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous))
     }
 
     private func cardDrag(_ item: Distraction) -> some Gesture {
@@ -494,7 +494,7 @@ struct DistractionSortView: View {
 
     private func badge(_ choice: Choice) -> some View {
         let info: (String, String, Color) = describe(choice)
-        return RoundedRectangle(cornerRadius: 22, style: .continuous)
+        return RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous)
             .fill(info.2.opacity(0.14))
             .overlay {
                 Label(tr(info.1), systemImage: info.0)
@@ -502,7 +502,7 @@ struct DistractionSortView: View {
                     .foregroundStyle(info.2)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(info.2, lineWidth: 2.5))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md).stroke(info.2, lineWidth: 2.5))
                     .rotationEffect(.degrees(-8))
             }
             .allowsHitTesting(false)
@@ -544,7 +544,7 @@ struct DistractionSortView: View {
     }
 
     private func buttons(_ top: Distraction) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             sortButton(.delete, top)
             sortButton(.later, top)
             sortButton(.reminder, top)
@@ -558,19 +558,19 @@ struct DistractionSortView: View {
             guard !leaving else { return }
             send(item, choice)
         } label: {
-            VStack(spacing: 4) {
+            VStack(spacing: Theme.Spacing.xs) {
                 Image(systemName: info.0).font(.title2)
                 Text(tr(info.1)).font(.caption.weight(.semibold))
             }
             .foregroundStyle(info.2)
             .frame(width: 74, height: 64)
-            .background(info.2.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+            .background(info.2.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
         }
         .buttonStyle(PressableStyle())
     }
 
     private var hints: some View {
-        HStack(spacing: 18) {
+        HStack(spacing: Theme.Spacing.huge) {
             Label("Task", systemImage: "arrow.right")
             Label("Delete", systemImage: "arrow.left")
             Label("Reminder", systemImage: "arrow.up")
@@ -606,7 +606,7 @@ struct DistractionListView: View {
     }
 
     private func row(_ item: Distraction) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Theme.Spacing.xl) {
             Button {
                 DistractionActions.toggleDone(item, in: workspace)
             } label: {
@@ -615,14 +615,14 @@ struct DistractionListView: View {
                     .foregroundStyle(item.isDone ? Color.green : Color.secondary)
             }
             .buttonStyle(.borderless)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 if let data = item.ink {
                     DistractionInkThumbnail(id: item.id, data: data)
                 }
                 if !item.text.isEmpty {
                     Text(verbatim: item.text).strikethrough(item.isDone)
                 }
-                HStack(spacing: 8) {
+                HStack(spacing: Theme.Spacing.md) {
                     Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
                     if let task = item.duringTask { Text(verbatim: "· " + task).lineLimit(1) }
                     if item.isReminder { Label("Reminder", systemImage: "bell.fill").foregroundStyle(Color.inkAccent) }
@@ -693,7 +693,7 @@ struct DistractionInsightsView: View {
             !workspace.distractions.contains { $0.createdAt >= session.startedAt && $0.createdAt <= session.endedAt }
         }
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
                 tiles(recent: recent, calm: calm)
                 if !calm.isEmpty { sessionDots(calm) }
                 chartCard("By Hour (Last 2 Weeks)") {
@@ -726,7 +726,7 @@ struct DistractionInsightsView: View {
         for value in calm.reversed() {
             if value { streak += 1 } else { break }
         }
-        return HStack(spacing: 12) {
+        return HStack(spacing: Theme.Spacing.xl) {
             tile("\(today)", "today", .orange)
             tile("\(recent.count)", "in 2 weeks", .primary)
             tile("\(waiting)", "waiting", .blue)
@@ -735,7 +735,7 @@ struct DistractionInsightsView: View {
     }
 
     private func tile(_ value: String, _ label: String, _ tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Text(verbatim: value).font(.title.bold()).foregroundStyle(tint)
             Text(tr(label)).font(.caption).foregroundStyle(.secondary).lineLimit(2)
         }
@@ -747,7 +747,7 @@ struct DistractionInsightsView: View {
     /// One dot per recent session: green without a distraction, orange with.
     private func sessionDots(_ calm: [Bool]) -> some View {
         let calmCount: Int = calm.filter { $0 }.count
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("\(calmCount) of \(calm.count) sessions had no distractions").font(.subheadline.weight(.semibold))
             HStack(spacing: 5) {
                 ForEach(Array(calm.suffix(30).enumerated()), id: \.offset) { _, value in
@@ -763,7 +763,7 @@ struct DistractionInsightsView: View {
     }
 
     private func chartCard<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Text(tr(title)).font(.subheadline.weight(.semibold))
             content()
         }
@@ -802,10 +802,10 @@ struct DistractionInsightsView: View {
         let top: [(key: String, value: Int)] = taskCounts(items)
         let most: Int = top.first?.value ?? 1
         if !top.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 Text("Most Distracted While Working On").font(.subheadline.weight(.semibold))
                 ForEach(top, id: \.key) { entry in
-                    HStack(spacing: 10) {
+                    HStack(spacing: Theme.Spacing.lg) {
                         Text(verbatim: entry.key).font(.callout).lineLimit(1).frame(width: 160, alignment: .leading)
                         GeometryReader { proxy in
                             Capsule()

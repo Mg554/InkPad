@@ -200,7 +200,7 @@ struct MarkdownNoteView: View {
 
     private var previewPane: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxl2) {
                 let tags = NoteLinks.tags(in: text)
                 if !tags.isEmpty {
                     TagChips(tags: tags) { navigation.openTag($0) }
@@ -213,12 +213,12 @@ struct MarkdownNoteView: View {
             .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Color(uiColor: .secondarySystemBackground).opacity(mode == .split ? 0.5 : 0))
+        .background(Theme.Colors.secondarySurface.opacity(mode == .split ? 0.5 : 0))
     }
 
     private var formattingBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Spacing.xs) {
                 barButton("Heading", "number") { editor.toggleLinePrefix("# ") }
                 barButton("Subheading", "textformat.size") { editor.toggleLinePrefix("## ") }
                 barButton("Bold", "bold") { editor.wrapSelection("**", "**") }
@@ -437,7 +437,7 @@ struct MarkdownPreview: View {
     let toggleCheckbox: (Int) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             ForEach(Array(text.components(separatedBy: "\n").enumerated()), id: \.offset) { item in
                 block(item.element, line: item.offset)
             }
@@ -459,7 +459,7 @@ struct MarkdownPreview: View {
                 .padding(.top, level <= 2 ? 8 : 2)
         } else if trimmed.hasPrefix("- [ ] ") || trimmed.hasPrefix("- [x] ") || trimmed.hasPrefix("- [X] ") {
             let done = !trimmed.hasPrefix("- [ ] ")
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.lg) {
                 Button {
                     toggleCheckbox(index)
                 } label: {
@@ -473,13 +473,13 @@ struct MarkdownPreview: View {
                     .foregroundStyle(done ? .secondary : .primary)
             }
         } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.lg) {
                 Circle().frame(width: 6, height: 6).foregroundStyle(.secondary)
                 Text(Self.inline(String(trimmed.dropFirst(2))))
             }
             .padding(.leading, CGFloat(line.prefix { $0 == " " }.count) * 6)
         } else if trimmed.hasPrefix(">") {
-            HStack(spacing: 10) {
+            HStack(spacing: Theme.Spacing.lg) {
                 RoundedRectangle(cornerRadius: 2).fill(Color.purple.opacity(0.6)).frame(width: 4)
                 Text(Self.inline(String(trimmed.dropFirst().drop(while: { $0 == " " }))))
                     .italic()
@@ -566,7 +566,7 @@ struct TagChips: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.Spacing.md) {
                 ForEach(tags, id: \.self) { tag in
                     Button {
                         open(tag)
@@ -592,7 +592,7 @@ struct BacklinksSection: View {
     let open: (UUID) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Divider().padding(.vertical, 8)
             Label("Linked Mentions (\(backlinks.count))", systemImage: "arrow.uturn.backward.circle")
                 .font(.headline)
@@ -605,7 +605,7 @@ struct BacklinksSection: View {
                 Button {
                     open(item.note.id)
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         Text(tr(item.note.title))
                             .font(.subheadline.weight(.semibold))
                         if !item.line.isEmpty {

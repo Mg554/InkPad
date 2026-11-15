@@ -155,7 +155,7 @@ struct FlowTimerFace: View {
                 .stroke(tint.gradient, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 1), value: progress)
-            VStack(spacing: 4) {
+            VStack(spacing: Theme.Spacing.xs) {
                 Text(trMessage(label)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 Text(Flowmodoro.clock(seconds))
                     .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
@@ -167,7 +167,7 @@ struct FlowTimerFace: View {
     }
 
     private var digits: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: Theme.Spacing.x2) {
             Text(trMessage(label)).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
             Text(Flowmodoro.clock(seconds, forceHours: seconds >= 3600))
                 .font(.system(size: 88, weight: .heavy, design: .rounded).monospacedDigit())
@@ -209,7 +209,7 @@ private struct AnalogFace: View {
         }
         .frame(width: 190, height: 190)
         .overlay(alignment: .bottom) {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Text(trMessage(label)).font(.caption).foregroundStyle(.secondary)
                 Text(Flowmodoro.clock(seconds)).font(.headline.monospacedDigit()).foregroundStyle(tint)
             }
@@ -262,7 +262,7 @@ private struct LiquidFace: View {
         .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 40, style: .continuous).stroke(tint.opacity(0.4), lineWidth: 2))
         .overlay {
-            VStack(spacing: 2) {
+            VStack(spacing: Theme.Spacing.x2) {
                 Text(trMessage(label)).font(.caption.weight(.semibold))
                 Text(tr(text)).font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
             }
@@ -280,7 +280,7 @@ private struct PlantFace: View {
     var body: some View {
         // Grows over the first hour, then blooms.
         let growth: Double = min(Double(seconds) / 3600, 1)
-        VStack(spacing: 6) {
+        VStack(spacing: Theme.Spacing.sm) {
             Canvas { context, size in
                 PlantPainter.draw(in: &context, size: size, growth: growth, season: PlantPainter.currentSeason, tint: tint)
             }
@@ -298,7 +298,7 @@ enum PlantPainter {
         let height = Double(size.height)
         let groundY = height - 12
         // Pot of earth.
-        let soil = Path(roundedRect: CGRect(x: width * 0.3, y: groundY - 4, width: width * 0.4, height: 16), cornerRadius: 6)
+        let soil = Path(roundedRect: CGRect(x: width * 0.3, y: groundY - 4, width: width * 0.4, height: 16), cornerRadius: Theme.Radius.xs)
         context.fill(soil, with: .color(Color(red: 0.45, green: 0.3, blue: 0.2)))
         guard growth > 0.01 else {
             let seed = Path(ellipseIn: CGRect(x: width / 2 - 5, y: groundY - 10, width: 10, height: 7))
@@ -381,7 +381,7 @@ private struct FlowCardStyle: ViewModifier {
     let isActive: Bool
 
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
         switch look.cards {
         case .glass:
             content
@@ -399,7 +399,7 @@ private struct FlowCardStyle: ViewModifier {
         case .minimal:
             content
                 .foregroundStyle(Color.primary)
-                .background(Color(uiColor: .systemBackground), in: shape)
+                .background(Theme.Colors.surface, in: shape)
                 .overlay(shape.stroke(Color.secondary.opacity(0.25)))
         case .neon:
             content
@@ -578,7 +578,7 @@ struct FlowStyleView: View {
             Form {
                 Section("Timer Face") {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 14) {
+                        HStack(spacing: Theme.Spacing.xxl) {
                             ForEach(FlowLook.Face.allCases) { face in
                                 facePreview(face)
                             }
@@ -653,14 +653,14 @@ struct FlowStyleView: View {
         return Button {
             withAnimation { store.look.face = face }
         } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: Theme.Spacing.sm) {
                 FlowTimerFace(face: face, seconds: 1525, progress: 0.42, tint: .green, label: "Work")
                     .scaleEffect(0.5)
                     .frame(width: 120, height: 120)
                 Text(tr(face.title)).font(.caption.weight(.semibold)).foregroundStyle(Color(uiColor: .label))
             }
             .padding(8)
-            .background(RoundedRectangle(cornerRadius: 14).stroke(selected ? Color.inkAccent : Color.secondary.opacity(0.25), lineWidth: selected ? 3 : 1))
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.xl).stroke(selected ? Color.inkAccent : Color.secondary.opacity(0.25), lineWidth: selected ? 3 : 1))
         }
         .buttonStyle(.plain)
     }

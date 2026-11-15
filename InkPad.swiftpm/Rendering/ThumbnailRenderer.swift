@@ -33,9 +33,7 @@ enum ThumbnailRenderer {
         // Render ink with light-mode colors so it matches the paper.
         var ink: UIImage?
         if drawing.bounds.intersects(pageRect) {
-            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-                ink = drawing.image(from: pageRect, scale: max(scale * 2, 0.5))
-            }
+            ink = InkSnapshot.snapshot(of: drawing, from: pageRect, scale: max(scale * 2, 0.5))
         }
 
         let format = UIGraphicsImageRendererFormat()

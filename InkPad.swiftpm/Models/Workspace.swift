@@ -172,6 +172,8 @@ struct WorkspaceFile: Codable {
     var flashcardDecks: [FlashcardDeck]?
     var quizzes: [Quiz]?
     var studyChats: [StudyChat]?
+    /// General chats with an AI service, not about any note.
+    var aiChats: [AIChat]?
     var flowTasks: [FlowTask]?
     var flowSessions: [FlowSession]?
     var flowTimer: FlowTimer?

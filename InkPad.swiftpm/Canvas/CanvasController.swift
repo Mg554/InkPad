@@ -1,6 +1,21 @@
 import PencilKit
 import SwiftUI
 
+/// Registers a change that can be undone and redone.
+///
+/// Foundation's undo manager calls a registered closure only when undoing, so
+/// the closure puts its inverse on the stack when it runs, and the inverse
+/// puts the original back; the pair keeps alternating. `target` is the
+/// long-lived object the change belongs to (the canvas, in practice): an
+/// object made just for the call is freed together with its operation and
+/// crashes the undo manager.
+func registerUndoStep(on manager: UndoManager, target: NSObject, undo: @escaping () -> Void, redo: @escaping () -> Void) {
+    manager.registerUndo(withTarget: target) { _ in
+        undo()
+        registerUndoStep(on: manager, target: target, undo: redo, redo: undo)
+    }
+}
+
 /// Lets SwiftUI controls drive the UIKit canvas: tools, undo/redo, the
 /// ruler, page navigation, text boxes and images.
 @MainActor
@@ -9,6 +24,7 @@ final class CanvasController: NSObject, ObservableObject {
         case text
         case image
         case sticky
+        case comment
     }
 
     @Published private(set) var canUndo = false
@@ -18,6 +34,10 @@ final class CanvasController: NSObject, ObservableObject {
     @Published private(set) var selection: Selection?
     /// Bumped after formatting changes so the toolbar re-reads the text state.
     @Published private(set) var formattingRevision = 0
+    /// The direction the pages run in this open note, fixed while it is
+    /// open (Settings › Scrolling Direction applies to the notes opened
+    /// next).
+    let axis: ScrollAxis = ScrollAxis.current
     @Published var isRulerActive = false {
         didSet { host?.canvas.isRulerActive = isRulerActive }
     }
@@ -39,6 +59,8 @@ final class CanvasController: NSObject, ObservableObject {
     var onSaveSticker: ((PKDrawing) -> Void)?
     /// A sticky note was tapped: open it.
     var onStickyTapped: ((UUID, StickyNote) -> Void)?
+    var onCommentTapped: ((UUID, NoteComment) -> Void)?
+    var onAddComment: ((CGPoint) -> Void)?
     /// A gesture's action the note editor handles (toolbar, reading mode,
     /// ⌘K, sticky notes).
     var onEditorAction: ((GestureAction) -> Void)?
@@ -75,6 +97,10 @@ final class CanvasController: NSObject, ObservableObject {
     private var awaitsEraseAfterTouch = false
     /// Audio playback replay, kept so a new canvas view picks it up.
     private var replayInterval: DateInterval?
+/// The drawing before the last refine, for revert support.
+private var drawingBeforeRefine: PKDrawing?
+/// Whether the review sheet is showing.
+@State private var showingRefineReview = false
     private var replayNow = Date.distantPast
     /// The first stroke not yet leveled by Refine Handwriting.
     private var refineStart: Int?
@@ -97,6 +123,7 @@ final class CanvasController: NSObject, ObservableObject {
         host.lasso.onChange = { [weak self] in self?.contentDidChange() }
         host.lasso.onThink = { [weak self] text, rect, mode in self?.onThink?(text, rect, mode) }
         host.lasso.onRemind = { [weak self] text in self?.onRemind?(text) }
+        host.lasso.onMakeEditableText = { [weak self] box in self?.beginEditingTextBox(box) }
         host.lasso.onSaveSticker = { [weak self] drawing in self?.onSaveSticker?(drawing) }
         host.lasso.onSendAcross = onSendAcross
         host.dropHandler.onDrop = { [weak self] drop, point in self?.receive(drop, at: point) }
@@ -113,6 +140,10 @@ final class CanvasController: NSObject, ObservableObject {
         host.elementLayer.onStickyTap = { [weak self] view in
             self?.onStickyTapped?(view.id, view.note)
         }
+        host.elementLayer.onCommentTap = { [weak self] view in
+            self?.onCommentTapped?(view.id, view.comment)
+        }
+        host.lasso.onAddComment = { [weak self] point in self?.onAddComment?(point) }
         let holdTracker = StrokeHoldTracker()
         holdTracker.coordinateView = host.elementLayer
         holdTracker.onTouchBegan = { [weak self, weak host] in
@@ -200,12 +231,39 @@ final class CanvasController: NSObject, ObservableObject {
 
     // MARK: Eraser
 
+    /// When `eraseHighlighterOnly` is true, after the eraser touch ends we
+    /// filter the drawing to keep only strokes whose ink type is `.monoline`
+    /// (highlighter). Other strokes are removed. An undo step is registered
+    /// so the user can revert.
+    private func filterHighlighterStrokes() {
+        guard let palette, palette.eraseHighlighterOnly,
+              palette.tool == .eraser,
+              let host = host else { return }
+        let drawing = host.canvas.drawing
+        var before = drawing
+        // Keep only strokes with monoline ink type (highlighter).
+        before.strokes = before.strokes.filter { stroke in
+            stroke.ink.inkType == .monoline
+        }
+        guard before.strokes.count != drawing.strokes.count else { return }
+        // Register undo so the user can revert the filter.
+        host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
+            canvas.drawing = before
+        }
+        host.canvas.drawing = before
+        contentDidChange()
+    }
+
     /// With "Back to Last Tool" on, returns to the previous tool once an erase
     /// is done. PencilKit may report the erase before or after the touch ends.
     private func eraseTouchEnded() {
         guard let palette, palette.tool == .eraser, palette.returnsAfterErasing else { return }
         if didEraseDuringTouch {
             returnFromEraser()
+            // After erasing, filter highlighter-only if requested.
+            if palette.eraseHighlighterOnly {
+                filterHighlighterStrokes()
+            }
         } else {
             awaitsEraseAfterTouch = true
             Task { [weak self] in
@@ -363,6 +421,10 @@ final class CanvasController: NSObject, ObservableObject {
         refineStart = nil
         let drawing = host.canvas.drawing
         guard start < drawing.strokes.count else { return }
+        
+        // Save the drawing before refine for revert support
+        drawingBeforeRefine = drawing
+        
         let settings = HandwritingSettingsStore.shared.settings
         var strokes = drawing.strokes
         let fresh = Dictionary(uniqueKeysWithValues: (start..<strokes.count)
@@ -386,9 +448,10 @@ final class CanvasController: NSObject, ObservableObject {
         isReplacingStroke = true
         host.canvas.drawing = refined
         host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
-            canvas.drawing = drawing
+            canvas.drawing = self.drawingBeforeRefine ?? drawing
         }
         isReplacingStroke = false
+        showingRefineReview = true
         contentDidChange()
     }
 
@@ -440,39 +503,106 @@ final class CanvasController: NSObject, ObservableObject {
         formattingRevision += 1
     }
 
+    /// Rewrites the selected text box with the AI service: the selection
+    /// when there is one, else the whole box. Nothing changes when the
+    /// box is empty, the AI service is not set up, or the AI fails.
+    func rewriteSelectedText(_ mode: AIRewriteMode) async {
+        guard let box = host?.elementLayer.selected as? TextBoxView else { return }
+        let textView = box.textView
+        let full = textView.text ?? ""
+        let fullRange = NSRange(location: 0, length: (full as NSString).length)
+        let selection = textView.selectedRange
+        let range = selection.length > 0 && NSMaxRange(selection) <= fullRange.length ? selection : fullRange
+        let source = (full as NSString).substring(with: range).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !source.isEmpty else { return }
+        if let problem = AISettings.shared.problem {
+            CommandCenter.shared.say(trMessage(problem))
+            return
+        }
+        guard let client = AISettings.shared.client() else {
+            CommandCenter.shared.say(tr("Set up an AI service in Settings to use this."))
+            return
+        }
+        let system = "You rewrite text. Return only the rewritten text, with no preamble, quotes, or explanation. Keep the original language unless asked to translate."
+        do {
+            let reply = try await client.complete(system: system, messages: [AIMessage(.user, mode.prompt(for: source))])
+            let cleaned = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty else {
+                CommandCenter.shared.say(tr("Couldn't rewrite the text."))
+                return
+            }
+            // The text may have changed while the AI was working; replace
+            // the selection when it is still valid, else the whole box.
+            let currentLength = (textView.text ?? "").utf16.count
+            let target = selection.length > 0 && NSMaxRange(selection) <= currentLength
+                ? selection
+                : NSRange(location: 0, length: currentLength)
+            box.replaceText(in: target, with: cleaned)
+            formattingRevision += 1
+        } catch {
+            CommandCenter.shared.say(trMessage(error.localizedDescription))
+        }
+    }
+
     func deleteSelectedElement() {
         host?.elementLayer.removeSelected()
     }
 
-    /// Moves ink and elements below `y` by `delta` and removes what lies in
-    /// `removing`, keeping content on its page when pages are inserted or deleted.
-    func shiftContent(below y: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
+    // MARK: Element z-order and lock
+
+    var selectedElementIsLocked: Bool { host?.elementLayer.isSelectedLocked ?? false }
+
+    func bringSelectedElementForward() { host?.elementLayer.bringSelectedForward() }
+    func sendSelectedElementBackward() { host?.elementLayer.sendSelectedBackward() }
+    func bringSelectedElementToFront() { host?.elementLayer.bringSelectedToFront() }
+    func sendSelectedElementToBack() { host?.elementLayer.sendSelectedToBack() }
+    func toggleLockSelectedElement() {
+        host?.elementLayer.toggleLockSelected()
+        formattingRevision += 1
+    }
+
+    /// Moves ink and elements past `value` along the pages' direction by
+    /// `delta` and removes what lies in `removing`, keeping content on its
+    /// page when pages are inserted or deleted.
+    func shiftContent(below value: CGFloat, by delta: CGFloat, removing: ClosedRange<CGFloat>?) {
         guard let host else { return }
-        let move = CGAffineTransform(translationX: 0, y: delta)
+        let axis = host.background?.layout.axis ?? .vertical
+        let move: CGAffineTransform
+        if axis == .vertical {
+            move = CGAffineTransform(translationX: 0, y: delta)
+        } else {
+            move = CGAffineTransform(translationX: delta, y: 0)
+        }
         var strokes: [PKStroke] = []
         for var stroke in host.canvas.drawing.strokes {
-            let middle = stroke.renderBounds.midY
+            let middle = axis.mid(of: stroke.renderBounds)
             if let removing, removing.contains(middle) { continue }
-            if middle > y { stroke.transform = stroke.transform.concatenating(move) }
+            if middle > value { stroke.transform = stroke.transform.concatenating(move) }
             strokes.append(stroke)
         }
         host.canvas.drawing = PKDrawing(strokes: strokes)
         // Ink undo steps refer to the old positions.
         host.canvas.undoManager?.removeAllActions()
-        host.elementLayer.shiftElements(below: y, by: delta, removing: removing)
+        host.elementLayer.shiftElements(below: value, by: delta, removing: removing)
         contentDidChange()
     }
 
-    /// Moves ink and elements vertically; `offset` says how far content
-    /// centered at a given y moves (used to reorder pages).
+    /// Moves ink and elements along the pages' direction; `offset` says how
+    /// far content at a given position moves (used to reorder pages).
     func moveContent(by offset: (CGFloat) -> CGFloat) {
         guard let host else { return }
+        let axis = host.background?.layout.axis ?? .vertical
         var strokes = host.canvas.drawing.strokes
         for index in strokes.indices {
-            let delta = offset(strokes[index].renderBounds.midY)
+            let delta = offset(axis.mid(of: strokes[index].renderBounds))
             guard delta != 0 else { continue }
-            strokes[index].transform = strokes[index].transform
-                .concatenating(CGAffineTransform(translationX: 0, y: delta))
+            let move: CGAffineTransform
+            if axis == .vertical {
+                move = CGAffineTransform(translationX: 0, y: delta)
+            } else {
+                move = CGAffineTransform(translationX: delta, y: 0)
+            }
+            strokes[index].transform = strokes[index].transform.concatenating(move)
         }
         host.canvas.drawing = PKDrawing(strokes: strokes)
         // Ink undo steps refer to the old positions.
@@ -482,22 +612,34 @@ final class CanvasController: NSObject, ObservableObject {
     }
 
     /// Copies the ink and elements on a page (`rect`, with half the gap
-    /// around it) down by `delta`, for a duplicated page.
+    /// around it) along the pages' direction by `delta`, for a duplicated
+    /// page.
     func duplicateContent(in rect: CGRect, by delta: CGFloat) {
         guard let host else { return }
+        let axis = host.background?.layout.axis ?? .vertical
         let gap = PageLayout.pageGap / 2
-        let range = (rect.minY - gap)...(rect.maxY + gap)
-        let move = CGAffineTransform(translationX: 0, y: delta)
+        let range = (axis.minCorner(of: rect) - gap)...(axis.maxCorner(of: rect) + gap)
+        let move: CGAffineTransform
+        if axis == .vertical {
+            move = CGAffineTransform(translationX: 0, y: delta)
+        } else {
+            move = CGAffineTransform(translationX: delta, y: 0)
+        }
         var strokes = host.canvas.drawing.strokes
-        for var stroke in host.canvas.drawing.strokes where range.contains(stroke.renderBounds.midY) {
+        for var stroke in host.canvas.drawing.strokes where range.contains(axis.mid(of: stroke.renderBounds)) {
             stroke.transform = stroke.transform.concatenating(move)
             strokes.append(stroke)
         }
         host.canvas.drawing = PKDrawing(strokes: strokes)
         host.canvas.undoManager?.removeAllActions()
         let current = host.elementLayer.elements
-        let copies: [PageElement] = current.filter { range.contains($0.frame.midY) }.map { element in
-            PageElement(id: UUID(), frame: element.frame.offsetBy(dx: 0, dy: delta), content: element.content)
+        let copies: [PageElement] = current.filter { range.contains(axis.mid(of: $0.frame)) }.map { element in
+            PageElement(
+                id: UUID(),
+                frame: element.frame.offsetBy(dx: axis == .vertical ? 0 : delta, dy: axis == .vertical ? delta : 0),
+                content: element.content,
+                isLocked: element.isLocked
+            )
         }
         if !copies.isEmpty { host.elementLayer.load(current + copies) }
         contentDidChange()
@@ -507,6 +649,7 @@ final class CanvasController: NSObject, ObservableObject {
         if view is TextBoxView { return .text }
         if view is ImageElementView { return .image }
         if view is StickyNoteView { return .sticky }
+        if view is CommentPinView { return .comment }
         return nil
     }
 
@@ -527,24 +670,59 @@ final class CanvasController: NSObject, ObservableObject {
         host?.elementLayer.removeElement(id)
     }
 
-    /// Every sticky note in the note, with the page it is on.
-    func stickies(pageRects: [CGRect]) -> [StickyItem] {
+    // MARK: Comments
+
+    /// A new comment pin in the middle of what is shown; returns its id.
+    @discardableResult
+    func addComment(_ comment: NoteComment = NoteComment(), at center: CGPoint? = nil) -> UUID? {
+        guard let host else { return nil }
+        return host.elementLayer.addComment(comment, centeredAt: center ?? host.visibleCenter).id
+    }
+
+    func updateComment(_ id: UUID, with comment: NoteComment) {
+        host?.elementLayer.updateComment(id, with: comment)
+    }
+
+    /// Every comment pin in the note, with the page it is on. Open
+    /// comments come before resolved ones, then oldest first.
+    func comments(layout: PageLayout) -> [CommentItem] {
         let elements = self.elements ?? []
+        let axis = layout.axis
+        var result: [CommentItem] = []
+        for element in elements {
+            guard case let .comment(comment) = element.content else { continue }
+            let middle = axis.mid(of: element.frame)
+            let page = layout.pageRects.lastIndex { axis.minCorner(of: $0) - PageLayout.pageGap <= middle } ?? 0
+            result.append(CommentItem(id: element.id, comment: comment, page: page))
+        }
+        return result.sorted {
+            let first = $0.comment.isResolved ?? false
+            let second = $1.comment.isResolved ?? false
+            if first != second { return !first }
+            return $0.comment.createdAt < $1.comment.createdAt
+        }
+    }
+
+    /// Every sticky note in the note, with the page it is on.
+    func stickies(layout: PageLayout) -> [StickyItem] {
+        let elements = self.elements ?? []
+        let axis = layout.axis
         var result: [StickyItem] = []
         for element in elements {
             guard case let .sticky(note) = element.content else { continue }
-            let middle = element.frame.minY + 10
-            let page = pageRects.lastIndex(where: { $0.minY - PageLayout.pageGap <= middle }) ?? 0
+            let middle = axis.mid(of: element.frame) + (axis == .vertical ? 10 : 0)
+            let page = layout.pageRects.lastIndex { axis.minCorner(of: $0) - PageLayout.pageGap <= middle } ?? 0
             result.append(StickyItem(id: element.id, note: note, page: page))
         }
         return result
     }
 
     /// The page a sticky note is on.
-    func page(ofElement id: UUID, pageRects: [CGRect]) -> Int {
+    func page(ofElement id: UUID, layout: PageLayout) -> Int {
         guard let element = (elements ?? []).first(where: { $0.id == id }) else { return currentPage }
-        let middle = element.frame.minY + 10
-        return pageRects.lastIndex(where: { $0.minY - PageLayout.pageGap <= middle }) ?? currentPage
+        let axis = layout.axis
+        let middle = axis.mid(of: element.frame) + (axis == .vertical ? 10 : 0)
+        return layout.pageRects.lastIndex { axis.minCorner(of: $0) - PageLayout.pageGap <= middle } ?? currentPage
     }
 
     /// A drop: ink, text and sticky notes are placed here; pictures, notes
@@ -629,6 +807,16 @@ final class CanvasController: NSObject, ObservableObject {
         guard let host else { return }
         let center = host.visibleCenter
         host.elementLayer.addTextBox(text, below: CGRect(x: center.x - 240, y: center.y - 60, width: 480, height: 0))
+    }
+
+    /// Lasso › Make Editable Text: switches to the Text tool and puts the
+    /// caret in the new text box, so the writing can be edited.
+    private func beginEditingTextBox(_ box: TextBoxView) {
+        guard let host else { return }
+        palette?.select(.text)
+        applyTool()
+        host.elementLayer.selectElement(box)
+        box.textView.becomeFirstResponder()
     }
 }
 

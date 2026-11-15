@@ -96,7 +96,7 @@ struct CommandPalette: View {
     // MARK: Pieces
 
     private func field(_ items: [PaletteItem]) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             Image(systemName: "command")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(Color.inkAccent)
@@ -167,7 +167,7 @@ struct CommandPalette: View {
         ZStack(alignment: .topTrailing) {
             InkCanvas(drawing: $ink, showsToolPicker: false)
                 .frame(height: 110)
-                .background(Color(uiColor: .systemBackground).opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+                .background(Theme.Colors.surface.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
                 .overlay(alignment: .bottomLeading) {
                     if ink.strokes.isEmpty {
                         Text("Write your command here")
@@ -200,7 +200,7 @@ struct CommandPalette: View {
     }
 
     private var status: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Theme.Spacing.md) {
             if voice.isListening {
                 Image(systemName: "waveform")
                     .symbolEffect(.variableColor.iterative, isActive: true)
@@ -220,7 +220,7 @@ struct CommandPalette: View {
     private func results(_ items: [PaletteItem]) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2, pinnedViews: []) {
+                LazyVStack(alignment: .leading, spacing: Theme.Spacing.x2, pinnedViews: []) {
                     if items.isEmpty {
                         Text(query.isEmpty ? "" : "Nothing found for \"\(query)\".")
                             .foregroundStyle(Self.faint)
@@ -253,12 +253,12 @@ struct CommandPalette: View {
     }
 
     private func row(_ item: PaletteItem, isSelected: Bool) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             Image(systemName: item.systemImage)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 30, height: 30)
-                .background(item.tint.gradient, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(item.tint.gradient, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
                 Text(tr(item.title))
                     .lineLimit(1)
@@ -281,13 +281,13 @@ struct CommandPalette: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(isSelected ? Color.inkAccent.opacity(0.18) : Color.clear, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(isSelected ? Color.inkAccent.opacity(0.18) : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
         .padding(.horizontal, 6)
         .contentShape(Rectangle())
     }
 
     private var footer: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             Label("move", systemImage: "arrow.up.arrow.down")
             Label("run", systemImage: "return")
             Label("close", systemImage: "escape")
@@ -449,7 +449,7 @@ struct CommandShortcuts: View {
             shortcut("New Mind Map", "m", [.command, .shift]) { center.show(prefill: "mind map ") }
             shortcut("Back Up Now", "b", [.command, .shift]) {
                 Task {
-                    let done = await store.makeAutomaticBackupIfDue(force: true)
+                    let done = await store.makeAutomaticBackupIfDue(force: true, workspace: workspace)
                     center.say(done ? "Backed up to InkPad Automatic Backups" : "The backup couldn't be made")
                 }
             }

@@ -190,7 +190,7 @@ struct AskBookView: View {
     @State private var problem: String?
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Theme.Spacing.md) {
             if let problem {
                 Text(trMessage(problem)).font(.caption).foregroundStyle(.red).padding(.horizontal)
             }
@@ -198,7 +198,7 @@ struct AskBookView: View {
                 Text("Set up an AI service in AI Settings to ask the book.").font(.callout).foregroundStyle(.secondary).padding()
             }
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
+                LazyVStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
                     if answers.isEmpty {
                         Text("Ask anything about the book. The pages that match are found on this iPad; only those are sent to \(ai.provider.title), and the answer cites them.")
                             .font(.caption)
@@ -225,7 +225,7 @@ struct AskBookView: View {
                 .disabled(question.trimmingCharacters(in: .whitespaces).isEmpty || isAsking || ai.problem != nil)
             }
             .padding(10)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
@@ -236,7 +236,7 @@ struct AskBookView: View {
     }
 
     private func answerCard(_ item: BookAnswer) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text(item.question).font(.subheadline.weight(.semibold))
             Text(LocalizedStringKey(item.answer)).font(.callout).textSelection(.enabled)
             if !item.pages.isEmpty {

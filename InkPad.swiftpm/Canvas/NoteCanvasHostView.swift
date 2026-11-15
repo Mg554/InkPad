@@ -1,4 +1,5 @@
 import PencilKit
+import SwiftUI
 import UIKit
 
 /// Stacks three layers that zoom and scroll together:
@@ -24,7 +25,7 @@ final class NoteCanvasHostView: UIView {
     private var savedPanTouchTypes: [NSNumber]?
     private var savedPanMinimumTouches = 1
     private let pageBackground = PageBackgroundView()
-    private var background: NoteBackground?
+    private(set) var background: NoteBackground?
     private var fitScale: CGFloat = 0
     private lazy var textTap = UITapGestureRecognizer(target: self, action: #selector(handleTextTap(_:)))
     /// During playback, a finger tap on ink plays from when it was written.
@@ -44,8 +45,27 @@ final class NoteCanvasHostView: UIView {
 
     /// Reports the page in the middle of the screen and the page count.
     var onVisiblePageChange: ((_ current: Int, _ count: Int) -> Void)?
-    /// Called when ink from the playing recording is tapped, with when it was written.
-    var onInkTapped: ((Date) -> Void)?
+
+    /// Returns keyboard shortcuts for common actions when a hardware keyboard is connected.
+    override var keyCommands: [UIKeyCommand]? {
+        guard let canvasController else { return nil }
+        return [
+            // Undo
+            UIKeyCommand(input: "z", modifierFlags: .command, action: #selector(undo)),
+            // Redo
+            UIKeyCommand(input: "z", modifierFlags: .shift, action: #selector(redo)),
+            // Bring Forward
+            UIKeyCommand(input: "]", modifierFlags: .command, action: #selector(bringForward)),
+            // Send Backward
+            UIKeyCommand(input: "[", modifierFlags: .command, action: #selector(sendBackward)),
+            // Lock Element
+            UIKeyCommand(input: "l", modifierFlags: .shift, action: #selector(toggleLock)),
+            // Delete Selected
+            UIKeyCommand(input: "delete", modifierFlags: [], action: #selector(deleteSelected)),
+        ]
+    }
+
+    /// Returns keyboard shortcuts for common actions when a hardware keyboard is connected.
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -105,10 +125,7 @@ final class NoteCanvasHostView: UIView {
             for (index, pageRect) in background.layout.pageRects.enumerated() where pageRect.intersects(rect) {
                 background.drawPage(at: index, in: cg)
             }
-            var ink = UIImage()
-            UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-                ink = drawing.image(from: rect, scale: scale)
-            }
+            let ink = InkSnapshot.snapshot(of: drawing, from: rect, scale: scale)
             ink.draw(in: rect)
         }
     }
@@ -121,6 +138,9 @@ final class NoteCanvasHostView: UIView {
     func configure(_ background: NoteBackground) {
         guard background != self.background else { return }
         self.background = background
+        elementLayer.axis = background.layout.axis
+        canvas.alwaysBounceVertical = background.layout.axis == .vertical
+        canvas.alwaysBounceHorizontal = background.layout.axis == .horizontal
         pageBackground.configure(background)
         updateZoomGeometry()
     }
@@ -231,7 +251,12 @@ final class NoteCanvasHostView: UIView {
     }
 
     @objc private func handleStickyTap(_ gesture: UITapGestureRecognizer) {
-        guard let view = elementLayer.sticky(at: gesture.location(in: elementLayer)) else { return }
+        guard let view = elementLayer.sticky(at: gesture.location(in: elementLayer)) else {
+            if let pin = elementLayer.comment(at: gesture.location(in: elementLayer)) {
+                pin.handleTap()
+            }
+            return
+        }
         elementLayer.onStickyTap?(view)
     }
 
@@ -361,6 +386,8 @@ final class NoteCanvasHostView: UIView {
         seekTap.isEnabled = replay.isActive && mode != .text && canvas.drawingPolicy == .pencilOnly
     }
 
+    var onInkTapped: ((Date) -> Void)?
+weak var canvasController: CanvasController?
     @objc private func handleSeekTap(_ gesture: UITapGestureRecognizer) {
         guard let date = replay.inkDate(near: gesture.location(in: elementLayer)) else { return }
         onInkTapped?(date)
@@ -370,11 +397,18 @@ final class NoteCanvasHostView: UIView {
 
     func scrollToPage(_ index: Int) {
         guard let rects = background?.layout.pageRects, rects.indices.contains(index) else { return }
+        let axis = background?.layout.axis ?? .vertical
         let inset = canvas.adjustedContentInset
         let zoom = canvas.zoomScale
-        let maxY = max(canvas.contentSize.height + inset.bottom - canvas.bounds.height, -inset.top)
-        let y = min(rects[index].minY * zoom - inset.top, maxY)
-        canvas.setContentOffset(CGPoint(x: canvas.contentOffset.x, y: y), animated: false)
+        if axis == .vertical {
+            let maxY = max(canvas.contentSize.height + inset.bottom - canvas.bounds.height, -inset.top)
+            let y = min(rects[index].minY * zoom - inset.top, maxY)
+            canvas.setContentOffset(CGPoint(x: canvas.contentOffset.x, y: y), animated: false)
+        } else {
+            let maxX = max(canvas.contentSize.width + inset.right - canvas.bounds.width, -inset.left)
+            let x = min(rects[index].minX * zoom - inset.left, maxX)
+            canvas.setContentOffset(CGPoint(x: x, y: canvas.contentOffset.y), animated: false)
+        }
     }
 
     /// The middle of the visible area, in canvas coordinates.
@@ -383,10 +417,16 @@ final class NoteCanvasHostView: UIView {
     }
 
     private func reportVisiblePage() {
-        guard let rects = background?.layout.pageRects, !rects.isEmpty, canvas.zoomScale > 0 else { return }
-        let middleY = (canvas.contentOffset.y + canvas.bounds.height / 2) / canvas.zoomScale
-        let current = rects.lastIndex { $0.minY <= middleY } ?? 0
-        onVisiblePageChange?(current, rects.count)
+        guard let layout = background?.layout, !layout.pageRects.isEmpty, canvas.zoomScale > 0 else { return }
+        let axis = layout.axis
+        let middle: CGFloat
+        if axis == .vertical {
+            middle = (canvas.contentOffset.y + canvas.bounds.height / 2) / canvas.zoomScale
+        } else {
+            middle = (canvas.contentOffset.x + canvas.bounds.width / 2) / canvas.zoomScale
+        }
+        let current = layout.pageRects.lastIndex { axis.minCorner(of: $0) <= middle } ?? 0
+        onVisiblePageChange?(current, layout.pageRects.count)
     }
 }
 
@@ -395,9 +435,9 @@ extension NoteCanvasHostView {
     func stickyTapShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
         // With the Text tool the sticky note handles its own taps.
         guard mode != .text else { return false }
-        return elementLayer.sticky(at: gesture.location(in: elementLayer)) != nil
+        let point = gesture.location(in: elementLayer)
+        return elementLayer.sticky(at: point) != nil || elementLayer.comment(at: point) != nil
     }
-
     func stickyTapAccepts(_ touch: UITouch) -> Bool {
         // The pencil draws in drawing mode; a finger tap opens the note.
         if touch.type == .pencil { return mode != .draw }
@@ -426,8 +466,38 @@ final class StickyTapDelegate: NSObject, UIGestureRecognizerDelegate {
     }
 }
 
+
 extension NoteCanvasHostView {
-    /// A yellow glow over `rect` (canvas coordinates) that fades away.
+    // MARK: Keyboard command handling
+    @objc func undo() {
+        canvasController?.undo()
+    }
+
+    @objc func redo() {
+        canvasController?.redo()
+    }
+
+    @objc func bringForward() {
+        canvasController?.bringSelectedElementForward()
+    }
+
+    @objc func sendBackward() {
+        canvasController?.sendSelectedElementBackward()
+    }
+
+    @objc func toggleLock() {
+        canvasController?.toggleLockSelectedElement()
+    }
+
+    @objc func deleteSelected() {
+        canvasController?.deleteSelectedElement()
+    }
+
+    @objc func toggleReadingMode() {
+        canvasController?.setReading(true)
+    }
+
+    // MARK: A yellow glow over `rect` (canvas coordinates) that fades away.
     func flash(_ rect: CGRect) {
         let glow = UIView(frame: rect.insetBy(dx: -6, dy: -4))
         glow.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.35)

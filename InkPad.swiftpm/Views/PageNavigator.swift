@@ -8,7 +8,7 @@ struct PageNavigator: View {
     let togglePages: () -> Void
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Theme.Spacing.sm) {
             Button {
                 canvas.scrollToPage(canvas.currentPage - 1)
             } label: {
@@ -17,7 +17,7 @@ struct PageNavigator: View {
             .disabled(canvas.currentPage == 0)
 
             Button(action: togglePages) {
-                VStack(spacing: 2) {
+                VStack(spacing: Theme.Spacing.x2) {
                     Text("\(canvas.currentPage + 1)")
                     Divider().frame(width: 28)
                     Text("\(canvas.pageCount)")
@@ -37,7 +37,7 @@ struct PageNavigator: View {
         .buttonStyle(.plain)
         .padding(.vertical, 10)
         .frame(width: 52)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
         .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
     }
 }
@@ -93,7 +93,7 @@ struct PageSidebar: View {
             Divider()
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 18) {
+                    LazyVStack(spacing: Theme.Spacing.huge) {
                         ForEach(background.layout.pageRects.indices, id: \.self) { index in
                             pageRow(index)
                                 .id(index)
@@ -154,7 +154,7 @@ struct PageSidebar: View {
     /// Actions for the selected pages.
     private var selectionBar: some View {
         let chosen: [Int] = selected.sorted()
-        return HStack(spacing: 18) {
+        return HStack(spacing: Theme.Spacing.huge) {
             Button {
                 movePages = chosen
             } label: {
@@ -185,10 +185,10 @@ struct PageSidebar: View {
     private func pageRow(_ index: Int) -> some View {
         let isCurrent = index == canvas.currentPage
         let tab: NoteBookmark? = session.tab(onPage: index)
-        return VStack(spacing: 6) {
+        return VStack(spacing: Theme.Spacing.sm) {
             PageThumbnail(index: index, content: content, background: background, revision: revision)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: Theme.Radius.xs)
                         .stroke(isCurrent ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: isCurrent ? 3 : 1)
                 )
                 .overlay(alignment: .topTrailing) {
@@ -336,7 +336,7 @@ private struct PageThumbnail: View {
             }
         }
         .aspectRatio(rect.width / rect.height, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
         .task(id: revision) {
             // Rendered off the main thread so scrolling the list stays smooth.
             let content = content
