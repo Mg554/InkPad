@@ -1,2 +1,4 @@
 # Xcode / SwiftPM local artifacts
 InkPad.swiftpm/.swiftpm/
+# macOS folder junk
+.DS_Store
