@@ -340,6 +340,10 @@ private var drawingBeforeRefine: PKDrawing?
             self.expectsNewStroke = false
             self.isReplacingStroke = false
             self.contentDidChange()
+            // Let the writer know the snap happened: a glow over the clean
+            // shape and a light tap.
+            host.flash(ShapeRecognizer.bounds(of: shape))
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
     }
 

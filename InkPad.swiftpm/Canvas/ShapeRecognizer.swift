@@ -34,6 +34,11 @@ enum ShapeRecognizer {
             if (3...6).contains(corners.count) {
                 return .polyline(squaredIfRectangle(corners, bounds: bounds), closed: true)
             }
+            // A wobbly closed stroke that isn't an exact ellipse but sits at a
+            // steady distance from its middle still snaps to one.
+            if isRoundish(points) {
+                return .ellipse(bounds)
+            }
             return nil
         }
 
@@ -111,6 +116,26 @@ enum ShapeRecognizer {
         var even = stroke
         even.path = PKStrokePath(controlPoints: points, creationDate: path.creationDate)
         return even
+    }
+
+    /// The area a shape covers, for highlighting and zooming.
+    static func bounds(of shape: Shape) -> CGRect {
+        switch shape {
+        case let .polyline(points, _): return boundingBox(points)
+        case let .ellipse(rect): return rect
+        }
+    }
+
+    /// Whether the points sit at a nearly constant distance from their
+    /// middle (a wobbly circle), even when the ideal ellipse doesn't fit.
+    private static func isRoundish(_ points: [CGPoint]) -> Bool {
+        let centerX = points.reduce(0) { $0 + $1.x } / CGFloat(points.count)
+        let centerY = points.reduce(0) { $0 + $1.y } / CGFloat(points.count)
+        let radii = points.map { Math.distance($0.x - centerX, $0.y - centerY) }
+        let mean = radii.reduce(0, +) / CGFloat(radii.count)
+        guard mean > 8 else { return false }
+        let maxDeviation = radii.map { abs($0 - mean) }.max() ?? .infinity
+        return maxDeviation / mean < 0.28
     }
 
     // MARK: Geometry
