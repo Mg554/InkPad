@@ -320,9 +320,17 @@ final class EditorSession: ObservableObject {
     }
 
     private func setPages(_ pages: [PageSource]) {
+        let before = metadata?.pageCount ?? 0
         updateMetadata {
             $0.pages = pages
             $0.pageCount = pages.filter(\.isPaper).count
+        }
+        let after = pages.filter(\.isPaper).count
+        // A page count change is the one structural edit worth its own
+        // record; moves and resizes land in the next save's record.
+        if let noteID, let store, after != before {
+            let kind: NoteOpsLog.Kind = after > before ? .pageInserted : .pageRemoved
+            NoteOpsLog.append(kind, detail: "\(before) pages -> \(after)", to: store.noteDirectory(noteID))
         }
         snapshot = currentContent()
     }
@@ -479,6 +487,9 @@ final class EditorSession: ObservableObject {
             let saved = await store.saveContent(content, for: noteID, thumbnail: needsThumbnail)
             isSaving = false
             if saved {
+                let strokes = content.drawing.strokes.count
+                let elements = content.metadata.elements?.count ?? 0
+                NoteOpsLog.append(.inkSaved, detail: "\(strokes) strokes, \(elements) elements", to: store.noteDirectory(noteID))
                 for file in replacedFiles where file != content.pdf?.fileURL {
                     try? FileManager.default.removeItem(at: file)
                 }

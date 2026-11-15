@@ -784,16 +784,20 @@ final class LibraryStore: ObservableObject {
         guard canWrite() else { return nil }
         let id = UUID()
         let directory = noteDirectory(id)
+        var importedPageCount = 0
         do {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
             let pdfURL = directory.appendingPathComponent(NoteFiles.pdfFile)
+            importedPageCount = 0
             let isScoped = sourceURL.startAccessingSecurityScopedResource()
             defer { if isScoped { sourceURL.stopAccessingSecurityScopedResource() } }
             try fileManager.copyItem(at: sourceURL, to: pdfURL)
+            let pdf = try PDFBackground(url: pdfURL)
+            importedPageCount = pdf.pageCount
             let content = NoteContent(
                 metadata: NoteMetadata(template: .blank, pageCount: 0, pdfFile: NoteFiles.pdfFile),
                 drawing: PKDrawing(),
-                pdf: try PDFBackground(url: pdfURL),
+                pdf: pdf,
                 directory: directory
             )
             try Self.write(content, thumbnail: true)
@@ -803,6 +807,7 @@ final class LibraryStore: ObservableObject {
             return nil
         }
         let title = sourceURL.deletingPathExtension().lastPathComponent
+        NoteOpsLog.append(.pdfImported, detail: "\(importedPageCount) pages", to: directory)
         return addNote(id: id, title: cleaned(title, fallback: "Imported PDF"), folderID: folderID)
     }
 
@@ -844,6 +849,7 @@ final class LibraryStore: ObservableObject {
         }
         textIndex[id] = TextNoteInfo(text: text)
         notes[index].modifiedAt = Date()
+        NoteOpsLog.append(.textSaved, detail: "\(text.count) characters", to: noteDirectory(id))
         saveIndex()
         SpotlightIndex.update(notes[index], preview: textIndex[id]?.preview)
         return true

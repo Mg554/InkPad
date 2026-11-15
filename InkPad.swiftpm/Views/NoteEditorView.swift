@@ -197,6 +197,7 @@ struct NoteEditorView: View {
         .onAppear {
             focus.openEditors += 1
             SyncEngine.shared.openNotes.insert(noteID)
+            NoteOpsLog.append(.opened, to: store.noteDirectory(noteID))
         }
         .task {
             session.load(noteID: noteID, store: store)
