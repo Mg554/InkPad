@@ -374,10 +374,30 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 }
             }
             barDivider
+            rewriteMenu
+            barDivider
             elementArrangementControls
             barDivider
             deleteButton
         }
+    }
+
+    /// Rewrites the text in the box with the AI service (fix, shorten,
+    /// expand, re-tone or bulletize), on the selection or the whole box.
+    private var rewriteMenu: some View {
+        Menu {
+            ForEach(AIRewriteMode.allCases) { mode in
+                Button {
+                    Task { await canvas.rewriteSelectedText(mode) }
+                } label: {
+                    Label(tr(mode.title), systemImage: mode.systemImage)
+                }
+            }
+        } label: {
+            Image(systemName: "wand.and.stars.text")
+                .frame(width: 34, height: 32)
+        }
+        .accessibilityLabel(tr("Rewrite with AI"))
     }
 
     /// The font the writing is in, as Goodnotes' font family picker.

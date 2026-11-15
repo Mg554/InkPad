@@ -370,5 +370,14 @@ Folder unlocked. => تم فتح المجلد.
 Locked folders open with Face ID or the passcode. => تُفتح المجلدات المقفلة بالبصمة (Face ID) أو رمز المرور.
 Set a passcode on this iPad — locked folders open with Face ID or the passcode. => اضبط رمز مرور على هذا الآيباد أولاً؛ تُفتح المجلدات المقفلة بالبصمة (Face ID) أو رمز المرور.
 Unlock {}. => افتح {}.
+Rewrite with AI => إعادة كتابة بالذكاء الاصطناعي
+Fix Grammar & Spelling => تصحيح القواعد والإملاء
+Make Shorter => اجعله أقصر
+Make Longer => اجعله أطول
+Friendlier Tone => نبرة ألطف
+More Formal => أكثر رسمية
+Convert to Bullets => حوّل إلى نقاط
+Couldn't rewrite the text. => تعذّرت إعادة كتابة النص.
+Set up an AI service in Settings to use this. => أعدّ خدمة ذكاء اصطناعي في الإعدادات لاستخدام هذا.
 """#
 }

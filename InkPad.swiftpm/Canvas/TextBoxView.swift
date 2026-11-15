@@ -105,6 +105,25 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
         }
     }
 
+    /// Replaces `range` of the text with `string`, keeping the formatting
+    /// of the text that was there (or the typing attributes when the box
+    /// is empty), and selects the inserted text. Used by AI Rewrite.
+    func replaceText(in range: NSRange, with string: String) {
+        let current = textView.attributedText ?? NSAttributedString()
+        let location = min(max(range.location, 0), current.length)
+        let length = min(range.length, current.length - location)
+        let clipped = NSRange(location: location, length: length)
+        let attributes = clipped.length > 0
+            ? current.attributes(at: clipped.location, effectiveRange: nil)
+            : textView.typingAttributes
+        let mutable = NSMutableAttributedString(attributedString: current)
+        mutable.replaceCharacters(in: clipped, with: NSAttributedString(string: string, attributes: attributes))
+        textView.attributedText = mutable
+        textView.selectedRange = NSRange(location: clipped.location + (string as NSString).length, length: 0)
+        fitHeight()
+        textView.delegate?.textViewDidChange?(textView)
+    }
+
     // MARK: Keyboard or Apple Pencil
 
     @objc private func inputModeDidChange() {

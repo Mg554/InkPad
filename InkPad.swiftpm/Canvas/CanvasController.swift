@@ -467,6 +467,47 @@ final class CanvasController: NSObject, ObservableObject {
         formattingRevision += 1
     }
 
+    /// Rewrites the selected text box with the AI service: the selection
+    /// when there is one, else the whole box. Nothing changes when the
+    /// box is empty, the AI service is not set up, or the AI fails.
+    func rewriteSelectedText(_ mode: AIRewriteMode) async {
+        guard let box = host?.elementLayer.selected as? TextBoxView else { return }
+        let textView = box.textView
+        let full = textView.text ?? ""
+        let fullRange = NSRange(location: 0, length: (full as NSString).length)
+        let selection = textView.selectedRange
+        let range = selection.length > 0 && NSMaxRange(selection) <= fullRange.length ? selection : fullRange
+        let source = (full as NSString).substring(with: range).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !source.isEmpty else { return }
+        if let problem = AISettings.shared.problem {
+            CommandCenter.shared.say(trMessage(problem))
+            return
+        }
+        guard let client = AISettings.shared.client() else {
+            CommandCenter.shared.say(tr("Set up an AI service in Settings to use this."))
+            return
+        }
+        let system = "You rewrite text. Return only the rewritten text, with no preamble, quotes, or explanation. Keep the original language unless asked to translate."
+        do {
+            let reply = try await client.complete(system: system, messages: [AIMessage(.user, mode.prompt(for: source))])
+            let cleaned = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty else {
+                CommandCenter.shared.say(tr("Couldn't rewrite the text."))
+                return
+            }
+            // The text may have changed while the AI was working; replace
+            // the selection when it is still valid, else the whole box.
+            let currentLength = (textView.text ?? "").utf16.count
+            let target = selection.length > 0 && NSMaxRange(selection) <= currentLength
+                ? selection
+                : NSRange(location: 0, length: currentLength)
+            box.replaceText(in: target, with: cleaned)
+            formattingRevision += 1
+        } catch {
+            CommandCenter.shared.say(trMessage(error.localizedDescription))
+        }
+    }
+
     func deleteSelectedElement() {
         host?.elementLayer.removeSelected()
     }
