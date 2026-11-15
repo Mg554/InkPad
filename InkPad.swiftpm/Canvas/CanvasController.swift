@@ -1,6 +1,21 @@
 import PencilKit
 import SwiftUI
 
+/// Registers a change that can be undone and redone.
+///
+/// Foundation's undo manager calls a registered closure only when undoing, so
+/// the closure puts its inverse on the stack when it runs, and the inverse
+/// puts the original back; the pair keeps alternating. `target` is the
+/// long-lived object the change belongs to (the canvas, in practice): an
+/// object made just for the call is freed together with its operation and
+/// crashes the undo manager.
+func registerUndoStep(on manager: UndoManager, target: NSObject, undo: @escaping () -> Void, redo: @escaping () -> Void) {
+    manager.registerUndo(withTarget: target) { _ in
+        undo()
+        registerUndoStep(on: manager, target: target, undo: redo, redo: undo)
+    }
+}
+
 /// Lets SwiftUI controls drive the UIKit canvas: tools, undo/redo, the
 /// ruler, page navigation, text boxes and images.
 @MainActor
@@ -101,6 +116,7 @@ final class CanvasController: NSObject, ObservableObject {
         host.lasso.onChange = { [weak self] in self?.contentDidChange() }
         host.lasso.onThink = { [weak self] text, rect, mode in self?.onThink?(text, rect, mode) }
         host.lasso.onRemind = { [weak self] text in self?.onRemind?(text) }
+        host.lasso.onMakeEditableText = { [weak self] box in self?.beginEditingTextBox(box) }
         host.lasso.onSaveSticker = { [weak self] drawing in self?.onSaveSticker?(drawing) }
         host.lasso.onSendAcross = onSendAcross
         host.dropHandler.onDrop = { [weak self] drop, point in self?.receive(drop, at: point) }
@@ -659,6 +675,16 @@ final class CanvasController: NSObject, ObservableObject {
         guard let host else { return }
         let center = host.visibleCenter
         host.elementLayer.addTextBox(text, below: CGRect(x: center.x - 240, y: center.y - 60, width: 480, height: 0))
+    }
+
+    /// Lasso › Make Editable Text: switches to the Text tool and puts the
+    /// caret in the new text box, so the writing can be edited.
+    private func beginEditingTextBox(_ box: TextBoxView) {
+        guard let host else { return }
+        palette?.select(.text)
+        applyTool()
+        host.elementLayer.selectElement(box)
+        box.textView.becomeFirstResponder()
     }
 }
 

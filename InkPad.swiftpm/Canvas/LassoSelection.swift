@@ -28,6 +28,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     var onSaveSticker: ((PKDrawing) -> Void)?
     /// Send to Notebook (books with a notebook beside them).
     var onSendArea: ((UIImage, CGRect) -> Void)?
+    /// Make Editable Text: the handwriting became a text box, to edit it.
+    var onMakeEditableText: ((TextBoxView) -> Void)?
     /// A lassoed area with no ink or PDF text in it (for example a scan).
     private var area: CGRect?
 
@@ -244,10 +246,15 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     /// Puts the selection back into the drawing, with one undo step back to `before`.
     private func commit(replacing before: PKDrawing) {
         guard let host else { return }
-        host.canvas.drawing = PKDrawing(strokes: others + selected.flatMap { Self.dashed($0, style: dash) })
-        host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { [weak self] canvas in
-            self?.clearSelection()
-            canvas.drawing = before
+        let after = PKDrawing(strokes: others + selected.flatMap { Self.dashed($0, style: dash) })
+        host.canvas.drawing = after
+        if let manager = host.canvas.undoManager {
+            registerUndoStep(on: manager, target: host.canvas,
+                undo: { [weak self, weak host] in
+                    self?.clearSelection()
+                    host?.canvas.drawing = before
+                },
+                redo: { [weak host] in host?.canvas.drawing = after })
         }
         overlay.showSelection(selectionBounds)
         onChange?()
@@ -374,6 +381,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
                     self?.readSelectedInk { text in self?.onRemind?(text) }
                 },
                 UIAction(title: "Copy as Text", image: UIImage(systemName: "text.viewfinder")) { [weak self] _ in self?.copyInkAsText() },
+                UIAction(title: tr("Make Editable Text"), image: UIImage(systemName: "character.textbox")) { [weak self] _ in self?.makeEditableText() },
                 UIAction(title: "Save as Sticker", image: UIImage(systemName: "seal")) { [weak self] _ in self?.saveAsSticker() },
                 UIAction(title: "Send to the Note Beside", image: UIImage(systemName: "rectangle.righthalf.inset.filled.arrow.right"),
                          attributes: onSendAcross == nil ? .hidden : []) { [weak self] _ in self?.sendAcross() },
@@ -509,6 +517,67 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
         readSelectedInk { text in
             if !text.isEmpty { UIPasteboard.general.string = text }
         }
+    }
+
+    /// Make Editable Text: reads the selected handwriting and turns it into a
+    /// text box in its place, which can then be typed and edited.
+    private func makeEditableText() {
+        guard let host, hasSelection else { return }
+        let region = selectionBounds.insetBy(dx: -12, dy: -12)
+        let strokes = selected
+        // Dark ink on white reads best.
+        let picture = InkSnapshot.onWhite(
+            of: PKDrawing(strokes: strokes),
+            from: region,
+            scale: max(host.window?.screen.scale ?? 2, 2)
+        )
+        guard let image = picture.cgImage else { return }
+        Task.detached(priority: .userInitiated) {
+            let lines = InkOCR.lines(in: image, mappedTo: region)
+            await MainActor.run { [weak self] in
+                self?.replaceSelection(withLines: lines, at: region, strokes: strokes)
+            }
+        }
+    }
+
+    /// Replaces the selected ink with a text box of what was read from it.
+    private func replaceSelection(withLines lines: [(text: String, rect: CGRect)], at region: CGRect, strokes: [PKStroke]) {
+        guard let host, !lines.isEmpty, hasSelection, selected.count == strokes.count else { return }
+        let keeping = others
+        let text = lines.map(\.text).joined(separator: "\n")
+        // A typed line as tall as the writing's middle line, so the page
+        // looks the same once the ink is gone.
+        let heights = lines.map(\.rect.height).sorted()
+        let lineHeight = heights.isEmpty ? 20 : heights[heights.count / 2]
+        let font = UIFont.systemFont(ofSize: min(max(lineHeight * 0.8, 12), 44))
+        let writing = NSAttributedString(string: text, attributes: [
+            .font: font,
+            .foregroundColor: UIColor.black,
+        ])
+        let padding = TextBoxStyle.padding
+        let frame = CGRect(
+            x: region.minX - padding,
+            y: region.minY - padding,
+            width: max(region.width + padding * 2, TextBoxStyle.minimumWidth),
+            height: region.height + padding * 2
+        )
+        let before = host.canvas.drawing
+        host.canvas.drawing = PKDrawing(strokes: keeping)
+        let box = host.elementLayer.addTextBox(writing, at: frame)
+        if let manager = host.canvas.undoManager {
+            registerUndoStep(on: manager, target: host.canvas,
+                undo: { [weak host] in
+                    host?.elementLayer.detach(box.id)
+                    host?.canvas.drawing = before
+                },
+                redo: { [weak host] in
+                    host?.canvas.drawing = PKDrawing(strokes: keeping)
+                    host?.elementLayer.restore(box)
+                })
+        }
+        clearSelection()
+        onChange?()
+        onMakeEditableText?(box)
     }
 
     private func thinkAboutInk(_ mode: String = "concepts") {

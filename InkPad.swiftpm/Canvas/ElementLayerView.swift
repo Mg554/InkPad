@@ -93,6 +93,16 @@ final class ElementLayerView: UIView {
         elementsDidChange()
     }
 
+    /// A text box holding `text` at an exact spot, where handwriting
+    /// becomes editable text (Lasso › Make Editable Text).
+    @discardableResult
+    func addTextBox(_ text: NSAttributedString, at frame: CGRect) -> TextBoxView {
+        let box = TextBoxView(id: UUID(), frame: frame, text: text)
+        add(box)
+        elementsDidChange()
+        return box
+    }
+
     @discardableResult
     func addImage(file: String, image: UIImage, pixelSize: CGSize, centeredAt center: CGPoint) -> CGRect {
         let maxWidth = PageLayout.pageWidth * 0.6
@@ -159,6 +169,22 @@ final class ElementLayerView: UIView {
     func removeElement(_ id: UUID) {
         guard let view = subviews.first(where: { ($0 as? PageElementView)?.id == id }) as? PageElementView else { return }
         remove(view)
+    }
+
+    /// Takes the element with `id` out of the layer and hands it back, so an
+    /// undo can put it where it was. Its text and frame are untouched.
+    @discardableResult
+    func detach(_ id: UUID) -> PageElementView? {
+        guard let view = subviews.first(where: { ($0 as? PageElementView)?.id == id }) as? PageElementView else { return nil }
+        if view === selected { selectElement(nil) }
+        view.removeFromSuperview()
+        return view
+    }
+
+    /// Puts a detached element back (undo of a handwriting conversion).
+    func restore(_ view: PageElementView) {
+        add(view)
+        elementsDidChange()
     }
 
     private func add(_ view: PageElementView) {

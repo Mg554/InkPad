@@ -46,6 +46,7 @@ Highlight => تظليل
 Refine => تحسين
 Remind Me => ذكّرني
 Copy as Text => نسخ كنص
+Make Editable Text => تحويل إلى نص قابل للتحرير
 Duplicate => تكرار
 Cut => قص
 Paste => لصق

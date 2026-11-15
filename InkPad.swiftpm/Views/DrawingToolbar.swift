@@ -234,7 +234,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             widthButtons(style)
 
         case .lasso:
-            hint("Circle ink or PDF text to select it. Drag ink to move it; tap the selection for Style, Copy as Text, Highlight and more.")
+            hint("Circle ink or PDF text to select it. Drag ink to move it; tap the selection for Style, Make Editable Text, Highlight and more.")
 
         case .laser:
             ForEach(style.colors, id: \.self) { color in
@@ -335,6 +335,9 @@ struct DrawingToolbar<InsertMenu: View>: View {
         return Group {
             formatButton("textformat.size.smaller", label: "Smaller") { canvas.formatText { $0.adjustFontSize(by: -2) } }
             formatButton("textformat.size.larger", label: "Larger") { canvas.formatText { $0.adjustFontSize(by: 2) } }
+            fontMenu
+            alignmentMenu
+            lineSpacingMenu
             barDivider
             formatButton("bold", label: "Bold", isOn: textView?.hasFontTrait(.traitBold) ?? false) {
                 canvas.formatText { $0.toggleFontTrait(.traitBold) }
@@ -361,6 +364,94 @@ struct DrawingToolbar<InsertMenu: View>: View {
             barDivider
             deleteButton
         }
+    }
+
+    /// The font the writing is in, as Goodnotes' font family picker.
+    private var fontMenu: some View {
+        _ = canvas.formattingRevision
+        let current = canvas.selectedTextView?.currentTextFont
+        return Menu {
+            ForEach(TextFont.allCases) { family in
+                Button {
+                    canvas.formatText { $0.applyTextFont(family) }
+                } label: {
+                    if current == family {
+                        Label(tr(family.title), systemImage: "checkmark")
+                    } else {
+                        Text(tr(family.title))
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "textformat")
+                .frame(width: 34, height: 32)
+        }
+        .accessibilityLabel(trMessage("Font"))
+    }
+
+    /// Where the lines of the selected text sit (left, center, right or
+    /// justified).
+    private var alignmentMenu: some View {
+        _ = canvas.formattingRevision
+        let current = canvas.selectedTextView?.currentTextAlignment ?? .natural
+        return Menu {
+            ForEach([NSTextAlignment.left, .center, .right, .justified], id: \.rawValue) { alignment in
+                let item = alignmentItem(alignment)
+                Button {
+                    canvas.formatText { $0.applyTextAlignment(alignment) }
+                } label: {
+                    if isCurrent(alignment, in: current) {
+                        Label(tr(item.title), systemImage: "checkmark")
+                    } else {
+                        Label(tr(item.title), systemImage: item.symbol)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: alignmentItem(current).symbol)
+                .frame(width: 34, height: 32)
+        }
+        .accessibilityLabel(trMessage("Alignment"))
+    }
+
+    /// What an alignment option is called and drawn as.
+    private func alignmentItem(_ alignment: NSTextAlignment) -> (title: String, symbol: String) {
+        switch alignment {
+        case .center: ("Align Center", "text.aligncenter")
+        case .right: ("Align Right", "text.alignright")
+        case .justified: ("Justify", "text.justify")
+        default: ("Align Left", "text.alignleft")
+        }
+    }
+
+    private func isCurrent(_ alignment: NSTextAlignment, in current: NSTextAlignment) -> Bool {
+        switch (alignment, current) {
+        case (.left, .left), (.left, .natural): true
+        default: alignment == current
+        }
+    }
+
+    /// How far the lines of the selected text sit apart.
+    private var lineSpacingMenu: some View {
+        _ = canvas.formattingRevision
+        let current = canvas.selectedTextView?.currentLineSpacingMultiple ?? 1
+        return Menu {
+            ForEach(TextLineSpacing.allCases) { spacing in
+                Button {
+                    canvas.formatText { $0.applyLineSpacing(multiple: spacing.multiple) }
+                } label: {
+                    if abs(current - spacing.multiple) < 0.01 {
+                        Label(tr(spacing.title), systemImage: "checkmark")
+                    } else {
+                        Label(tr(spacing.title), systemImage: "arrow.up.and.down.text.horizontal")
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "arrow.up.and.down.text.horizontal")
+                .frame(width: 34, height: 32)
+        }
+        .accessibilityLabel(trMessage("Line Spacing"))
     }
 
     // MARK: Eraser
