@@ -21,6 +21,10 @@ struct Folder: Codable, Identifiable, Hashable {
     /// AI Firewall: only Apple Intelligence on the iPad may read them.
     var aiOnDeviceOnly: Bool?
 
+    /// Face ID (or the passcode) is needed before this folder's notes may
+    /// show. `nil` = not protected.
+    var isLocked: Bool?
+
     var aiAccess: AIAccess {
         hiddenFromAI == true ? .never : aiOnDeviceOnly == true ? .onDeviceOnly : .allowed
     }

@@ -359,5 +359,13 @@ Mark Unresolved => إزالة علامة المحلول
 On page {}. => في الصفحة {}.
 Page {}. => الصفحة {}.
 Add one from the + menu or the lasso. => أضف واحدًا من قائمة + أو من الاستدارة.
+Folder Locked => مجلد مقفل
+Lock Folder => اقفل المجلد
+Unlock Folder => افتح المجلد
+Folder locked. => تم قفل المجلد.
+Folder unlocked. => تم فتح المجلد.
+Locked folders open with Face ID or the passcode. => تُفتح المجلدات المقفلة بالبصمة (Face ID) أو رمز المرور.
+Set a passcode on this iPad — locked folders open with Face ID or the passcode. => اضبط رمز مرور على هذا الآيباد أولاً؛ تُفتح المجلدات المقفلة بالبصمة (Face ID) أو رمز المرور.
+Unlock {}. => افتح {}.
 """#
 }

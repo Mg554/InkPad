@@ -132,7 +132,9 @@ struct LibraryView: View {
                     if shownScope == .graph {
                         GraphView()
                     } else {
-                        NotesGridView(scope: shownScope ?? .allNotes) { open($0) }
+                        FolderLockGate(folderID: folderScopeID(shownScope ?? .allNotes)) {
+                            NotesGridView(scope: shownScope ?? .allNotes) { open($0) }
+                        }
                     }
                 }
                 .navigationDestination(for: UUID.self) { noteID in
@@ -146,6 +148,13 @@ struct LibraryView: View {
                 }
             }
         }
+    }
+
+    /// The folder a scope shows, when the scope is a folder: what the
+    /// folder lock (Face ID) gates.
+    private func folderScopeID(_ scope: LibraryScope) -> UUID? {
+        if case let .folder(id) = scope { return id }
+        return nil
     }
 
     /// Changes section in two steps. SwiftUI keeps one navigation state for

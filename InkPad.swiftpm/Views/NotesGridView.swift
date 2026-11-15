@@ -666,9 +666,44 @@ struct NotesGridView: View {
                                 Image(systemName: collapsedFolders.contains(folder.id) ? "folder" : "folder.fill")
                                     .foregroundStyle((folder.color ?? .blue).color)
                                 Text(verbatim: folder.name + "/").font(.system(.body, design: .monospaced).weight(.semibold))
+                                if folder.isLocked == true {
+                                    Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary)
+                                }
                             }
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                prompt = NamePrompt(
+                                    title: "Rename Folder",
+                                    initialText: folder.name,
+                                    confirmTitle: "Rename"
+                                ) { store.renameFolder(folder.id, to: $0) }
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                            Button {
+                                if folder.isLocked == true {
+                                    Task {
+                                        let reason = trMessage("Unlock \(folder.name).")
+                                        switch await NoteLock.authenticate(reason: reason) {
+                                        case .unlocked:
+                                            store.setFolderLocked(false, for: folder.id)
+                                            CommandCenter.shared.say("Folder unlocked.")
+                                        case .failed:
+                                            CommandCenter.shared.say("Locked folders open with Face ID or the passcode.")
+                                        case .needsPasscode:
+                                            CommandCenter.shared.say("Set a passcode on this iPad — locked folders open with Face ID or the passcode.")
+                                        }
+                                    }
+                                } else {
+                                    store.setFolderLocked(true, for: folder.id)
+                                    CommandCenter.shared.say("Folder locked.")
+                                }
+                            } label: {
+                                Label(folder.isLocked == true ? "Unlock Folder" : "Lock Folder", systemImage: folder.isLocked == true ? "lock.open" : "lock")
+                            }
+                        }
                     case let .note(note):
                         item(note, reorderable: false) {
                             HStack(spacing: 6) {

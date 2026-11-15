@@ -106,6 +106,9 @@ final class LibraryStore: ObservableObject {
     /// Notes unlocked with Face ID (or the passcode) in this session.
     /// They lock again when the app goes to the background.
     @Published private(set) var unlockedNoteIDs: Set<UUID> = []
+    /// Folders unlocked with Face ID since the app was last in the
+    /// background; everything inside them shows again.
+    @Published private(set) var unlockedFolderIDs: Set<UUID> = []
     /// Bumps whenever a note is locked or unlocked, so open screens react.
     @Published private(set) var lockRevision = 0
 
@@ -483,11 +486,75 @@ final class LibraryStore: ObservableObject {
         saveIndex()
     }
 
-    /// Whether the note may open right now: not locked, or unlocked with
-    /// Face ID since the app was last in the background.
+    /// Whether the note may open right now: not locked, not inside a
+    /// locked folder, or unlocked with Face ID since the app was last in
+    /// the background.
     func isUnlocked(_ id: UUID) -> Bool {
-        guard let note = note(id), note.locked else { return true }
-        return unlockedNoteIDs.contains(id)
+        guard let found = note(id) else { return true }
+        if found.locked { return unlockedNoteIDs.contains(id) }
+        return !isInLockedFolder(found) || isFolderUnlocked(found.folderID)
+    }
+
+    // MARK: Locked folders
+
+    /// Whether a folder's notes may show: every folder on the note's path
+    /// must be unlocked (Face ID since the app was last in the background).
+    func isFolderUnlocked(_ folderID: UUID?) -> Bool {
+        guard let id = folderID, let folder = folder(id) else { return true }
+        if folder.isLocked == true, !unlockedFolderIDs.contains(id) { return false }
+        return isFolderUnlocked(folder.parentID)
+    }
+
+    /// Whether any locked folder holds `note` (directly or through a
+    /// subfolder), so the note itself opens only after Face ID.
+    func isInLockedFolder(_ note: NoteSummary) -> Bool {
+        var current = note.folderID
+        while let id = current, let folder = folder(id) {
+            if folder.isLocked == true { return true }
+            current = folder.parentID
+        }
+        return false
+    }
+
+    /// Locks or unlocks a folder (`Lock Folder` in the sidebar menu).
+    /// Locking pulls the folder's notes out of search and Spotlight.
+    func setFolderLocked(_ locked: Bool, for folderID: UUID) {
+        guard canWrite(), let index = folders.firstIndex(where: { $0.id == folderID }) else { return }
+        folders[index].isLocked = locked ? true : nil
+        saveIndex()
+        if locked {
+            for note in notes where isInLockedFolder(note) {
+                textIndex.removeValue(forKey: note.id)
+                recognizedText.removeValue(forKey: note.id)
+                unlockedNoteIDs.remove(note.id)
+                SpotlightIndex.remove(note.id)
+            }
+            unlockedFolderIDs.remove(folderID)
+        } else {
+            unlockedFolderIDs.remove(folderID)
+            loadTextsInBackground()
+        }
+        lockRevision += 1
+    }
+
+    /// Marks a locked folder unlocked for the rest of the session, and
+    /// brings its notes' text back into the search index.
+    func unlockFolder(_ folderID: UUID) {
+        unlockedFolderIDs.insert(folderID)
+        loadTextsInBackground()
+        lockRevision += 1
+    }
+
+    /// Locks every unlocked folder again (the app went to the background).
+    func lockUnlockedFolders() {
+        guard !unlockedFolderIDs.isEmpty else { return }
+        for id in unlockedFolderIDs where folder(id)?.isLocked == true {
+            for note in notes where isInLockedFolder(note) {
+                SpotlightIndex.remove(note.id)
+            }
+        }
+        unlockedFolderIDs = []
+        lockRevision += 1
     }
 
     /// Locks or unlocks a note (`Lock Note` in the card menu). Locking also
@@ -515,14 +582,28 @@ final class LibraryStore: ObservableObject {
         lockRevision += 1
     }
 
-    /// Locks every unlocked note again (the app went to the background).
+    /// Locks every unlocked note and folder again (the app went to the
+    /// background): both kinds leave Spotlight, together with the search
+    /// index.
     func lockUnlockedNotes() {
-        guard !unlockedNoteIDs.isEmpty else { return }
+        let hadNotes = !unlockedNoteIDs.isEmpty
+        let hadFolders = !unlockedFolderIDs.isEmpty
+        guard hadNotes || hadFolders else { return }
         // Locked notes leave Spotlight too, together with the search index.
-        for id in unlockedNoteIDs where note(id)?.locked == true {
-            SpotlightIndex.remove(id)
+        if hadNotes {
+            for id in unlockedNoteIDs where note(id)?.locked == true {
+                SpotlightIndex.remove(id)
+            }
+            unlockedNoteIDs = []
         }
-        unlockedNoteIDs = []
+        if hadFolders {
+            for id in unlockedFolderIDs where folder(id)?.isLocked == true {
+                for note in notes where isInLockedFolder(note) {
+                    SpotlightIndex.remove(note.id)
+                }
+            }
+            unlockedFolderIDs = []
+        }
         lockRevision += 1
     }
 

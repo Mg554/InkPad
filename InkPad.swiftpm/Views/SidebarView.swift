@@ -301,6 +301,12 @@ struct SidebarView: View {
                 AIAccessBadge(access: folder.aiAccess)
                     .font(.caption)
             }
+            if folder.isLocked == true, !store.isFolderUnlocked(folder.id) {
+                Spacer()
+                Image(systemName: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.leading, CGFloat(row.depth) * 18)
         .tag(LibraryScope.folder(folder.id))
@@ -334,6 +340,28 @@ struct SidebarView: View {
                 current: folder.aiAccess,
                 inherited: store.folderAIAccess(folder.parentID)
             ) { store.setAIAccess($0, forFolder: folder.id) }
+            Button {
+                if folder.isLocked == true {
+                    // Removing the protection needs Face ID too.
+                    Task {
+                        let reason = trMessage("Unlock \(folder.name).")
+                        switch await NoteLock.authenticate(reason: reason) {
+                        case .unlocked:
+                            store.setFolderLocked(false, for: folder.id)
+                            CommandCenter.shared.say("Folder unlocked.")
+                        case .failed:
+                            CommandCenter.shared.say("Locked folders open with Face ID or the passcode.")
+                        case .needsPasscode:
+                            CommandCenter.shared.say("Set a passcode on this iPad — locked folders open with Face ID or the passcode.")
+                        }
+                    }
+                } else {
+                    store.setFolderLocked(true, for: folder.id)
+                    CommandCenter.shared.say("Folder locked.")
+                }
+            } label: {
+                Label(folder.isLocked == true ? "Unlock Folder" : "Lock Folder", systemImage: folder.isLocked == true ? "lock.open" : "lock")
+            }
             Button(role: .destructive) {
                 folderToDelete = folder
             } label: {
