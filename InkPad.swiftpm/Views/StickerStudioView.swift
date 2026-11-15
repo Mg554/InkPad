@@ -29,6 +29,7 @@ struct StickerStudioView: View {
 
     @AppStorage("stickerTab") private var tab: Tab = .packs
     @AppStorage("stickerCutsOut") private var cutsOut = true
+    @AppStorage("stickerCollection") private var collectionID = "all"
     @State private var folder: String?
     @State private var photoItem: PhotosPickerItem?
     @State private var isPickingPhoto = false
@@ -141,7 +142,8 @@ struct StickerStudioView: View {
         case .recent:
             keyedGrid(store.recents, empty: "Stickers you use show up here.")
         case .packs:
-            ForEach(StickerPack.all) { pack in
+            collectionBar
+            ForEach(shownPacks) { pack in
                 Text(tr(pack.name)).font(.headline)
                 LazyVGrid(columns: columns, spacing: Theme.Spacing.xl) {
                     ForEach(pack.stickers) { sticker in
@@ -181,6 +183,36 @@ struct StickerStudioView: View {
                 }
             }
         }
+    }
+
+    private var collectionBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Spacing.md) {
+                collectionChip(nil, title: tr("All Packs"))
+                ForEach(StickerCollection.all) { item in
+                    collectionChip(item, title: tr(item.name))
+                }
+            }
+        }
+    }
+
+    private func collectionChip(_ item: StickerCollection?, title: String) -> some View {
+        let id = item?.id ?? "all"
+        let isSelected = collectionID == id
+        return Button {
+            collectionID = id
+        } label: {
+            Label { Text(verbatim: title) } icon: { Image(systemName: item?.symbol ?? "square.grid.2x2") }
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(isSelected ? Color.inkAccent.opacity(0.25) : Color.primary.opacity(0.06)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var shownPacks: [StickerPack] {
+        StickerCollection.all.first { $0.id == collectionID }?.packs ?? StickerPack.all
     }
 
     private func folderChip(_ name: String?, title: String) -> some View {

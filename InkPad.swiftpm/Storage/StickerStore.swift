@@ -99,7 +99,7 @@ struct StickerPack: Identifiable {
     let name: String
     let stickers: [BuiltInSticker]
 
-    static let all: [StickerPack] = [study, marks, emoji, arrows]
+    static let all: [StickerPack] = [study, marks, emoji, arrows, science, weather]
 
     private static func symbols(_ pack: String, _ items: [(String, String, UIColor)]) -> [BuiltInSticker] {
         items.map { BuiltInSticker(id: pack + "." + $0.0, name: $0.1, look: .symbol($0.0, $0.2)) }
@@ -143,6 +143,20 @@ struct StickerPack: Identifiable {
         BuiltInSticker(id: "emoji.\(item.offset)", name: item.element, look: .emoji(item.element))
     })
 
+    static let science = StickerPack(id: "science", name: "Science", stickers: symbols("science", [
+        ("atom", "Atom", .systemPurple), ("flask.fill", "Flask", .systemTeal),
+        ("leaf.fill", "Plant", .systemGreen), ("bolt.fill", "Bolt", .systemYellow),
+        ("thermometer.medium", "Thermometer", .systemBlue), ("drop.fill", "Water Drop", .systemIndigo),
+        ("flame.fill", "Fire", .systemOrange), ("waveform", "Wave", .systemPink),
+    ]))
+
+    static let weather = StickerPack(id: "weather", name: "Weather", stickers: symbols("weather", [
+        ("sun.max.fill", "Sun", .systemYellow), ("cloud.rain.fill", "Rain Cloud", .systemBlue),
+        ("cloud.sun.fill", "Partly Cloudy", .systemOrange), ("snowflake", "Snowflake", .systemTeal),
+        ("wind", "Breeze", .systemCyan), ("moon.fill", "Moon", .systemIndigo),
+        ("bolt.rain.fill", "Thunderstorm", .systemPurple), ("cloud.fill", "Overcast", .systemGray),
+    ]))
+
     static func sticker(forKey key: String) -> BuiltInSticker? {
         guard key.hasPrefix("pack:") else { return nil }
         let id = String(key.dropFirst(5))
@@ -151,6 +165,33 @@ struct StickerPack: Identifiable {
         }
         return nil
     }
+}
+
+/// A curated shelf of packs to browse in the sticker picker.
+struct StickerCollection: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let symbol: String
+    let packIDs: [String]
+
+    var packs: [StickerPack] {
+        StickerPack.all.filter { packIDs.contains($0.id) }
+    }
+
+    static let all: [StickerCollection] = [studyShelf, symbolShelf, emojiShelf]
+
+    static let studyShelf = StickerCollection(
+        id: "study-shelf", name: "Study Shelf", symbol: "book.closed.fill",
+        packIDs: ["study", "marks", "science"]
+    )
+    static let symbolShelf = StickerCollection(
+        id: "symbol-shelf", name: "Symbols & Arrows", symbol: "arrow.triangle.swap",
+        packIDs: ["arrows", "marks", "weather"]
+    )
+    static let emojiShelf = StickerCollection(
+        id: "emoji-shelf", name: "Emoji & Weather", symbol: "cloud.sun.fill",
+        packIDs: ["emoji", "weather"]
+    )
 }
 
 /// The owner's stickers, folders, favorites and recently used, kept in
