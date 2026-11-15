@@ -97,6 +97,10 @@ final class CanvasController: NSObject, ObservableObject {
     private var awaitsEraseAfterTouch = false
     /// Audio playback replay, kept so a new canvas view picks it up.
     private var replayInterval: DateInterval?
+/// The drawing before the last refine, for revert support.
+private var drawingBeforeRefine: PKDrawing?
+/// Whether the review sheet is showing.
+@State private var showingRefineReview = false
     private var replayNow = Date.distantPast
     /// The first stroke not yet leveled by Refine Handwriting.
     private var refineStart: Int?
@@ -417,6 +421,10 @@ final class CanvasController: NSObject, ObservableObject {
         refineStart = nil
         let drawing = host.canvas.drawing
         guard start < drawing.strokes.count else { return }
+        
+        // Save the drawing before refine for revert support
+        drawingBeforeRefine = drawing
+        
         let settings = HandwritingSettingsStore.shared.settings
         var strokes = drawing.strokes
         let fresh = Dictionary(uniqueKeysWithValues: (start..<strokes.count)
@@ -440,9 +448,10 @@ final class CanvasController: NSObject, ObservableObject {
         isReplacingStroke = true
         host.canvas.drawing = refined
         host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
-            canvas.drawing = drawing
+            canvas.drawing = self.drawingBeforeRefine ?? drawing
         }
         isReplacingStroke = false
+        showingRefineReview = true
         contentDidChange()
     }
 
