@@ -1,4 +1,5 @@
 import PencilKit
+import SwiftUI
 import UIKit
 
 /// Stacks three layers that zoom and scroll together:
@@ -44,6 +45,27 @@ final class NoteCanvasHostView: UIView {
 
     /// Reports the page in the middle of the screen and the page count.
     var onVisiblePageChange: ((_ current: Int, _ count: Int) -> Void)?
+
+    /// Returns keyboard shortcuts for common actions when a hardware keyboard is connected.
+    override var keyCommands: [UIKeyCommand]? {
+        guard let canvasController else { return nil }
+        return [
+            // Undo
+            UIKeyCommand(input: "z", modifierFlags: .command, action: #selector(undo)),
+            // Redo
+            UIKeyCommand(input: "z", modifierFlags: .shift, action: #selector(redo)),
+            // Bring Forward
+            UIKeyCommand(input: "]", modifierFlags: .command, action: #selector(bringForward)),
+            // Send Backward
+            UIKeyCommand(input: "[", modifierFlags: .command, action: #selector(sendBackward)),
+            // Lock Element
+            UIKeyCommand(input: "l", modifierFlags: .shift, action: #selector(toggleLock)),
+            // Delete Selected
+            UIKeyCommand(input: "delete", modifierFlags: [], action: #selector(deleteSelected)),
+            // Toggle Reading Mode
+            UIKeyCommand(input: "r", modifierFlags: .command, action: #selector(toggleReadingMode)),
+        ]
+    }
     /// Called when ink from the playing recording is tapped, with when it was written.
     var onInkTapped: ((Date) -> Void)?
 
@@ -409,6 +431,7 @@ final class NoteCanvasHostView: UIView {
 }
 
 extension NoteCanvasHostView {
+weak var canvasController: CanvasController?
     /// Whether the sticky-note tap may start here.
     func stickyTapShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
         // With the Text tool the sticky note handles its own taps.
@@ -445,8 +468,40 @@ final class StickyTapDelegate: NSObject, UIGestureRecognizerDelegate {
     }
 }
 
+
 extension NoteCanvasHostView {
-    /// A yellow glow over `rect` (canvas coordinates) that fades away.
+weak var canvasController: CanvasController?
+    // MARK: Keyboard command handling
+
+    @objc func undo() {
+        canvasController?.undo()
+    }
+
+    @objc func redo() {
+        canvasController?.redo()
+    }
+
+    @objc func bringForward() {
+        canvasController?.bringSelectedElementForward()
+    }
+
+    @objc func sendBackward() {
+        canvasController?.sendSelectedElementBackward()
+    }
+
+    @objc func toggleLock() {
+        canvasController?.toggleLockSelectedElement()
+    }
+
+    @objc func deleteSelected() {
+        canvasController?.deleteSelectedElement()
+    }
+
+    @objc func toggleReadingMode() {
+        canvasController?.setReading(true)
+    }
+
+    // MARK: A yellow glow over `rect` (canvas coordinates) that fades away.
     func flash(_ rect: CGRect) {
         let glow = UIView(frame: rect.insetBy(dx: -6, dy: -4))
         glow.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.35)
