@@ -45,6 +45,8 @@ final class NoteCanvasHostView: UIView {
 
     /// Reports the page in the middle of the screen and the page count.
     var onVisiblePageChange: ((_ current: Int, _ count: Int) -> Void)?
+    /// Reports the part of the page content now on screen (canvas coordinates).
+    var onViewportChange: ((CGRect) -> Void)?
 
     /// Returns keyboard shortcuts for common actions when a hardware keyboard is connected.
     override var keyCommands: [UIKeyCommand]? {
@@ -360,6 +362,19 @@ final class NoteCanvasHostView: UIView {
         livingOverlay.center = center
         replay.syncGeometry()
         reportVisiblePage()
+        onViewportChange?(visibleRect)
+    }
+
+    /// The part of the page content now on screen, in canvas coordinates.
+    var visibleRect: CGRect {
+        let zoom = canvas.zoomScale
+        let inset = canvas.adjustedContentInset
+        return CGRect(
+            x: (canvas.contentOffset.x + inset.left) / zoom,
+            y: (canvas.contentOffset.y + inset.top) / zoom,
+            width: (canvas.bounds.width - inset.left - inset.right) / zoom,
+            height: (canvas.bounds.height - inset.top - inset.bottom) / zoom
+        )
     }
 
     /// Call when a pinch ends: re-rasterize text for the new zoom.

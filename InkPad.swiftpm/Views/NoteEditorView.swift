@@ -16,6 +16,7 @@ struct NoteEditorView: View {
     @State private var isShowingExportOptions = false
     @State private var isShowingTemplates = false
     @AppStorage("showPageSidebar") private var isShowingPages = false
+    @AppStorage("showsMinimap") private var isShowingMinimap = false
     @State private var isPickingPhoto = false
     @State private var isPickingImageFile = false
     @State private var photoItem: PhotosPickerItem?
@@ -358,6 +359,18 @@ struct NoteEditorView: View {
             .overlay(alignment: .bottomTrailing) {
                 PageNavigator(canvas: canvas) { isShowingPages.toggle() }
                     .padding(16)
+            }
+            .overlay(alignment: .topLeading) {
+                if isShowingMinimap {
+                    PageMinimapView(
+                        canvas: canvas,
+                        content: content,
+                        background: background,
+                        revision: session.snapshotRevision,
+                        onClose: { isShowingMinimap = false }
+                    )
+                    .padding(16)
+                }
             }
             .overlay(alignment: .trailing) {
                 if !isShowingPages {
@@ -1077,6 +1090,13 @@ struct NoteEditorView: View {
                 studyRequest = session.currentContent().map { SlidesRequest(content: $0) }
             } label: {
                 Label("Study with AI", systemImage: "graduationcap")
+            }
+            .disabled(session.metadata == nil)
+
+            Button {
+                isShowingMinimap.toggle()
+            } label: {
+                Label("Overview", systemImage: "map")
             }
             .disabled(session.metadata == nil)
 
