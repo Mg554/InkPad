@@ -62,12 +62,10 @@ final class NoteCanvasHostView: UIView {
             UIKeyCommand(input: "l", modifierFlags: .shift, action: #selector(toggleLock)),
             // Delete Selected
             UIKeyCommand(input: "delete", modifierFlags: [], action: #selector(deleteSelected)),
-            // Toggle Reading Mode
-            UIKeyCommand(input: "r", modifierFlags: .command, action: #selector(toggleReadingMode)),
         ]
     }
-    /// Called when ink from the playing recording is tapped, with when it was written.
-    var onInkTapped: ((Date) -> Void)?
+
+    /// Returns keyboard shortcuts for common actions when a hardware keyboard is connected.
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -388,6 +386,8 @@ final class NoteCanvasHostView: UIView {
         seekTap.isEnabled = replay.isActive && mode != .text && canvas.drawingPolicy == .pencilOnly
     }
 
+    var onInkTapped: ((Date) -> Void)?
+weak var canvasController: CanvasController?
     @objc private func handleSeekTap(_ gesture: UITapGestureRecognizer) {
         guard let date = replay.inkDate(near: gesture.location(in: elementLayer)) else { return }
         onInkTapped?(date)
@@ -431,7 +431,6 @@ final class NoteCanvasHostView: UIView {
 }
 
 extension NoteCanvasHostView {
-weak var canvasController: CanvasController?
     /// Whether the sticky-note tap may start here.
     func stickyTapShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
         // With the Text tool the sticky note handles its own taps.
@@ -439,7 +438,6 @@ weak var canvasController: CanvasController?
         let point = gesture.location(in: elementLayer)
         return elementLayer.sticky(at: point) != nil || elementLayer.comment(at: point) != nil
     }
-
     func stickyTapAccepts(_ touch: UITouch) -> Bool {
         // The pencil draws in drawing mode; a finger tap opens the note.
         if touch.type == .pencil { return mode != .draw }
@@ -470,9 +468,7 @@ final class StickyTapDelegate: NSObject, UIGestureRecognizerDelegate {
 
 
 extension NoteCanvasHostView {
-weak var canvasController: CanvasController?
     // MARK: Keyboard command handling
-
     @objc func undo() {
         canvasController?.undo()
     }

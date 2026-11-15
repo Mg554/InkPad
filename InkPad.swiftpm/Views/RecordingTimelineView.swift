@@ -18,6 +18,8 @@ struct RecordingTimelineView: View {
     @State private var search = ""
     @State private var showsTranscript = false
     @State private var task: Task<Void, Never>?
+    /// The current replay mode (faded, reveal, spotlight).
+    @State private var replayMode: InkReplay.ReplayMode = .faded
 
     private var audioURL: URL {
         store.audioDirectory(for: noteID).appendingPathComponent(recording.file)
