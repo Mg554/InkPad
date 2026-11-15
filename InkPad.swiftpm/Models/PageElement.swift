@@ -1,7 +1,8 @@
 import Foundation
 import UIKit
+import SwiftUI
 
-/// A text box, image or sticky note placed on the pages, in canvas coordinates.
+/// A text box, image, sticky note or tape mask placed on the pages, in canvas coordinates.
 struct PageElement: Codable, Identifiable, Equatable {
     enum Content: Codable, Equatable {
         /// Rich text stored as RTF.
@@ -12,6 +13,8 @@ struct PageElement: Codable, Identifiable, Equatable {
         case sticky(StickyNote)
         /// A threaded comment pinned to the page (NoteComment.swift).
         case comment(NoteComment)
+        /// A tape mask for hiding/revealing parts of the page (Goodnotes-style).
+        case tape(TapeMask)
     }
 
     let id: UUID
@@ -26,6 +29,40 @@ struct PageElement: Codable, Identifiable, Equatable {
         self.frame = frame
         self.content = content
         self.isLocked = isLocked
+    }
+}
+
+/// A tape mask for hiding/revealing parts of the page (Goodnotes-style).
+/// Consists of a frame/rect, a color (as RGB components), and a style identifier.
+struct TapeMask: Codable, Equatable {
+    var id: UUID
+    var frame: CGRect
+    /// Color stored as RGB components (0–1) for Codable conformance.
+    var red: Double, green: Double, blue: Double
+    var style: TapeStyle
+
+    init(id: UUID = UUID(), frame: CGRect, red: Double = 0, green: Double = 0, blue: Double = 0, style: TapeStyle = .solid) {
+        self.id = id
+        self.frame = frame
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.style = style
+    }
+}
+
+/// The visual style of a tape mask.
+enum TapeStyle: String, Codable, CaseIterable, Equatable {
+    case solid
+    case dashed
+    case dotted
+
+    var description: String {
+        switch self {
+        case .solid: "Solid"
+        case .dashed: "Dashed"
+        case .dotted: "Dotted"
+        }
     }
 }
 

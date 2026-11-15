@@ -68,6 +68,9 @@ final class ElementLayerView: UIView {
                 add(StickyNoteView(id: element.id, frame: element.frame, note: note, isLocked: locked))
             case let .comment(comment):
                 add(CommentPinView(id: element.id, frame: element.frame, comment: comment, isLocked: locked))
+            case let .tape(tape):
+                let tapeView = TapeElementView(id: element.id, frame: tape.frame, red: CGFloat(tape.red), green: CGFloat(tape.green), blue: CGFloat(tape.blue), style: tape.style)
+                add(tapeView)
             }
         }
     }
@@ -350,7 +353,63 @@ final class ElementLayerView: UIView {
     var isSelectedLocked: Bool { selected?.isElementLocked ?? false }
 }
 
-/// Base class for a movable element on the page.
+/// A tape mask element view that displays an opaque rounded rect.
+/// The user can move and select it; delete via the toolbar.
+final class TapeElementView: PageElementView {
+    private let red: CGFloat, green: CGFloat, blue: CGFloat
+    private let style: TapeStyle
+
+    init(id: UUID, frame: CGRect, red: CGFloat, green: CGFloat, blue: CGFloat, style: TapeStyle) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.style = style
+        super.init(id: id, frame: frame, isLocked: false)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    private func setup() {
+        backgroundColor = .clear
+        layer.cornerRadius = 8
+        layer.masksToBounds = true
+        // Set background color from RGB components
+        backgroundColor = UIColor(red: red, green: green, blue: blue, alpha: 1)
+        // Tap to select the element
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+        // Pan to move the element
+        addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:))))
+    }
+
+    @objc func handleTap() {
+        layerView?.selectElement(self)
+    }
+
+    @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
+        guard !isElementLocked else { return }
+        switch gesture.state {
+        case .began:
+            layerView?.endEditing(true)
+            layerView?.selectElement(self)
+        case .changed:
+            let translation = takeTranslation(gesture)
+            center = CGPoint(x: center.x + translation.x, y: center.y + translation.y)
+        case .possible, .failed, .ended, .cancelled:
+            layerView?.elementsDidChange()
+        @unknown default:
+            layerView?.elementsDidChange()
+        }
+    }
+
+    override func makeElement() -> PageElement? {
+        PageElement(id: id, frame: frame, content: .tape(TapeMask(id: id, frame: frame, red: Double(red), green: Double(green), blue: Double(blue), style: style)), isLocked: isElementLocked ? true : nil)
+    }
+}
+
+// Base class for a movable element on the page.
 class PageElementView: UIView {
     let id: UUID
     weak var layerView: ElementLayerView?
