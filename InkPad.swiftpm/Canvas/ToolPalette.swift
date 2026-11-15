@@ -182,6 +182,7 @@ final class ToolPalette: ObservableObject {
         var tool: DrawingTool
         var styles: [DrawingTool: ToolStyle]
         var erasesWholeStrokes: Bool
+        var eraseHighlighterOnly: Bool
         var snapsShapes: Bool?
         var returnsAfterErasing: Bool?
         var toolbarOrder: [DrawingTool]?
@@ -196,6 +197,9 @@ final class ToolPalette: ObservableObject {
     @Published var tool: DrawingTool = .pen { didSet { save() } }
     @Published private(set) var styles: [DrawingTool: ToolStyle] = [:] { didSet { save() } }
     @Published var erasesWholeStrokes = false { didSet { save() } }
+    /// When on, the eraser removes only strokes whose ink type is highlighter
+    /// (monoline). Other strokes are left intact.
+    @Published var eraseHighlighterOnly = false { didSet { save() } }
     /// Hold the pencil still at the end of a stroke to turn it into a straight
     /// line or shape.
     @Published var snapsShapes = true { didSet { save() } }
@@ -225,6 +229,7 @@ final class ToolPalette: ObservableObject {
             tool = saved.tool
             styles = saved.styles
             erasesWholeStrokes = saved.erasesWholeStrokes
+            eraseHighlighterOnly = saved.eraseHighlighterOnly
             snapsShapes = saved.snapsShapes ?? true
             returnsAfterErasing = saved.returnsAfterErasing ?? true
             toolbarOrder = Self.completeOrder(saved.toolbarOrder ?? DrawingTool.allCases)
@@ -382,6 +387,10 @@ final class ToolPalette: ObservableObject {
         switch tool {
         case .eraser:
             return PKEraserTool(erasesWholeStrokes ? .vector : .bitmap, width: width)
+        case .eraser where eraseHighlighterOnly:
+            // "Highlighter only" mode: use bitmap eraser and will filter strokes
+            // after erasing to keep only highlighter-type strokes.
+            return PKEraserTool(.bitmap, width: width)
         case .lasso, .text, .laser:
             // Drawing is switched off while these tools are active.
             return PKLassoTool()
@@ -405,6 +414,7 @@ final class ToolPalette: ObservableObject {
             tool: tool,
             styles: styles,
             erasesWholeStrokes: erasesWholeStrokes,
+            eraseHighlighterOnly: eraseHighlighterOnly,
             snapsShapes: snapsShapes,
             returnsAfterErasing: returnsAfterErasing,
             toolbarOrder: toolbarOrder,

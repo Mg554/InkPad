@@ -227,12 +227,39 @@ final class CanvasController: NSObject, ObservableObject {
 
     // MARK: Eraser
 
+    /// When `eraseHighlighterOnly` is true, after the eraser touch ends we
+    /// filter the drawing to keep only strokes whose ink type is `.monoline`
+    /// (highlighter). Other strokes are removed. An undo step is registered
+    /// so the user can revert.
+    private func filterHighlighterStrokes() {
+        guard let palette, palette.eraseHighlighterOnly,
+              palette.tool == .eraser,
+              let host = host else { return }
+        let drawing = host.canvas.drawing
+        var before = drawing
+        // Keep only strokes with monoline ink type (highlighter).
+        before.strokes = before.strokes.filter { stroke in
+            stroke.ink.inkType == .monoline
+        }
+        guard before.strokes.count != drawing.strokes.count else { return }
+        // Register undo so the user can revert the filter.
+        host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
+            canvas.drawing = before
+        }
+        host.canvas.drawing = before
+        contentDidChange()
+    }
+
     /// With "Back to Last Tool" on, returns to the previous tool once an erase
     /// is done. PencilKit may report the erase before or after the touch ends.
     private func eraseTouchEnded() {
         guard let palette, palette.tool == .eraser, palette.returnsAfterErasing else { return }
         if didEraseDuringTouch {
             returnFromEraser()
+            // After erasing, filter highlighter-only if requested.
+            if palette.eraseHighlighterOnly {
+                filterHighlighterStrokes()
+            }
         } else {
             awaitsEraseAfterTouch = true
             Task { [weak self] in

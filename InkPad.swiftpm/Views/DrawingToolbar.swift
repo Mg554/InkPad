@@ -495,6 +495,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         if isVertical {
             toggleButton("Pixel Eraser", systemImage: "eraser", isOn: eraserMode(wholeStrokes: false))
             toggleButton("Whole Stroke Eraser", systemImage: "eraser.line.dashed", isOn: eraserMode(wholeStrokes: true))
+            toggleButton("Highlighter Only", systemImage: "highlighter", isOn: $palette.eraseHighlighterOnly)
         } else {
             Picker("Eraser", selection: $palette.erasesWholeStrokes) {
                 Text("Pixel").tag(false)
@@ -503,6 +504,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
             .pickerStyle(.segmented)
             .frame(width: 220)
             .onChange(of: palette.erasesWholeStrokes) { canvas.applyTool() }
+            // Highlighter-only toggle for horizontal (upright) layout.
+            toggleButton("Highlighter Only", systemImage: "highlighter", isOn: $palette.eraseHighlighterOnly)
         }
     }
 
