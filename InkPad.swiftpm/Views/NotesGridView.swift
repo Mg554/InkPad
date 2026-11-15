@@ -8,6 +8,9 @@ struct NotesGridView: View {
     let openNote: (UUID) -> Void
 
     @State private var searchText = ""
+    /// Applied after typing pauses, so filtering and meaning search do not
+    /// run on every keystroke and freeze the keyboard.
+    @State private var appliedSearch = ""
     @State private var prompt: NamePrompt?
     @State private var isImportingPDF = false
     @State private var isShowingTemplates = false
@@ -43,8 +46,8 @@ struct NotesGridView: View {
 
     private var visibleNotes: [NoteSummary] {
         let notes = store.notes(in: scope)
-        guard !searchText.isEmpty else { return notes }
-        return notes.filter { store.matches($0, search: searchText) }
+        guard !appliedSearch.isEmpty else { return notes }
+        return notes.filter { store.matches($0, search: appliedSearch) }
     }
 
     private var title: String {
@@ -83,15 +86,15 @@ struct NotesGridView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading) {
-                if searchText.isEmpty {
+                if appliedSearch.isEmpty {
                     quickActions
                         .padding([.horizontal, .top], 24)
                 }
                 if visibleNotes.isEmpty {
                     ContentUnavailableView(
-                        searchText.isEmpty ? "No Notes" : "No Results",
-                        systemImage: searchText.isEmpty ? "square.and.pencil" : "magnifyingglass",
-                        description: Text(searchText.isEmpty ? "Create a note or import a PDF." : "")
+                        appliedSearch.isEmpty ? "No Notes" : "No Results",
+                        systemImage: appliedSearch.isEmpty ? "square.and.pencil" : "magnifyingglass",
+                        description: Text(appliedSearch.isEmpty ? "Create a note or import a PDF." : "")
                     )
                     .padding(.top, 40)
                     .frame(maxWidth: .infinity)
@@ -109,8 +112,8 @@ struct NotesGridView: View {
                 }
                 notesLayout(arranged.others, reorderable: sort == .custom && !isSelecting)
                 }
-                if !searchText.isEmpty {
-                    MeaningResults(query: searchText) { hit in
+                if appliedSearch.count >= 3 {
+                    MeaningResults(query: appliedSearch) { hit in
                         if let page = hit.pdfPage {
                             CommandCenter.shared.openNote(hit.noteID, pdfPage: page)
                         } else {
@@ -146,6 +149,16 @@ struct NotesGridView: View {
         .themedBackground()
         .navigationTitle(tr(title))
         .searchable(text: $searchText, prompt: "Search titles, text, handwriting and #tags")
+        .task(id: searchText) {
+            // Apply immediately when cleared; otherwise wait for typing to pause.
+            if searchText.isEmpty {
+                appliedSearch = ""
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            appliedSearch = searchText
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(isSelecting ? "Done" : "Select") {
