@@ -12,6 +12,7 @@ final class ElementLayerView: UIView {
     var onTextStateChange: (() -> Void)?
     /// Called when a sticky note is tapped, to open it.
     var onStickyTap: ((StickyNoteView) -> Void)?
+    var onCommentTap: ((CommentPinView) -> Void)?
 
     private(set) weak var selected: PageElementView?
     private var renderScale: CGFloat = 2
@@ -64,6 +65,8 @@ final class ElementLayerView: UIView {
                 add(ImageElementView(id: element.id, frame: element.frame, file: file, image: image))
             case let .sticky(note):
                 add(StickyNoteView(id: element.id, frame: element.frame, note: note))
+            case let .comment(comment):
+                add(CommentPinView(id: element.id, frame: element.frame, comment: comment))
             }
         }
     }
@@ -162,6 +165,38 @@ final class ElementLayerView: UIView {
     func updateSticky(_ id: UUID, with note: StickyNote) {
         guard let view = sticky(id) else { return }
         view.update(note)
+        bringSubviewToFront(view)
+        elementsDidChange()
+    }
+
+    // MARK: Comments
+
+    /// A new comment pin centered at `center`.
+    @discardableResult
+    func addComment(_ comment: NoteComment, centeredAt center: CGPoint) -> CommentPinView {
+        let size = CommentPinView.size
+        let frame = CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2, width: size.width, height: size.height)
+        let view = CommentPinView(id: UUID(), frame: frame, comment: comment)
+        add(view)
+        elementsDidChange()
+        return view
+    }
+
+    func commentPin(_ id: UUID) -> CommentPinView? {
+        subviews.first(where: { ($0 as? CommentPinView)?.id == id }) as? CommentPinView
+    }
+
+    /// The top comment pin under `point` (layer coordinates).
+    func comment(at point: CGPoint) -> CommentPinView? {
+        for case let view as CommentPinView in subviews.reversed() where view.frame.contains(point) {
+            return view
+        }
+        return nil
+    }
+
+    func updateComment(_ id: UUID, with comment: NoteComment) {
+        guard let view = commentPin(id) else { return }
+        view.update(comment)
         bringSubviewToFront(view)
         elementsDidChange()
     }

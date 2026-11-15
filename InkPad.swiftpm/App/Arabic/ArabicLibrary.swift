@@ -345,5 +345,19 @@ Add details… => أضف تفاصيل…
 Your own notes about this note — saved with the library. => ملاحظاتك الخاصة عن هذه الملاحظة — تُحفظ مع المكتبة.
 Locked notes open with Face ID or the passcode. => تُفتح الملاحظات المقفلة بالبصمة (Face ID) أو رمز المرور.
 Set a passcode on this iPad — locked notes open with Face ID or the passcode. => اضبط رمز مرور على هذا الآيباد أولاً؛ تُفتح الملاحظات المقفلة بالبصمة (Face ID) أو رمز المرور.
+Add a Comment => إضافة تعليق
+Comments => التعليقات
+Comment => تعليق
+Replies => الردود
+Comment in This Note => التعليقات في هذه الملاحظة
+Comments in This Note => التعليقات في هذه الملاحظة
+No Comments => لا توجد تعليقات
+Write a comment… => اكتب تعليقًا…
+Add a reply… => أضف ردًا…
+Mark Resolved => وضع علامة محلول
+Mark Unresolved => إزالة علامة المحلول
+On page {}. => في الصفحة {}.
+Page {}. => الصفحة {}.
+Add one from the + menu or the lasso. => أضف واحدًا من قائمة + أو من الاستدارة.
 """#
 }

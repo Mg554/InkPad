@@ -30,6 +30,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     var onSendArea: ((UIImage, CGRect) -> Void)?
     /// Make Editable Text: the handwriting became a text box, to edit it.
     var onMakeEditableText: ((TextBoxView) -> Void)?
+    /// Add Comment: where the comment pin goes (canvas coordinates).
+    var onAddComment: ((CGPoint) -> Void)?
     /// A lassoed area with no ink or PDF text in it (for example a scan).
     private var area: CGRect?
 
@@ -382,6 +384,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
                 },
                 UIAction(title: "Copy as Text", image: UIImage(systemName: "text.viewfinder")) { [weak self] _ in self?.copyInkAsText() },
                 UIAction(title: tr("Make Editable Text"), image: UIImage(systemName: "character.textbox")) { [weak self] _ in self?.makeEditableText() },
+                UIAction(title: tr("Add Comment"), image: UIImage(systemName: "plus.bubble")) { [weak self] _ in self?.offerComment() },
                 UIAction(title: "Save as Sticker", image: UIImage(systemName: "seal")) { [weak self] _ in self?.saveAsSticker() },
                 UIAction(title: "Send to the Note Beside", image: UIImage(systemName: "rectangle.righthalf.inset.filled.arrow.right"),
                          attributes: onSendAcross == nil ? .hidden : []) { [weak self] _ in self?.sendAcross() },
@@ -538,6 +541,14 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
                 self?.replaceSelection(withLines: lines, at: region, strokes: strokes)
             }
         }
+    }
+
+    /// Add Comment: a comment pin anchored above the selection's top edge.
+    private func offerComment() {
+        guard let host, hasSelection else { return }
+        let bounds = selectionBounds
+        clearSelection()
+        onAddComment?(CGPoint(x: bounds.midX, y: bounds.minY - 24))
     }
 
     /// Replaces the selected ink with a text box of what was read from it.

@@ -231,7 +231,12 @@ final class NoteCanvasHostView: UIView {
     }
 
     @objc private func handleStickyTap(_ gesture: UITapGestureRecognizer) {
-        guard let view = elementLayer.sticky(at: gesture.location(in: elementLayer)) else { return }
+        guard let view = elementLayer.sticky(at: gesture.location(in: elementLayer)) else {
+            if let pin = elementLayer.comment(at: gesture.location(in: elementLayer)) {
+                pin.handleTap()
+            }
+            return
+        }
         elementLayer.onStickyTap?(view)
     }
 
@@ -408,7 +413,8 @@ extension NoteCanvasHostView {
     func stickyTapShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
         // With the Text tool the sticky note handles its own taps.
         guard mode != .text else { return false }
-        return elementLayer.sticky(at: gesture.location(in: elementLayer)) != nil
+        let point = gesture.location(in: elementLayer)
+        return elementLayer.sticky(at: point) != nil || elementLayer.comment(at: point) != nil
     }
 
     func stickyTapAccepts(_ touch: UITouch) -> Bool {

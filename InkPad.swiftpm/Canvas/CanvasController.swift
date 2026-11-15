@@ -58,6 +58,8 @@ final class CanvasController: NSObject, ObservableObject {
     var onSaveSticker: ((PKDrawing) -> Void)?
     /// A sticky note was tapped: open it.
     var onStickyTapped: ((UUID, StickyNote) -> Void)?
+    var onCommentTapped: ((UUID, NoteComment) -> Void)?
+    var onAddComment: ((CGPoint) -> Void)?
     /// A gesture's action the note editor handles (toolbar, reading mode,
     /// ⌘K, sticky notes).
     var onEditorAction: ((GestureAction) -> Void)?
@@ -133,6 +135,10 @@ final class CanvasController: NSObject, ObservableObject {
         host.elementLayer.onStickyTap = { [weak self] view in
             self?.onStickyTapped?(view.id, view.note)
         }
+        host.elementLayer.onCommentTap = { [weak self] view in
+            self?.onCommentTapped?(view.id, view.comment)
+        }
+        host.lasso.onAddComment = { [weak self] point in self?.onAddComment?(point) }
         let holdTracker = StrokeHoldTracker()
         holdTracker.coordinateView = host.elementLayer
         holdTracker.onTouchBegan = { [weak self, weak host] in
@@ -569,6 +575,39 @@ final class CanvasController: NSObject, ObservableObject {
 
     func removeElement(_ id: UUID) {
         host?.elementLayer.removeElement(id)
+    }
+
+    // MARK: Comments
+
+    /// A new comment pin in the middle of what is shown; returns its id.
+    @discardableResult
+    func addComment(_ comment: NoteComment = NoteComment(), at center: CGPoint? = nil) -> UUID? {
+        guard let host else { return nil }
+        return host.elementLayer.addComment(comment, centeredAt: center ?? host.visibleCenter).id
+    }
+
+    func updateComment(_ id: UUID, with comment: NoteComment) {
+        host?.elementLayer.updateComment(id, with: comment)
+    }
+
+    /// Every comment pin in the note, with the page it is on. Open
+    /// comments come before resolved ones, then oldest first.
+    func comments(layout: PageLayout) -> [CommentItem] {
+        let elements = self.elements ?? []
+        let axis = layout.axis
+        var result: [CommentItem] = []
+        for element in elements {
+            guard case let .comment(comment) = element.content else { continue }
+            let middle = axis.mid(of: element.frame)
+            let page = layout.pageRects.lastIndex { axis.minCorner(of: $0) - PageLayout.pageGap <= middle } ?? 0
+            result.append(CommentItem(id: element.id, comment: comment, page: page))
+        }
+        return result.sorted {
+            let first = $0.comment.isResolved ?? false
+            let second = $1.comment.isResolved ?? false
+            if first != second { return !first }
+            return $0.comment.createdAt < $1.comment.createdAt
+        }
     }
 
     /// Every sticky note in the note, with the page it is on.

@@ -10,6 +10,8 @@ struct PageElement: Codable, Identifiable, Equatable {
         case image(file: String)
         /// A sticky note (StickyNote.swift).
         case sticky(StickyNote)
+        /// A threaded comment pinned to the page (NoteComment.swift).
+        case comment(NoteComment)
     }
 
     let id: UUID
