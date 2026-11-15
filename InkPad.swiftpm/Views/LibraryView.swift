@@ -195,6 +195,11 @@ struct LibraryView: View {
                 // Give the editor the whole screen; bring the sidebar back in the library.
                 columnVisibility = path.isEmpty ? .automatic : .detailOnly
             }
+            // inkpad:// links (App Intents' Open Note, reminders made from
+            // notes, Markdown links inside rendered text).
+            .onOpenURL { url in
+                _ = InkPadLink.handle(url, with: navigation)
+            }
             .alert("InkPad", isPresented: storeErrorShown) {
                 Button("OK", role: .cancel) {}
             } message: {

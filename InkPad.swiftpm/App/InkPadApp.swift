@@ -31,6 +31,7 @@ struct InkPadApp: App {
                 .preferredColorScheme(appearance.colorScheme)
                 // Automatic backups run when InkPad opens or comes back.
                 .task {
+                    LibraryStore.active = store
                     SyncEngine.shared.start(store: store, workspace: workspace)
                     SyncEngine.shared.soon(delay: 3)
                     await store.makeAutomaticBackupIfDue(workspace: workspace)

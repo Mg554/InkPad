@@ -71,6 +71,10 @@ struct TextNoteInfo: Equatable {
 ///   (derived, safe to lose; used by search and AI study)
 @MainActor
 final class LibraryStore: ObservableObject {
+    /// The library the app is showing; App Intents (Siri and Shortcuts)
+    /// reach the library through it. Set when the app opens.
+    static weak var active: LibraryStore?
+
     @Published private(set) var folders: [Folder] = []
     @Published private(set) var notes: [NoteSummary] = []
     @Published var errorMessage: String?
@@ -762,6 +766,43 @@ final class LibraryStore: ObservableObject {
         saveIndex()
         SpotlightIndex.update(notes[index], preview: textIndex[id]?.preview)
         return true
+    }
+
+    /// Adds text at the end of a note (Siri › Add to Note). Text notes get
+    /// Markdown; ink notes get a text box on their last page. Fails when the
+    /// note is open in an editor (the open copy would overwrite this change)
+    /// or writing did not go through.
+    func appendText(_ text: String, to noteID: UUID) async -> Bool {
+        guard canWrite(), let note = note(noteID) else { return false }
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !body.isEmpty else { return false }
+        if note.isText {
+            let url = noteDirectory(noteID).appendingPathComponent(NoteFiles.markdownFile)
+            let existing = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+            var updated = existing
+            if !updated.hasSuffix("\n") && !updated.isEmpty { updated += "\n" }
+            updated += "\n" + body + "\n"
+            return saveMarkdown(updated, for: noteID)
+        }
+        // An ink note: a text box near the bottom of its last page.
+        guard SyncEngine.shared.openNotes.contains(noteID) == false,
+              var content = try? loadContent(for: noteID) else { return false }
+        let background = content.makeBackground()
+        guard let lastPage = background.layout.pageRects.last else { return false }
+        let writing = NSAttributedString(string: body, attributes: TextBoxStyle.defaultAttributes)
+        guard let rtf = TextBoxStyle.rtfData(from: writing) else { return false }
+        let element = PageElement(
+            id: UUID(),
+            frame: CGRect(
+                x: lastPage.minX + 24,
+                y: max(lastPage.minY + 24, lastPage.maxY - 200),
+                width: min(TextBoxStyle.defaultWidth, lastPage.width - 48),
+                height: 44
+            ),
+            content: .text(rtf: rtf)
+        )
+        content.metadata.elements = (content.metadata.elements ?? []) + [element]
+        return await saveContent(content, for: noteID, thumbnail: true)
     }
 
     /// Opens today's note in "Daily Notes", creating both if needed.
