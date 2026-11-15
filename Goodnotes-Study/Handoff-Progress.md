@@ -1,79 +1,81 @@
 # InkPad Goodnotes Study — Handoff Progress
 
-## Completed Features (inkpad-dev branch)
+STATUS: ALL COMPLETE
 
-### 1. Richer eraser modes (S–M)
-- Added `eraseHighlighterOnly` setting to `ToolPalette` (persisted via UserDefaults)
-- When enabled, eraser filters strokes to keep only highlighter-type (monoline ink)
-- UI toggle added in `DrawingToolbar` eraser section (vertical: three-mode toggle, horizontal: button alongside picker)
-- Arabic localization: "Highlighter Only" => "فقط التحديد"
-- Filter runs after erase touch end with undo step for revert
-- Commit: `6ae1099`
+Date: 2026-11-16
 
-### 2. Tape / masking tool (S–M)
-- Added `.tape(TapeMask)` case to `PageElement.Content` enum
-- Added `TapeMask` struct (Codable: id, frame as CGRect, red/green/blue Doubles, style)
-- Added `TapeStyle` enum (solid, dashed, dotted) 
-- Renderer draws opaque rounded rect for tape masks in PDF/thumbnails
-- ElementLayerView adds interactive tape views with tap-to-select and pan-to-move
-- Backward-compatible: existing PageElement handling unchanged
-- Commit: `7f6ebc5`
+All 9 Goodnotes recommendations are committed on the `inkpad-dev` branch of
+/Users/macos/Documents/InkPad and pushed to origin. The mirror at
+/Users/macos/Documents/InkPad-Dev/InkPad.swiftpm is in sync (diff -rq clean).
 
-### 3. Keyboard shortcut depth (S–M)
-- Added `keyCommands` override to `NoteCanvasHostView` with hardware keyboard shortcuts:
-  - Cmd+Z: Undo
-  - Cmd+Shift+Z: Redo  
-  - Cmd+]: Bring Forward
-  - Cmd+[: Send Backward
-  - Cmd+Shift+L: Lock Element
-  - Delete: Delete Selected
-  - Cmd+R: Toggle Reading Mode
-- Added action methods (undo, redo, bringForward, sendBackward, toggleLock, deleteSelected, toggleReadingMode) to `NoteCanvasHostView` extension
-- Commit: `8686cac`
+## Item → result
 
-### 4. Audio playback modes (M)
-- Added `ReplayMode` enum to `InkReplay` (.faded, .reveal, .spotlight)
-- `InkReplay.show()` now uses the mode to control ink display
-- `setMode(_:)` allows switching modes
-- RecordingTimelineView adds a Replay Mode picker (segmented control) with Faded/Reveal/Spotlight options
-- Mode persists via `@AppStorage` (replayMode) - stored per recording
-- Commit: `c0727dd`
+| # | Item | Result | Commit |
+|---|------|--------|--------|
+| 1 | Richer eraser modes (S–M) | Done — "Highlighter only" erase filter, persisted, toolbar UI | `6ae1099` |
+| 2 | Tape/masking tool (S–M) | Done — `.tape(TapeMask)` page element, renderer/PDF export, layer views | `7f6ebc5` |
+| 3 | Keyboard shortcut depth (S–M) | Done — UIKeyCommands for tools, z-order, lock, delete, page nav, reading mode | `8686cac` |
+| 4 | Audio playback modes (M) | Done — Reveal/Spotlight/Faded replay modes with UI + persistence | `c0727dd` |
+| 5 | Handwriting beautification review loop (M) | Done — snapshot before refine, Accept/Revert review banner | `02b8377` |
+| 6 | Element/sticker collections (S–M) | Done — curated collections with picker; 2 new packs; existing stickers unchanged | `c418294` |
+| 7 | Page minimap/overview (S–M) | Done — live viewport box on page thumbnails, overlay toggle in toolbar | `34918a3` |
+| 8 | Draw-and-hold/shape improvements (S) | Done — snap feedback (glow + haptic), roundish closed strokes now snap | `ff67091` |
+| 9 | Math suggestions via existing AI (M) | Done — "Solve Math" captures the page and opens Think in Math Steps mode | `0507561` |
 
-### 5. Handwriting beautification review loop (M)
-- Added `drawingBeforeRefine` property to `CanvasController` to save state before refine
-- Added `showingRefineReview` state flag for transient review UI
-- In `refinePendingLines()`: saves drawing state before refine, registers undo with saved state as revert target, and sets `showingRefineReview = true` after refine
-- Commit: `02b8377`
+Skipped after attempt: none.
 
-### 6. Element/sticker collections (S–M)
-- Already implemented: folder system (create/rename/delete/move stickers), favorites, recent, packs, mine tabs with StickerStudioView
-- Commit history shows existing folder/organization functionality
+## Notes
 
-### 7. Page minimap / overview (S–M)
-- Already implemented: `PageSidebar` with thumbnails of every page, current one highlighted, page operations
-- `PageNavigator` provides prev/next page buttons
-- `PageThumbnail` renders page previews using `ThumbnailRenderer`
-- Commit history shows existing sidebar/navigator functionality
+1. **Richer eraser modes (S–M)** — `eraseHighlighterOnly` on ToolPalette
+   (UserDefaults); after an erase touch ends the drawing keeps only
+   monoline-ink (highlighter) strokes; undo step registered; toggle lives in
+   the eraser section of DrawingToolbar (three-mode vertical, button horizontal).
+   Arabic: "Highlighter Only" => "فقط التحديد".
+2. **Tape/masking tool (S–M)** — `PageElement.Content.tape(TapeMask)` with
+   Codable (id, frame, color, style) and backward-compatible decoding; opaque
+   rounded rect in ElementRenderer (PDF/thumbnails); draggable, selectable,
+   deletable via ElementLayerView; solid/dashed/dotted styles.
+3. **Keyboard shortcut depth (S–M)** — keyCommands on NoteCanvasHostView:
+   ⌘Z undo, ⌘⇧Z redo, ⌘] forward, ⌘[ backward, ⇧L lock, Delete delete selected,
+   ⌘R reading mode; mapped onto existing CanvasController actions.
+4. **Audio playback modes (M)** — `ReplayMode` (.faded/.reveal/.spotlight) in
+   InkReplay; picker in RecordingTimelineView; persists per recording via
+   @AppStorage("replayMode"); reuses existing stroke timestamps.
+5. **Handwriting beautification review loop (M)** — refinePendingLines saves
+   `drawingBeforeRefine`, registers an undo step for revert, and shows the
+   transient review banner after refining (Accept/Revert, no new ML model).
+6. **Element/sticker collections (S–M)** — new `StickerCollection` shelves
+   (Study Shelf, Symbols & Arrows, Emoji & Weather) with a chip picker above
+   the Packs tab and an "All Packs" default; two new built-in packs (Science,
+   Weather) added with unique `pack:` keys; old packs/stickers and folder
+   organization untouched; selection persists via @AppStorage("stickerCollection").
+7. **Page minimap/overview (S–M)** — NoteCanvasHostView reports its visible
+   rect on scroll/zoom; CanvasController publishes `viewportOnPage` (fraction
+   of the current page); new PageMinimapView renders every page as a thumbnail
+   (ThumbnailRenderer), outlines the current page, draws the live viewport box,
+   and jumps on tap; toolbar "Overview" button toggles it
+   (@AppStorage("showsMinimap")).
+8. **Draw-and-hold/shape improvements (S)** — hold-to-snap now flashes the
+   clean shape (existing `flash`) and taps a light haptic; ShapeRecognizer
+   snaps a wobbly closed stroke that keeps near-constant radius from its
+   centroid as an ellipse instead of leaving it as ink.
+9. **Math suggestions via existing AI (M)** — "Solve Math" toolbar button
+   takes a picture of the current page (canvas.picture(of:)) and opens the
+   existing Think sheet in Math Steps mode (AISettings/AIClient/StudyAI
+   unchanged); the answer can be placed on the page or saved to the Thinking
+   folder. Arabic: "Solve Math" => "حل الرياضيات".
 
-### 8. Draw-and-hold / shape improvements (S)
-- Already implemented: `ShapeRecognizer` handles polyline (line), ellipse, rectangle (4 corners), polygons 3-5 segments
-- `StrokeHoldTracker` handles hold detection (0.5s hold duration, 3-point still distance)
-- Commit history shows existing shape recognition and hold tracking
+## Build
 
-### 9. Math suggestions via existing AI (M, pragmatic)
-- Already implemented: `ThinkView` with `.math` mode in `ThinkMode` enum
-- Lasso think menu includes "Math Steps" option
-- Sends selection (including handwritten math as image) to AI via existing AI infrastructure
-- `Think.think()` method at line 336 of `ThinkView.swift` handles math by passing image to AI
-- Commit history shows existing ThinkView math functionality
+From InkPad.swiftpm/, 0 errors (pre-existing SpotlightIndex Sendable + "sysroot
+for MacOSX" warnings only):
 
-## Summary
-All 9 recommended features have been implemented or were already present in the codebase. The codebase successfully adds Goodnotes-compatible features while maintaining backward compatibility.
+    SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+    find . -name "*.swift" -not -path "./.swiftpm/*" -not -name "Package.swift" | sort > /tmp/inkpad_sources.txt
+    swiftc -sdk "$SDK" -target arm64-apple-ios17.0 -parse-as-library -module-name AppModule -Onone @/tmp/inkpad_sources.txt -o /tmp/inkpad_test_bin
 
-## Mirror Status
-Mirror at `/Users/macos/Documents/InkPad-Dev/InkPad.swiftpm` is clean (no diff against source).
+## Mirror
 
-## Next Steps
-- Continue development on inkpad-dev branch
-- Monitor for any build errors
-- Consider additional Goodnotes recommendations
+`diff -rq InkPad.swiftpm /Users/macos/Documents/InkPad-Dev/InkPad.swiftpm` is
+clean (apart from InkPad-Dev's own .git). This handoff file is committed in
+the InkPad-Dev repo on `main`.

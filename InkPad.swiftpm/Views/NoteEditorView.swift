@@ -16,6 +16,7 @@ struct NoteEditorView: View {
     @State private var isShowingExportOptions = false
     @State private var isShowingTemplates = false
     @AppStorage("showPageSidebar") private var isShowingPages = false
+    @AppStorage("showsMinimap") private var isShowingMinimap = false
     @State private var isPickingPhoto = false
     @State private var isPickingImageFile = false
     @State private var photoItem: PhotosPickerItem?
@@ -359,6 +360,18 @@ struct NoteEditorView: View {
                 PageNavigator(canvas: canvas) { isShowingPages.toggle() }
                     .padding(16)
             }
+            .overlay(alignment: .topLeading) {
+                if isShowingMinimap {
+                    PageMinimapView(
+                        canvas: canvas,
+                        content: content,
+                        background: background,
+                        revision: session.snapshotRevision,
+                        onClose: { isShowingMinimap = false }
+                    )
+                    .padding(16)
+                }
+            }
             .overlay(alignment: .trailing) {
                 if !isShowingPages {
                     PageTabStrip(session: session, canvas: canvas)
@@ -552,6 +565,22 @@ struct NoteEditorView: View {
         showsBookPanel = false
         showsAsk = true
         isShowingLiving = true
+    }
+
+    /// Solves or checks the handwritten math on the current page by sending a
+    /// picture of it to the configured AI, the same way Write → Think works.
+    private func solveMath() {
+        guard let background = session.background,
+              background.layout.pageRects.indices.contains(canvas.currentPage) else { return }
+        let page = background.layout.pageRects[canvas.currentPage]
+        let image = canvas.picture(of: page)?.jpegData(compressionQuality: 0.8)
+        let anchor = canvas.visibleCenter.map { CGRect(origin: $0, size: .zero) } ?? .zero
+        thinkRequest = ThinkRequest(
+            text: "The handwritten math on this page.",
+            anchor: anchor,
+            mode: .math,
+            image: image
+        )
     }
 
     /// An answer from Ask This Page, put beside the paragraph it cites.
@@ -1077,6 +1106,20 @@ struct NoteEditorView: View {
                 studyRequest = session.currentContent().map { SlidesRequest(content: $0) }
             } label: {
                 Label("Study with AI", systemImage: "graduationcap")
+            }
+            .disabled(session.metadata == nil)
+
+            Button {
+                isShowingMinimap.toggle()
+            } label: {
+                Label("Overview", systemImage: "map")
+            }
+            .disabled(session.metadata == nil)
+
+            Button {
+                solveMath()
+            } label: {
+                Label("Solve Math", systemImage: "function")
             }
             .disabled(session.metadata == nil)
 

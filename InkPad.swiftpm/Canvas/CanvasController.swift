@@ -31,6 +31,8 @@ final class CanvasController: NSObject, ObservableObject {
     @Published private(set) var canRedo = false
     @Published private(set) var currentPage = 0
     @Published private(set) var pageCount = 1
+    /// The part of the current page now on screen, as a fraction of the page (0...1).
+    @Published private(set) var viewportOnPage: CGRect = .zero
     @Published private(set) var selection: Selection?
     /// Bumped after formatting changes so the toolbar re-reads the text state.
     @Published private(set) var formattingRevision = 0
@@ -166,6 +168,7 @@ private var drawingBeforeRefine: PKDrawing?
         }
         host.canvas.addGestureRecognizer(holdTracker)
         host.onInkTapped = { [weak self] date in self?.onInkTapped?(date) }
+        host.onViewportChange = { [weak self] rect in self?.viewportDidChange(rect) }
         host.livingOverlay.onTap = { [weak self] key in self?.onConcept?(key) }
         if replayInterval != nil {
             host.setReplay(replayInterval, now: replayNow)
@@ -337,6 +340,10 @@ private var drawingBeforeRefine: PKDrawing?
             self.expectsNewStroke = false
             self.isReplacingStroke = false
             self.contentDidChange()
+            // Let the writer know the snap happened: a glow over the clean
+            // shape and a light tap.
+            host.flash(ShapeRecognizer.bounds(of: shape))
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
     }
 
@@ -470,6 +477,24 @@ private var drawingBeforeRefine: PKDrawing?
     func pageDidChange(current: Int, count: Int) {
         if current != currentPage { currentPage = current }
         if count != pageCount { pageCount = count }
+    }
+
+    /// Updates the viewport fraction of the current page; publishes only real changes.
+    private func viewportDidChange(_ visible: CGRect) {
+        guard let host, let rects = host.background?.layout.pageRects, rects.indices.contains(currentPage) else { return }
+        let page = rects[currentPage]
+        let clipped = visible.intersection(page)
+        guard !clipped.isNull, page.width > 0, page.height > 0 else { return }
+        let normalized = CGRect(
+            x: (clipped.minX - page.minX) / page.width,
+            y: (clipped.minY - page.minY) / page.height,
+            width: clipped.width / page.width,
+            height: clipped.height / page.height
+        )
+        let old = viewportOnPage
+        if abs(old.minX - normalized.minX) < 0.005, abs(old.minY - normalized.minY) < 0.005,
+           abs(old.width - normalized.width) < 0.005, abs(old.height - normalized.height) < 0.005 { return }
+        viewportOnPage = normalized
     }
 
     func scrollToPage(_ index: Int) {
