@@ -56,13 +56,13 @@ struct AskPageView: View {
             Divider()
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xxl2) {
                         if turns.isEmpty { intro }
                         ForEach(turns) { turn in
                             turnView(turn).id(turn.id)
                         }
                         if let status {
-                            HStack(spacing: 8) {
+                            HStack(spacing: Theme.Spacing.md) {
                                 ProgressView()
                                 Text(trMessage(status)).font(.caption).foregroundStyle(.secondary)
                             }
@@ -88,7 +88,7 @@ struct AskPageView: View {
     // MARK: Parts
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Label("Ask This Page", systemImage: "sparkles").font(.headline)
             Picker("Scope", selection: $scope) {
                 ForEach(Scope.allCases) { Text(tr($0.title)).tag($0) }
@@ -101,13 +101,13 @@ struct AskPageView: View {
     @ViewBuilder
     private var intro: some View {
         if let blocked {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 Label("AI can't read this note yet", systemImage: "lock.shield").font(.subheadline.weight(.semibold))
                 Text(trMessage(blocked)).font(.caption).foregroundStyle(.secondary)
                 Button("Open AI Settings") { showsSettings = true }.buttonStyle(.bordered)
             }
         } else {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 Text("Ask about what is on the page. Answers point to the page and paragraph; tap one to see it.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -130,18 +130,18 @@ struct AskPageView: View {
     }
 
     private func turnView(_ turn: Turn) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text(verbatim: turn.question)
                 .padding(10)
-                .background(Color.inkAccent.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                .background(Color.inkAccent.opacity(0.15), in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 .frame(maxWidth: .infinity, alignment: .trailing)
             if let answer = turn.answer {
                 Text(CitedAnswer.attributed(answer, paragraphs: turn.paragraphs))
                     .textSelection(.enabled)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
-                HStack(spacing: 10) {
+                    .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
+                HStack(spacing: Theme.Spacing.lg) {
                     Button {
                         let first = CitedAnswer.citations(in: answer).compactMap { turn.paragraphs[$0] }.first
                         place(CitedAnswer.plain(answer), first?.rect, false)
@@ -172,7 +172,7 @@ struct AskPageView: View {
     }
 
     private var inputBar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Theme.Spacing.md) {
             TextField("Ask about this page", text: $question, axis: .vertical)
                 .lineLimit(1...4)
                 .textFieldStyle(.roundedBorder)

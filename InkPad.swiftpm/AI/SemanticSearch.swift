@@ -251,8 +251,8 @@ struct MeaningResults: View {
     @State private var isSearching = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+            HStack(spacing: Theme.Spacing.md) {
                 Label("By Meaning", systemImage: "sparkle.magnifyingglass")
                     .font(.headline)
                     .foregroundStyle(.secondary)
@@ -265,7 +265,7 @@ struct MeaningResults: View {
                 Button {
                     open(hit)
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         HStack {
                             Text(verbatim: hit.title).font(.subheadline.weight(.semibold))
                             if let page = hit.pdfPage {
@@ -278,7 +278,7 @@ struct MeaningResults: View {
                     }
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.background.opacity(0.7), in: RoundedRectangle(cornerRadius: 12))
+                    .background(.background.opacity(0.7), in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 }
                 .buttonStyle(.plain)
             }

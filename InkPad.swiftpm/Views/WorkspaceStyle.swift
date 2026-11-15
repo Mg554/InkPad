@@ -27,11 +27,11 @@ struct GlowCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
                     .fill(color.opacity(0.12))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
                     .stroke(
                         LinearGradient(colors: [color.opacity(0.7), color.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing),
                         lineWidth: 1

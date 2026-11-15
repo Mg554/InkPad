@@ -20,7 +20,7 @@ struct ThemeView: View {
                 }
 
                 Section("Themes") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: Theme.Spacing.xl)], spacing: Theme.Spacing.xxl) {
                         ForEach(ThemePreset.all) { preset in
                             swatch(ThemeRecipe.preset(preset), title: preset.name)
                         }
@@ -79,7 +79,7 @@ struct ThemeView: View {
                 Section {
                     if draft.backdrop == .glass {
                         presetPicker("Glass Colors", systemImage: "sparkles", selection: $draft.glassFrom)
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                             Label("Hue", systemImage: "paintpalette")
                             Slider(value: $draft.glassHue, in: -180...180, step: 5)
                                 .background(
@@ -168,7 +168,7 @@ struct ThemeView: View {
     }
 
     private func sliderRow(_ title: String, systemImage: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double, text: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
                 Label(tr(title), systemImage: systemImage)
                 Spacer()
@@ -201,18 +201,18 @@ struct ThemeView: View {
             chosen.glassCards = draft.glassCards
             draft = chosen
         } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: Theme.Spacing.sm) {
                 ZStack(alignment: .bottomTrailing) {
                     ThemeBackground(recipe: recipe.still)
                         .frame(height: 56)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
                     Circle()
                         .fill(recipe.accent)
                         .frame(width: 18, height: 18)
                         .padding(6)
                 }
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: Theme.Radius.lg)
                         .stroke(isChosen ? recipe.accent : Color.secondary.opacity(0.3), lineWidth: isChosen ? 3 : 1)
                 )
                 Text(tr(title))
@@ -231,7 +231,7 @@ struct ThemePreview: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 Text("InkPad").font(.headline)
                 ForEach(["All Notes", "Study", "Reminders"], id: \.self) { item in
                     Label(tr(item), systemImage: "circle.fill")
@@ -246,13 +246,13 @@ struct ThemePreview: View {
 
             ZStack(alignment: .topLeading) {
                 ThemeBackground(recipe: recipe)
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                     Text("All Notes").font(.title3.bold())
-                    HStack(spacing: 10) {
+                    HStack(spacing: Theme.Spacing.lg) {
                         ForEach(0..<3, id: \.self) { index in
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm)
                                 .fill(Color(red: recipe.paper.rgb.red, green: recipe.paper.rgb.green, blue: recipe.paper.rgb.blue))
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.3)))
+                                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(Color.secondary.opacity(0.3)))
                                 .frame(width: index == 0 ? 60 : 50, height: 72)
                         }
                     }

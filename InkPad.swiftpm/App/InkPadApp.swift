@@ -16,7 +16,7 @@ struct InkPadApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(content: {
             LibraryView()
                 // A theme change rebuilds the views, so every color and
                 // font picks it up.
@@ -61,6 +61,6 @@ struct InkPadApp: App {
                         CommandCenter.shared.openFromSpotlight(noteID)
                     }
                 }
-        }
+        })
     }
 }

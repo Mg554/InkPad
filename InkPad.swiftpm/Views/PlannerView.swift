@@ -80,7 +80,7 @@ struct PlannerView: View {
 
     private var board: some View {
         ScrollView(.horizontal) {
-            HStack(alignment: .top, spacing: 16) {
+            HStack(alignment: .top, spacing: Theme.Spacing.xxl2) {
                 ForEach(PlanTask.Status.allCases) { status in
                     boardColumn(status)
                 }
@@ -91,7 +91,7 @@ struct PlannerView: View {
 
     private func boardColumn(_ status: PlanTask.Status) -> some View {
         let tasks = workspace.tasks.filter { $0.status == status }.sorted(by: Self.byDueDate)
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             HStack {
                 Label(tr(status.title), systemImage: status.systemImage)
                     .font(.headline)
@@ -181,7 +181,7 @@ struct PlannerView: View {
     }
 
     private func taskRow(_ task: PlanTask) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             Button {
                 withAnimation(.snappy) {
                     workspace.setStatus(task.status == .done ? .todo : .done, for: task.id)
@@ -318,12 +318,12 @@ private struct TaskSummary: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Text(task.title.isEmpty ? "Untitled" : task.title)
                 .font(.body.weight(.medium))
                 .strikethrough(task.status == .done)
             // Chips wrap as whole chips to the next line.
-            ChipFlow(spacing: 8) {
+            ChipFlow(spacing: Theme.Spacing.md) {
                 PriorityBadge(priority: task.priority)
                 if let due = task.dueDate {
                     Label(due.formatted(date: .abbreviated, time: .omitted), systemImage: "calendar")

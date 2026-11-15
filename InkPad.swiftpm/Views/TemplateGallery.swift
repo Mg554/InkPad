@@ -58,10 +58,10 @@ struct TemplateGallery: View {
     }
 
     private var paperColors: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Text("Paper Color")
                 .font(.title3.bold())
-            HStack(spacing: 14) {
+            HStack(spacing: Theme.Spacing.xxl) {
                 ForEach(PaperColor.allCases) { color in
                     Button {
                         paper = color
@@ -83,10 +83,10 @@ struct TemplateGallery: View {
         Button {
             template = item
         } label: {
-            VStack(spacing: 8) {
+            VStack(spacing: Theme.Spacing.md) {
                 TemplatePreview(template: item, paper: paper)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: Theme.Radius.xs)
                             .stroke(template == item ? Color.inkAccent : Color.secondary.opacity(0.3),
                                     lineWidth: template == item ? 3 : 1)
                     )
@@ -124,7 +124,7 @@ struct TemplatePreview: View {
             }
         }
         .aspectRatio(PageLayout.templatePageSize.width / PageLayout.templatePageSize.height, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
         .task(id: paper) {
             image = Self.render(template, paper: paper)
         }

@@ -18,7 +18,7 @@ struct DistractionCapture: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
                 if let timer = workspace.flowTimer, timer.phase == .working {
                     Label("While focusing on “\(timer.taskTitle)”", systemImage: "timer")
                         .font(.caption)
@@ -36,7 +36,7 @@ struct DistractionCapture: View {
                 } else if writes {
                     InkCanvas(drawing: $drawing, showsToolPicker: false)
                         .frame(height: 180)
-                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                        .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
                         .overlay(alignment: .topLeading) {
                             if drawing.strokes.isEmpty {
                                 Text("Write the thought here…").foregroundStyle(.tertiary).padding(12).allowsHitTesting(false)
@@ -47,7 +47,7 @@ struct DistractionCapture: View {
                         .lineLimit(2...5)
                         .focused($isTyping)
                         .padding(12)
-                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                        .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 }
                 Text("It goes into the Distraction Box. Deal with it after your session.")
                     .font(.caption)
@@ -73,7 +73,7 @@ struct DistractionCapture: View {
 
     /// Say the thought; it is written out on the iPad as you speak.
     private var speakArea: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: Theme.Spacing.xxl) {
             Button {
                 if voice.isListening {
                     voice.stop()
@@ -99,7 +99,7 @@ struct DistractionCapture: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
     }
 
     private func save() {
@@ -145,7 +145,7 @@ struct DistractionInkThumbnail: View {
                     .resizable()
                     .scaledToFit()
                     .frame(maxHeight: height, alignment: .leading)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
             } else {
                 Color.clear.frame(height: 40)
             }

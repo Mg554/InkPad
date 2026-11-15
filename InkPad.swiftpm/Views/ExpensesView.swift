@@ -153,7 +153,7 @@ struct ExpensesView: View {
     }
 
     private var summary: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             summaryCard("Income", earned, color: .green)
             summaryCard("Spent", spent, color: .red)
             summaryCard("Balance", earned - spent, color: earned >= spent ? .blue : .orange)
@@ -161,7 +161,7 @@ struct ExpensesView: View {
     }
 
     private func summaryCard(_ title: String, _ value: Decimal, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Text(tr(title))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -181,7 +181,7 @@ struct ExpensesView: View {
 
     private func budgetBar(_ budget: Decimal) -> some View {
         let used = budget > 0 ? min(NSDecimalNumber(decimal: spent / budget).doubleValue, 1.5) : 0
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
                 Text("Budget")
                 Spacer()
@@ -229,7 +229,7 @@ struct ExpensesView: View {
                 }
             }
             .chartBackground { _ in
-                VStack(spacing: 2) {
+                VStack(spacing: Theme.Spacing.x2) {
                     Text(selected?.title ?? "Spent")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -251,7 +251,7 @@ struct ExpensesView: View {
             }
             .animation(.snappy, value: selected)
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 ForEach(totals, id: \.0) { item in
                     // Tapping a row picks its slice; tapping the picked row shows the total again.
                     Button {
@@ -269,7 +269,7 @@ struct ExpensesView: View {
                         .fontWeight(selected == item.0 ? .bold : .regular)
                         .padding(.vertical, 4)
                         .padding(.horizontal, 8)
-                        .background(selected == item.0 ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                        .background(selected == item.0 ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
                     }
                     .buttonStyle(PressableStyle())
                 }
@@ -285,13 +285,13 @@ struct ExpensesView: View {
 
     private func row(_ item: Expense) -> some View {
         let tint: Color = item.kind == .income ? .green : look.color(item.category)
-        return HStack(spacing: 12) {
+        return HStack(spacing: Theme.Spacing.xl) {
             Image(systemName: item.category.systemImage)
                 .foregroundStyle(tint)
                 .frame(width: 34, height: 34)
                 .background(tint.opacity(0.15), in: Circle())
                 .styledGlow(look.activeGlow, color: tint)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                 Text(item.title.isEmpty ? item.category.title : item.title)
                 if !item.note.isEmpty {
                     Text(tr(item.note))

@@ -1,5 +1,2 @@
-.DS_Store
-*.xcuserstate
-xcuserdata/
-.swiftpm/xcode/
-.build/
+# Xcode / SwiftPM local artifacts
+InkPad.swiftpm/.swiftpm/

@@ -34,7 +34,7 @@ struct AreaTextSheet: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxHeight: 180)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                 }
                 Section {
                     if isReading {

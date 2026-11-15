@@ -46,7 +46,7 @@ struct CommentThreadEditor: View {
                 if !(comment.replies ?? []).isEmpty {
                     Section(tr("Replies")) {
                         ForEach(comment.replies ?? []) { item in
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                                 Text(item.text)
                                 Text(item.createdAt, style: .date)
                                     .font(.caption2)
@@ -127,10 +127,10 @@ struct CommentListView: View {
                         open(item.id, item.page)
                         dismiss()
                     } label: {
-                        HStack(spacing: 12) {
+                        HStack(spacing: Theme.Spacing.xl) {
                             Image(systemName: item.comment.isResolved ?? false ? "checkmark.seal.fill" : "bubble.left.and.bubble.right.fill")
                                 .foregroundStyle(item.comment.isResolved ?? false ? Color.secondary : Color.yellow)
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                                 Text(item.comment.text.isEmpty ? trMessage("On page \(item.page + 1).") : item.comment.text)
                                     .lineLimit(2)
                                 Text(trMessage("Page \(item.page + 1)."))

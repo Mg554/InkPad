@@ -246,7 +246,7 @@ struct SplitPaneHeader: View {
     let saveWorkspace: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             Circle()
                 .fill(split.active == .other ? Color.inkAccent : Color.secondary.opacity(0.3))
                 .frame(width: 8, height: 8)
@@ -341,11 +341,11 @@ struct NotePickerSheet: View {
                     picked(note.id)
                     dismiss()
                 } label: {
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.xl) {
                         NotePreview(note: note)
                             .frame(width: 34, height: 44)
                             .clipShape(RoundedRectangle(cornerRadius: 4))
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                             Text(verbatim: note.title).foregroundStyle(Color.primary)
                             Text(note.modifiedAt, format: .dateTime.day().month(.abbreviated).year())
                                 .font(.caption)

@@ -64,10 +64,10 @@ struct HandwrittenIdeaEditor: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
+            VStack(spacing: Theme.Spacing.xl) {
                 InkCanvas(drawing: $drawing)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(.quaternary))
+                    .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xxl).stroke(.quaternary))
                     .frame(height: 280)
                 Text("Write the idea with Apple Pencil. It stays in your handwriting on the map.")
                     .font(.caption)
@@ -122,7 +122,7 @@ struct MindSketchView: View {
     var body: some View {
         NavigationStack {
             InkCanvas(drawing: $drawing, contentSize: CGSize(width: 2400, height: 1800))
-                .background(Color(uiColor: .systemBackground))
+                .background(Theme.Colors.surface)
                 .overlay(alignment: .top) {
                     if drawing.strokes.isEmpty {
                         Text("Write your central idea, ideas around it, and draw lines to link them. Then tap Reshape.")
@@ -137,7 +137,7 @@ struct MindSketchView: View {
                     if isWorking {
                         ProgressView("Reading your sketch…")
                             .padding(24)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.huge))
                     }
                 }
                 .navigationTitle("Sketch a Map")

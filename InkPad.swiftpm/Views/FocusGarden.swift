@@ -76,9 +76,9 @@ struct SmartBreakCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Label("Smart Break", systemImage: "sparkles").font(.headline)
-            HStack(spacing: 10) {
+            HStack(spacing: Theme.Spacing.lg) {
                 if dueCards > 0 {
                     option("rectangle.on.rectangle.angled", "\(dueCards) flashcards due", .purple) { isReviewing = true }
                 }
@@ -110,13 +110,13 @@ struct SmartBreakCard: View {
 
     private func option(_ icon: String, _ title: String, _ tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 6) {
+            VStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: icon).font(.title2)
                 Text(tr(title)).font(.caption.weight(.semibold)).multilineTextAlignment(.center).lineLimit(2)
             }
             .frame(maxWidth: .infinity, minHeight: 70)
             .foregroundStyle(tint)
-            .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
         }
         .buttonStyle(PressableStyle())
     }

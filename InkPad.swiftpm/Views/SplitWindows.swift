@@ -189,7 +189,7 @@ struct SplitStack<First: View, Second: View>: View {
         return ZStack {
             if !windowed {
                 Rectangle()
-                    .fill(Color(uiColor: .separator))
+                    .fill(Theme.Colors.hairline)
                     .frame(width: split.vertical ? nil : 1, height: split.vertical ? 1 : nil)
             }
             Capsule()
@@ -197,7 +197,7 @@ struct SplitStack<First: View, Second: View>: View {
                 .frame(width: split.vertical ? long : thick, height: split.vertical ? thick : long)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(windowed ? Color.clear : Color(uiColor: .systemBackground))
+        .background(windowed ? Color.clear : Theme.Colors.surface)
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 1)
             .onChanged { value in
@@ -317,7 +317,7 @@ struct WindowDots: View {
         Menu {
             WindowArrangeButtons(split: split, side: side, close: close)
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Spacing.xs) {
                 ForEach(0..<3, id: \.self) { _ in
                     Circle().frame(width: 5, height: 5)
                 }

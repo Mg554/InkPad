@@ -72,7 +72,7 @@ struct PDFToolsView: View {
                 extraSection("Convert", tools: PDFExtraTool.convert)
                 extraSection("Protect & Edit", tools: PDFExtraTool.protect)
                 compareSection
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     Label("Inside a PDF note", systemImage: "book")
                         .font(.headline)
                     Text("Open a book and use Chapters (the book button) for its outline, bookmarks, reading progress, and a mind map or concept graph of any chapter. In More: Insert Pages from Another PDF, and Send Pages to a New Note.")
@@ -100,9 +100,9 @@ struct PDFToolsView: View {
     }
 
     private var compareSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
             Text("Study").font(.title3.bold())
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: Theme.Spacing.xxl)], spacing: Theme.Spacing.xxl) {
                 Button {
                     isComparing = true
                 } label: {
@@ -114,9 +114,9 @@ struct PDFToolsView: View {
     }
 
     private func extraSection(_ title: String, tools: [PDFExtraTool]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
             Text(tr(title)).font(.title3.bold())
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: Theme.Spacing.xxl)], spacing: Theme.Spacing.xxl) {
                 ForEach(tools) { item in
                     Button {
                         extra = item
@@ -130,9 +130,9 @@ struct PDFToolsView: View {
     }
 
     private func section(_ title: String, tools: [PDFTool]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
             Text(tr(title)).font(.title3.bold())
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14)], spacing: 14) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: Theme.Spacing.xxl)], spacing: Theme.Spacing.xxl) {
                 ForEach(tools) { item in
                     Button {
                         tool = item
@@ -150,12 +150,12 @@ struct PDFToolsView: View {
     }
 
     private func card(title: String, detail: String, systemImage: String, tint: Color) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: Theme.Spacing.lg) {
             Image(systemName: systemImage)
                 .font(.system(size: 30, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 60, height: 60)
-                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(tint.gradient, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl, style: .continuous))
                 .shadow(color: tint.opacity(0.4), radius: 8)
             Text(tr(title))
                 .font(.subheadline.weight(.semibold))
@@ -169,7 +169,7 @@ struct PDFToolsView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 170)
         .padding(12)
-        .themedCard(cornerRadius: 18)
+        .themedCard(cornerRadius: Theme.Radius.huge)
     }
 }
 
@@ -249,7 +249,7 @@ struct PDFToolSheet: View {
                 if let working {
                     ProgressView(working)
                         .padding(24)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
                 }
             }
             .alert("PDF Tools", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
@@ -490,7 +490,7 @@ struct PageThumbnailGrid: View {
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 10)], spacing: 12) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: Theme.Spacing.lg)], spacing: Theme.Spacing.xl) {
                 ForEach(0..<document.pageCount, id: \.self) { index in
                     PageThumb(document: document, index: index, isSelected: selection.contains(index))
                         .onTapGesture {
@@ -511,18 +511,18 @@ private struct PageThumb: View {
     @State private var image: UIImage?
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: Theme.Spacing.xs) {
             ZStack(alignment: .topTrailing) {
                 Group {
                     if let image {
                         Image(uiImage: image).resizable().scaledToFit()
                     } else {
-                        Color(uiColor: .secondarySystemBackground)
+                        Theme.Colors.secondarySurface
                     }
                 }
                 .frame(height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(isSelected ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: isSelected ? 3 : 1))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xs).stroke(isSelected ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: isSelected ? 3 : 1))
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.white, Color.inkAccent)

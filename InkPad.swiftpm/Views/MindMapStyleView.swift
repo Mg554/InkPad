@@ -10,16 +10,16 @@ struct MindMapStyleView: View {
             Form {
                 Section("Ready Styles") {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: Theme.Spacing.xl) {
                             ForEach(MindMapStyle.presets, id: \.name) { preset in
                                 Button {
                                     withAnimation(.snappy) { style = preset.style }
                                 } label: {
-                                    VStack(spacing: 6) {
+                                    VStack(spacing: Theme.Spacing.sm) {
                                         MindStylePreview(style: preset.style)
                                             .frame(width: 110, height: 72)
-                                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(style == preset.style ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: style == preset.style ? 3 : 1))
+                                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
+                                            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg).stroke(style == preset.style ? Color.inkAccent : Color.secondary.opacity(0.3), lineWidth: style == preset.style ? 3 : 1))
                                         Label(tr(preset.name), systemImage: preset.systemImage)
                                             .font(.caption.weight(.semibold))
                                             .foregroundStyle(Color(uiColor: .label))

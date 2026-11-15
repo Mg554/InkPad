@@ -117,7 +117,7 @@ struct BookPanel: View {
         if let job = ocr.job, job.noteID == noteID {
             let total = max(job.progress.total, 1)
             let fraction: Double = Double(job.progress.done) / Double(total)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 HStack {
                     Label("Reading pages… \(job.progress.done) of \(job.progress.total)", systemImage: "text.viewfinder")
                         .font(.caption.weight(.semibold))
@@ -128,11 +128,11 @@ struct BookPanel: View {
                 Text("You can keep reading; it goes on in the background.").font(.caption2).foregroundStyle(.secondary)
             }
             .padding(10)
-            .background(Color.inkAccent.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+            .background(Color.inkAccent.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
             .padding(.horizontal)
             .padding(.bottom, 8)
         } else if let scanCount, scanCount > 0 {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Label("\(scanCount) scanned pages have no text", systemImage: "doc.text.magnifyingglass")
                     .font(.caption.weight(.semibold))
                 Text("Make Searchable reads them on this iPad (English and Arabic) and adds hidden text, so you can search, select, highlight and copy it. Your writing stays in place.")
@@ -148,7 +148,7 @@ struct BookPanel: View {
                 .disabled(ocr.job != nil)
             }
             .padding(10)
-            .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+            .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
@@ -157,7 +157,7 @@ struct BookPanel: View {
     // MARK: Search
 
     private var searchList: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Theme.Spacing.md) {
             HStack {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField("Search the whole book", text: $query)
@@ -166,7 +166,7 @@ struct BookPanel: View {
                 if isSearching { ProgressView() }
             }
             .padding(10)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
             .padding(.horizontal)
             List(results) { hit in
                 VStack(alignment: .leading, spacing: 3) {
@@ -215,7 +215,7 @@ struct BookPanel: View {
         let total = max(pages.count, 1)
         let furthest = (session.metadata?.furthestPage ?? canvas.currentPage) + 1
         let fraction: Double = Double(min(furthest, total)) / Double(total)
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
                 Text("Page \(canvas.currentPage + 1) of \(pages.count)").font(.headline)
                 Spacer()
@@ -244,7 +244,7 @@ struct BookPanel: View {
     @ViewBuilder
     private var chapterList: some View {
         if chapters.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                 Text(document == nil
                      ? "This note has no PDF."
                      : "This PDF has no chapter list of its own. You can still make a mind map from some of its pages.")
@@ -282,11 +282,11 @@ struct BookPanel: View {
         let isCurrent = currentChapter?.id == chapter.id
         let furthestPDF = furthestPDFPage
         let done = furthestPDF >= chapter.lastPage
-        return HStack(spacing: 8) {
+        return HStack(spacing: Theme.Spacing.md) {
             Image(systemName: done ? "checkmark.circle.fill" : isCurrent ? "location.fill" : "circle")
                 .foregroundStyle(done ? Color.green : isCurrent ? Color.inkAccent : Color.secondary)
                 .font(.caption)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                 Text(tr(chapter.title))
                     .font(chapter.depth == 0 ? .subheadline.weight(.semibold) : .subheadline)
                     .lineLimit(2)

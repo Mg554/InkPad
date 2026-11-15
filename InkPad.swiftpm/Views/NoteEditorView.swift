@@ -112,7 +112,7 @@ struct NoteEditorView: View {
             if isExporting {
                 ProgressView("Exporting…")
                     .padding(24)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
             }
         }
         .navigationTitle(tr(title))
@@ -504,7 +504,7 @@ struct NoteEditorView: View {
         HStack(spacing: 0) {
             // Drag to make the notebook wider or narrower.
             Rectangle()
-                .fill(Color(uiColor: .separator))
+                .fill(Theme.Colors.hairline)
                 .frame(width: 1)
                 .overlay {
                     Capsule()
@@ -1439,7 +1439,7 @@ private struct FocusHUD: ViewModifier {
     }
 
     private var hud: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             Image(systemName: "scope").foregroundStyle(.green)
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text(Flowmodoro.clock(FocusSession.shared.elapsed(at: context.date)))
@@ -1465,7 +1465,7 @@ private struct FocusHUD: ViewModifier {
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
         // Solid enough to read over the page's text.
-        .background(Color(uiColor: .systemBackground).opacity(0.94), in: Capsule())
+        .background(Theme.Colors.surface.opacity(0.94), in: Capsule())
         .overlay(Capsule().stroke(Color.green.opacity(0.45), lineWidth: 1))
         .shadow(color: .black.opacity(0.18), radius: 10, y: 3)
         .padding(.top, 8)
@@ -1680,7 +1680,7 @@ private struct SplitPane: View {
                 }
             }
         }
-        .background(Color(uiColor: .systemBackground))
+        .background(Theme.Colors.surface)
     }
 }
 

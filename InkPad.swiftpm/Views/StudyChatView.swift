@@ -32,7 +32,7 @@ struct StudyChatView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 16) {
+                LazyVStack(alignment: .leading, spacing: Theme.Spacing.xxl2) {
                     ForEach(messages) { message in
                         bubble(message)
                             .id(message.id)
@@ -77,11 +77,11 @@ struct StudyChatView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .foregroundStyle(.white)
-                    .background(Color.inkAccent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(Color.inkAccent, in: RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous))
                     .textSelection(.enabled)
             }
         } else {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: Theme.Spacing.lg) {
                 Image(systemName: "sparkles")
                     .foregroundStyle(.purple)
                     .padding(.top, 4)
@@ -99,7 +99,7 @@ struct StudyChatView: View {
     }
 
     private var inputBar: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Theme.Spacing.lg) {
             TextField("Ask a follow-up", text: $input, axis: .vertical)
                 .lineLimit(1...5)
                 .onSubmit { send(input) }
@@ -124,7 +124,7 @@ struct StudyChatView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous))
         .padding(.horizontal, 20)
         .padding(.bottom, 10)
         .frame(maxWidth: 820)

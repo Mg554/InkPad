@@ -17,7 +17,7 @@ struct AIFirewallView: View {
             Section {
                 ForEach(AIAccess.allCases) { level in
                     Label {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                             Text(tr(level.title)).font(.headline)
                             Text(trMessage(level.detail))
                                 .font(.subheadline)
@@ -87,7 +87,7 @@ struct AIFirewallView: View {
     ) -> some View {
         HStack {
             Label {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                     Text(tr(title))
                     if inherited > own {
                         Text("\(inherited.title), set by \(inheritedFrom)")

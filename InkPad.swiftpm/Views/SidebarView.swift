@@ -272,7 +272,7 @@ struct SidebarView: View {
 
     private func folderRow(_ row: FolderRow) -> some View {
         let folder = row.folder
-        return HStack(spacing: 6) {
+        return HStack(spacing: Theme.Spacing.sm) {
             if row.hasChildren {
                 Button {
                     if collapsed.contains(folder.id) {

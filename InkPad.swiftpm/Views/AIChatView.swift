@@ -34,7 +34,7 @@ struct AIChatView: View {
     // MARK: Header
 
     private var header: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             Menu {
                 ForEach(AIProviderKind.allCases) { provider in
                     Button {
@@ -91,7 +91,7 @@ struct AIChatView: View {
     private var conversation: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 16) {
+                LazyVStack(alignment: .leading, spacing: Theme.Spacing.xxl2) {
                     if messages.isEmpty {
                         welcome
                     }
@@ -113,14 +113,14 @@ struct AIChatView: View {
     }
 
     private var welcome: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
             Label("Ask anything", systemImage: "sparkles")
                 .font(.title3.weight(.semibold))
             Text("This chat is not about your notes. Choose the service that answers — Claude, ChatGPT, Gemini, Groq and the rest — and ask whatever you like.")
                 .font(.body)
                 .foregroundStyle(.secondary)
             if let problem = ai.problem {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     Text(trMessage(problem))
                         .font(.callout)
                         .foregroundStyle(.orange)
@@ -146,11 +146,11 @@ struct AIChatView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .foregroundStyle(.white)
-                    .background(Color.inkAccent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(Color.inkAccent, in: RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous))
                     .textSelection(.enabled)
             }
         } else {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: Theme.Spacing.lg) {
                 Image(systemName: "sparkles")
                     .foregroundStyle(.purple)
                     .padding(.top, 4)
@@ -167,7 +167,7 @@ struct AIChatView: View {
     }
 
     private var inputBar: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Theme.Spacing.lg) {
             TextField("Ask anything", text: $input, axis: .vertical)
                 .lineLimit(1...5)
                 .onSubmit { send(input) }
@@ -190,7 +190,7 @@ struct AIChatView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous))
         .padding(.horizontal, 20)
         .padding(.bottom, 10)
         .frame(maxWidth: 860)

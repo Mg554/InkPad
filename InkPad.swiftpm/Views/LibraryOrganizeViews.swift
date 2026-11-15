@@ -7,13 +7,13 @@ struct NoteRow: View {
     @State private var thumbnail: UIImage?
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             preview
                 .frame(width: 44, height: 58)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xs).stroke(.quaternary))
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
+                HStack(spacing: Theme.Spacing.sm) {
                     if note.isPinned {
                         Image(systemName: "pin.fill").font(.caption).foregroundStyle(.orange)
                     }
@@ -24,7 +24,7 @@ struct NoteRow: View {
                         Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow)
                     }
                 }
-                HStack(spacing: 8) {
+                HStack(spacing: Theme.Spacing.md) {
                     if let folderID = note.folderID, let folder = store.folder(folderID) {
                         Label { Text(verbatim: folder.name) } icon: { Image(systemName: "folder") }
                     }
@@ -89,7 +89,7 @@ struct NoteListHeader: View {
     @Binding var sort: NoteSort
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             column("Name", sortsBy: .name)
                 .padding(.leading, 58)
             Spacer()

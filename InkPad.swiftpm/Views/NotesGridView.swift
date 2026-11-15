@@ -257,7 +257,7 @@ struct NotesGridView: View {
         case .grid, .list:
             cardsOrRows(notes, reorderable: reorderable)
         case .icons:
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96, maximum: 110), spacing: 16)], spacing: 20) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96, maximum: 110), spacing: Theme.Spacing.xxl2)], spacing: 20) {
                 ForEach(notes) { note in
                     item(note, reorderable: reorderable) { NoteIcon(note: note) }
                 }
@@ -270,7 +270,7 @@ struct NotesGridView: View {
                     Divider().padding(.leading, 44)
                 }
             }
-            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
         case .bubbles:
@@ -301,7 +301,7 @@ struct NotesGridView: View {
                     Divider().padding(.leading, 72)
                 }
             }
-            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
         } else {
@@ -553,7 +553,7 @@ struct NotesGridView: View {
     private var selectionBar: some View {
         let ids = Array(selection)
         let none = ids.isEmpty
-        return HStack(spacing: 18) {
+        return HStack(spacing: Theme.Spacing.huge) {
             Button(selection.count == visibleNotes.count ? "Select None" : "Select All") {
                 if selection.count == visibleNotes.count {
                     selection = []
@@ -647,7 +647,7 @@ struct NotesGridView: View {
     private func treeView(_ notes: [NoteSummary]) -> some View {
         let lines = treeLines(notes)
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "folder.fill").foregroundStyle(Color.inkAccent)
                 Text(verbatim: tr(title)).font(.system(.body, design: .monospaced).weight(.bold))
                 Text("(\(notes.count))").font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
@@ -662,7 +662,7 @@ struct NotesGridView: View {
                                 if collapsedFolders.contains(folder.id) { collapsedFolders.remove(folder.id) } else { collapsedFolders.insert(folder.id) }
                             }
                         } label: {
-                            HStack(spacing: 6) {
+                            HStack(spacing: Theme.Spacing.sm) {
                                 Image(systemName: collapsedFolders.contains(folder.id) ? "folder" : "folder.fill")
                                     .foregroundStyle((folder.color ?? .blue).color)
                                 Text(verbatim: folder.name + "/").font(.system(.body, design: .monospaced).weight(.semibold))
@@ -706,7 +706,7 @@ struct NotesGridView: View {
                         }
                     case let .note(note):
                         item(note, reorderable: false) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: Theme.Spacing.sm) {
                                 Image(systemName: note.isText ? "doc.text" : note.hasPDF == true ? "doc.richtext" : "doc")
                                     .foregroundStyle(.secondary)
                                 Text(verbatim: note.title).font(.system(.body, design: .monospaced))
@@ -719,7 +719,7 @@ struct NotesGridView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+        .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
         .padding(.horizontal, 24)
         .padding(.vertical, 12)
     }
@@ -782,7 +782,7 @@ struct NotesGridView: View {
         return VStack(spacing: 26) {
             ForEach(Array(shelves.enumerated()), id: \.offset) { shelf in
                 VStack(spacing: 0) {
-                    HStack(alignment: .bottom, spacing: 14) {
+                    HStack(alignment: .bottom, spacing: Theme.Spacing.xxl) {
                         ForEach(shelf.element) { note in
                             item(note, reorderable: false) { ShelfBook(note: note) }
                         }
@@ -809,7 +809,7 @@ struct NotesGridView: View {
                 months.append((month, [note]))
             }
         }
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             ForEach(months, id: \.key) { month in
                 Text(month.key, format: .dateTime.month(.wide).year())
                     .font(.title3.bold())
@@ -826,7 +826,7 @@ struct NotesGridView: View {
 
     /// Notability-style shortcut cards above the notes.
     private var quickActions: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Theme.Spacing.xxl2) {
             QuickActionCard(title: "New Note", systemImage: "square.and.pencil", tint: .indigo) {
                 createNote(.lined)
             }
@@ -912,7 +912,7 @@ private struct QuickActionLabel: View {
     let tint: Color
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: Theme.Spacing.lg) {
             Image(systemName: systemImage)
                 .font(.title2)
                 .foregroundStyle(tint)
@@ -921,8 +921,8 @@ private struct QuickActionLabel: View {
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, minHeight: 96)
-        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(tint.opacity(0.35)))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xxl).stroke(tint.opacity(0.35)))
+        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.xxl))
     }
 }

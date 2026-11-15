@@ -46,15 +46,15 @@ struct StickyNoteEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.xl) {
                         ForEach(StickyNote.Tint.allCases) { tint in
                             Button {
                                 note.tint = tint
                             } label: {
-                                RoundedRectangle(cornerRadius: 6)
+                                RoundedRectangle(cornerRadius: Theme.Radius.xs)
                                     .fill(tint.color)
                                     .frame(width: 34, height: 34)
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary, lineWidth: note.tint == tint ? 2.5 : 0))
+                                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xs).stroke(Color.primary, lineWidth: note.tint == tint ? 2.5 : 0))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(Text(tr(tint.title)))
@@ -66,10 +66,10 @@ struct StickyNoteEditor: View {
                     TextField("Type here", text: $note.text, axis: .vertical)
                         .lineLimit(2...6)
                         .font(.custom("Noteworthy-Light", size: 19))
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                         StickyInkCanvas(drawing: $drawing, tint: note.tint)
                             .frame(width: 300, height: 300)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xs))
                             .frame(maxWidth: .infinity)
                         HStack {
                             Text("Write with Apple Pencil or a finger.")
@@ -86,7 +86,7 @@ struct StickyNoteEditor: View {
                     TextField("Group, like Exam or Ideas", text: $groupText)
                     if !groups.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
+                            HStack(spacing: Theme.Spacing.md) {
                                 ForEach(groups, id: \.self) { group in
                                     Button {
                                         groupText = group
@@ -275,7 +275,7 @@ struct StickyListView: View {
     }
 
     private func row(_ note: StickyNote, page: Int) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             RoundedRectangle(cornerRadius: 4)
                 .fill(note.tint.color)
                 .frame(width: 30, height: 30)
@@ -284,7 +284,7 @@ struct StickyListView: View {
                         Image(systemName: "checklist").font(.caption).foregroundStyle(Color.black.opacity(0.55))
                     }
                 }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                 if note.headline.isEmpty {
                     Text("Handwritten note").foregroundStyle(.secondary)
                 } else {

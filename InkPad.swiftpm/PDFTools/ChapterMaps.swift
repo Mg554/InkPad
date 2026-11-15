@@ -224,7 +224,7 @@ struct ConceptGraphView: View {
 
     private func pagesBar(for concept: String) -> some View {
         let pages = pagesFor(concept)
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("“\(concept)” is on \(pages.count) pages").font(.headline)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
@@ -239,7 +239,7 @@ struct ConceptGraphView: View {
             }
         }
         .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
         .padding()
     }
 

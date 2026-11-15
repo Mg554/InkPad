@@ -81,7 +81,7 @@ struct PlannerTodayView: View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
                 ForEach(Self.firstHour...Self.lastHour, id: \.self) { hour in
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: Theme.Spacing.md) {
                         Text(PlannerInsights.hourLabel(hour))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
@@ -122,12 +122,12 @@ struct PlannerTodayView: View {
         let height = max(CGFloat(minutes) / 60 * Self.hourHeight, 24)
         let tint: Color = task.important ? .red : .blue
         let title = task.title.isEmpty ? "Untitled" : task.title
-        return HStack(spacing: 8) {
+        return HStack(spacing: Theme.Spacing.md) {
             if height < 48 {
                 // Short blocks: title and length on one line.
                 Text("\(title) · \(minutes) min").font(.caption.weight(.semibold)).lineLimit(1)
             } else {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                     Text(tr(title)).font(.callout.weight(.semibold)).lineLimit(2)
                     Text("\(minutes) min").font(.caption2).foregroundStyle(.secondary)
                 }
@@ -143,7 +143,7 @@ struct PlannerTodayView: View {
         .padding(.horizontal, 10)
         .frame(width: width * 0.62, height: height, alignment: .leading)
         .clipped()
-        .background(tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
+        .background(tint.opacity(0.16), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
         .overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 2).fill(tint).frame(width: 4) }
         .contentShape(Rectangle())
         .onTapGesture { edit(task) }
@@ -152,7 +152,7 @@ struct PlannerTodayView: View {
 
     private func sessionBlock(_ session: FlowSession, width: CGFloat) -> some View {
         let height = max(CGFloat(session.workSeconds) / 3600 * Self.hourHeight, 6)
-        return RoundedRectangle(cornerRadius: 6)
+        return RoundedRectangle(cornerRadius: Theme.Radius.xs)
             .fill(Color.green.opacity(0.35))
             .overlay(alignment: .topLeading) {
                 if height > 18 {
@@ -307,8 +307,8 @@ struct PlannerMatrixView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
-            LazyVGrid(columns: columns, spacing: 14) {
+            let columns = [GridItem(.flexible(), spacing: Theme.Spacing.xxl), GridItem(.flexible(), spacing: Theme.Spacing.xxl)]
+            LazyVGrid(columns: columns, spacing: Theme.Spacing.xxl) {
                 ForEach(quadrants) { quadrant in
                     box(quadrant)
                         .frame(height: max((geometry.size.height - 54) / 2, 220))
@@ -320,7 +320,7 @@ struct PlannerMatrixView: View {
 
     private func box(_ quadrant: Quadrant) -> some View {
         let tasks = workspace.tasks.filter { $0.status != .done && $0.important == quadrant.important && $0.urgent == quadrant.urgent }
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             HStack {
                 Text(tr(quadrant.title)).font(.headline).foregroundStyle(quadrant.color)
                 Text("\(tasks.count)").foregroundStyle(.secondary)
@@ -328,7 +328,7 @@ struct PlannerMatrixView: View {
                 Text(trMessage(quadrant.hint)).font(.caption).foregroundStyle(.secondary)
             }
             ScrollView {
-                VStack(spacing: 6) {
+                VStack(spacing: Theme.Spacing.sm) {
                     ForEach(tasks) { task in
                         HStack {
                             Text(task.title.isEmpty ? "Untitled" : task.title).lineLimit(2)
@@ -341,7 +341,7 @@ struct PlannerMatrixView: View {
                             .buttonStyle(.borderless)
                         }
                         .padding(10)
-                        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+                        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
                         .contentShape(Rectangle())
                         .onTapGesture { edit(task) }
                         .draggable(task.id.uuidString)
@@ -351,8 +351,8 @@ struct PlannerMatrixView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(quadrant.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(quadrant.color.opacity(0.35)))
+        .background(quadrant.color.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.huge))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.huge).stroke(quadrant.color.opacity(0.35)))
         .dropDestination(for: String.self) { ids, _ in
             withAnimation(.snappy) {
                 for id in ids.compactMap(UUID.init(uuidString:)) {
@@ -373,8 +373,8 @@ struct PlannerWeeklyReview: View {
     var body: some View {
         let week = PlannerInsights.week(tasks: workspace.tasks, sessions: workspace.flowSessions, distractions: workspace.distractions)
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
+                HStack(spacing: Theme.Spacing.xxl) {
                     stat(PlannerInsights.duration(week.totalFocus), "focused", .green)
                     stat("\(week.sessions)", "sessions", .blue)
                     stat("\(week.tasksDone)", "tasks done", .purple)
@@ -383,7 +383,7 @@ struct PlannerWeeklyReview: View {
                 chart(week)
                 insights(week)
                 if !week.topTasks.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                         Text("Where the Time Went").font(.headline)
                         ForEach(week.topTasks, id: \.title) { item in
                             HStack {
@@ -404,7 +404,7 @@ struct PlannerWeeklyReview: View {
     }
 
     private func stat(_ value: String, _ label: String, _ color: Color) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: Theme.Spacing.xs) {
             Text(tr(value)).font(.title2.bold()).foregroundStyle(color)
             Text(trMessage(label)).font(.caption).foregroundStyle(.secondary)
         }
@@ -415,19 +415,19 @@ struct PlannerWeeklyReview: View {
 
     private func chart(_ week: PlannerInsights.Week) -> some View {
         let most = max(week.focusPerDay.max() ?? 0, 1)
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Text("Focus per Day").font(.headline)
-            HStack(alignment: .bottom, spacing: 12) {
+            HStack(alignment: .bottom, spacing: Theme.Spacing.xl) {
                 ForEach(0..<7, id: \.self) { index in
                     let seconds = week.focusPerDay[index]
                     let share: CGFloat = CGFloat(seconds) / CGFloat(most)
-                    VStack(spacing: 6) {
+                    VStack(spacing: Theme.Spacing.sm) {
                         Text(seconds > 0 ? PlannerInsights.duration(seconds) : "")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: Theme.Radius.xs)
                             .fill(Color.green.gradient)
                             .frame(height: max(share * 160, 4))
                         Text(week.dayStarts[index].formatted(.dateTime.weekday(.abbreviated)))
@@ -443,7 +443,7 @@ struct PlannerWeeklyReview: View {
     }
 
     private func insights(_ week: PlannerInsights.Week) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Text("What the Week Says").font(.headline)
             if let hour = week.bestHour {
                 Label("Your best focus starts around \(PlannerInsights.hourLabel(hour)). Plan hard tasks there.", systemImage: "sun.max")
@@ -554,7 +554,7 @@ struct PlannerTimelineView: View {
             ForEach(0..<Self.days, id: \.self) { offset in
                 let day = Calendar.current.date(byAdding: .day, value: offset, to: firstDay) ?? firstDay
                 let isToday = Calendar.current.isDateInToday(day)
-                VStack(spacing: 2) {
+                VStack(spacing: Theme.Spacing.x2) {
                     Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary)
                     Text(day.formatted(.dateTime.day()))
                         .font(.caption.weight(isToday ? .bold : .regular))
@@ -594,14 +594,14 @@ struct PlannerTimelineView: View {
         let length = max(endIndex - startIndex + 1, 1)
         let tint: Color = task.status == .done ? .green : (task.important ? .red : PlannerView.color(for: task.status))
         let overdue: Bool = task.status != .done && (task.dueDate ?? .distantFuture) < Calendar.current.startOfDay(for: Date())
-        return RoundedRectangle(cornerRadius: 8)
+        return RoundedRectangle(cornerRadius: Theme.Radius.sm)
             .fill(tint.opacity(task.status == .done ? 0.35 : 0.75).gradient)
             .overlay(alignment: .leading) {
                 if let estimate = task.estimateMinutes {
                     Text("\(estimate)m").font(.caption2.weight(.semibold)).foregroundStyle(.white).padding(.leading, 6)
                 }
             }
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(overdue ? Color.red : Color.clear, lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(overdue ? Color.red : Color.clear, lineWidth: 2))
             .frame(width: CGFloat(length) * Self.dayWidth - 6, height: Self.rowHeight - 12)
             .offset(x: CGFloat(startIndex) * Self.dayWidth + 3, y: CGFloat(row) * Self.rowHeight + 6)
 

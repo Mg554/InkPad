@@ -151,10 +151,10 @@ struct FocusCompanionView: View {
                 Text("Nothing related yet. Write a little more.").foregroundStyle(.secondary)
             }
             ForEach(items) { item in
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text(store.note(item.id)?.title ?? "Note").font(.subheadline.weight(.semibold))
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: Theme.Spacing.sm) {
                             ForEach(item.shared.prefix(4), id: \.self) { name in
                                 Button(tr(name)) { CommandCenter.shared.sheet = .concept(LivingAnalyzer.key(for: name)) }
                                     .font(.caption)
@@ -261,7 +261,7 @@ struct FocusCompanionView: View {
                 Text("No weak cards on this subject.").foregroundStyle(.secondary)
             }
             ForEach(cards) { item in
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     Text(item.card.front).font(.callout.weight(.semibold))
                     if revealed.contains(item.id) {
                         Text(item.card.back).font(.callout).foregroundStyle(.secondary)
@@ -312,7 +312,7 @@ struct FocusWrapUpView: View {
         NavigationStack {
             List {
                 Section {
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.xl) {
                         stat(PlannerInsights.duration(summary.seconds), "focused", .green)
                         if summary.pages > 0 { stat("\(summary.pages)", summary.pages == 1 ? "page" : "pages", .blue) }
                         if summary.strokes > 0 { stat("\(summary.strokes)", "strokes written", .purple) }
@@ -365,7 +365,7 @@ struct FocusWrapUpView: View {
     }
 
     private func stat(_ value: String, _ label: String, _ color: Color) -> some View {
-        VStack(spacing: 2) {
+        VStack(spacing: Theme.Spacing.x2) {
             Text(tr(value)).font(.title3.bold()).foregroundStyle(color)
             Text(trMessage(label)).font(.caption).foregroundStyle(.secondary)
         }
@@ -469,7 +469,7 @@ struct FocusScreenView: View {
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 620)
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.xxl2) {
                 Button("Close") { dismiss() }
                     .buttonStyle(.bordered)
                 Button {
@@ -491,12 +491,12 @@ struct FocusScreenView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let seconds = session.elapsed(at: context.date)
             let plant = GardenPlant(subject: session.title, seconds: subjectSeconds + seconds)
-            VStack(spacing: 18) {
+            VStack(spacing: Theme.Spacing.huge) {
                 Text(tr(session.title)).font(.title2.weight(.semibold))
                 FlowTimerFace(face: looks.look.face, seconds: seconds, progress: Double(seconds % 3600) / 3600, tint: .green, label: "Focus")
                     .styledGlow(looks.look.glow, color: .green)
                 GardenPlantCard(plant: plant, size: 110)
-                HStack(spacing: 14) {
+                HStack(spacing: Theme.Spacing.xxl) {
                     Button {
                         // The session keeps running; the Focus pill brings this back.
                         dismiss()
@@ -552,11 +552,11 @@ struct FocusPill: View {
     @ObservedObject private var session = FocusSession.shared
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.xl) {
             Button {
                 CommandCenter.shared.showsFocusScreen = true
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: Theme.Spacing.md) {
                     Image(systemName: "scope").foregroundStyle(.green)
                     TimelineView(.periodic(from: .now, by: 1)) { context in
                         Text(Flowmodoro.clock(session.elapsed(at: context.date)))

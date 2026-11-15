@@ -210,7 +210,7 @@ struct HandwritingSettingsView: View {
     @ObservedObject private var store = HandwritingSettingsStore.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
             Text("Refine Handwriting")
                 .font(.headline)
             Toggle(isOn: $store.settings.smooths) {

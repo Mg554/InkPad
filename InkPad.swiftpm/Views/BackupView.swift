@@ -48,7 +48,7 @@ struct BackupView: View {
             Form {
                 Section {
                     Label {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                             Text("One file with everything in InkPad")
                                 .font(.headline)
                             Text("Notes, PDFs, pictures, recordings, folders, planner, expenses, mind maps, slides, flashcards and study chats. AI keys are not included.")
@@ -140,14 +140,14 @@ struct BackupView: View {
             }
             .overlay {
                 if let progress {
-                    VStack(spacing: 12) {
+                    VStack(spacing: Theme.Spacing.xl) {
                         ProgressView()
                             .controlSize(.large)
                         Text(trMessage(progress))
                             .font(.headline)
                     }
                     .padding(28)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.huge))
                 }
             }
         }
@@ -195,7 +195,7 @@ struct BackupView: View {
 
     private func safetyCopyRow(_ copy: SafetyCopy) -> some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                 Text(copy.date.formatted(date: .abbreviated, time: .shortened))
                 Text(ByteCountFormatter.string(fromByteCount: copy.byteCount, countStyle: .file))
                     .font(.caption)

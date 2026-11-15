@@ -68,11 +68,11 @@ struct MindMapsView: View {
     }
 
     private func card(_ map: MindMap) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             MindMapPreview(map: map)
                 .frame(height: 120)
                 .background { ScreenBackdropView(backdrop: map.appliedStyle.backdrop, animated: false) }
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
             Text(tr(map.title))
                 .font(.headline)
                 .foregroundStyle(.primary)
@@ -319,7 +319,7 @@ struct MindMapEditor: View {
     }
 
     private func actionBar(for node: MindNode, in map: MindMap) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Theme.Spacing.sm) {
             barButton("Add Idea", systemImage: "plus.bubble") { addChild(to: node) }
             if node.parentID != nil {
                 barButton("Add Sibling", systemImage: "arrow.turn.down.right") { addSibling(of: node) }

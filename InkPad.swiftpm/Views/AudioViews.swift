@@ -11,7 +11,7 @@ struct RecordButton: View {
             Button {
                 audio.stopRecording()
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: Theme.Spacing.sm) {
                     Image(systemName: "record.circle")
                         .symbolEffect(.pulse)
                     Text(AudioClock.string(audio.recordingTime))
@@ -73,7 +73,7 @@ struct AudioPlaybackBar: View {
 
     private func bar(_ current: AudioRecording) -> some View {
         let title = recordings.first(where: { $0.id == current.id })?.title ?? current.title
-        return HStack(spacing: 12) {
+        return HStack(spacing: Theme.Spacing.xl) {
             recordingMenu(current, title: title)
             Button {
                 audio.skip(by: -15)
@@ -172,7 +172,7 @@ struct AudioPlaybackBar: View {
                 Text("Tap your writing to hear what was said as you wrote it (with finger drawing off).")
             }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "waveform")
                 Text(tr(title))
                     .font(.subheadline.weight(.semibold))

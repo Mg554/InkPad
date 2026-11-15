@@ -545,7 +545,7 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
 
     /// Add Comment: a comment pin anchored above the selection's top edge.
     private func offerComment() {
-        guard let host, hasSelection else { return }
+        guard hasSelection else { return }
         let bounds = selectionBounds
         clearSelection()
         onAddComment?(CGPoint(x: bounds.midX, y: bounds.minY - 24))
@@ -745,7 +745,7 @@ final class SelectionOverlayView: UIView {
     }
 
     func showSelection(_ rect: CGRect?) {
-        selectionLayer.path = rect.map { UIBezierPath(roundedRect: $0.insetBy(dx: -8, dy: -8), cornerRadius: 10).cgPath }
+        selectionLayer.path = rect.map { UIBezierPath(roundedRect: $0.insetBy(dx: -8, dy: -8), cornerRadius: Theme.Radius.md).cgPath }
     }
 
     func beginSnapshot(_ image: UIImage, frame: CGRect) {

@@ -63,7 +63,7 @@ struct RemindersView: View {
     private var home: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 14)], spacing: 14) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: Theme.Spacing.xxl)], spacing: Theme.Spacing.xxl) {
                     ForEach(ReminderCenter.SmartList.allCases) { smart in
                         NavigationLink {
                             ReminderListView(source: .smart(smart))
@@ -91,7 +91,7 @@ struct RemindersView: View {
                         NavigationLink {
                             ReminderListView(source: .list(list))
                         } label: {
-                            HStack(spacing: 14) {
+                            HStack(spacing: Theme.Spacing.xxl) {
                                 ListIcon(icon: look.icon(for: list), color: Color(cgColor: list.cgColor))
                                     .styledGlow(look.glow, color: Color(cgColor: list.cgColor))
                                 Text(tr(list.title))
@@ -125,7 +125,7 @@ struct RemindersView: View {
                         Divider().padding(.leading, 60)
                     }
                 }
-                .modifier(ReminderTileBackground(tiles: look.tiles == .gradient ? .glass : look.tiles, tint: .inkAccent, cornerRadius: 14))
+                .modifier(ReminderTileBackground(tiles: look.tiles == .gradient ? .glass : look.tiles, tint: .inkAccent, cornerRadius: Theme.Radius.xl))
             }
             .padding(24)
             .frame(maxWidth: 820)
@@ -145,7 +145,7 @@ struct RemindersView: View {
     }
 
     private func smartTile(_ smart: ReminderCenter.SmartList) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             HStack {
                 Image(systemName: smart.systemImage)
                     .font(.title)
@@ -228,7 +228,7 @@ struct ReminderListView: View {
                 }
             }
             if canAdd {
-                HStack(spacing: 12) {
+                HStack(spacing: Theme.Spacing.xl) {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)
                         .foregroundStyle(tint)
@@ -302,7 +302,7 @@ struct ReminderRow: View {
     @State private var bursts = 0
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Theme.Spacing.xl) {
             Button {
                 let finishing = !reminder.isCompleted
                 if finishing && style.look.celebrate {
@@ -325,8 +325,8 @@ struct ReminderRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel(reminder.isCompleted ? "Mark as Not Done" : "Mark as Done")
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                HStack(spacing: Theme.Spacing.xs) {
                     if !reminder.priorityMarks.isEmpty {
                         Text(tr(reminder.priorityMarks))
                             .foregroundStyle(reminder.listColor)
@@ -342,7 +342,7 @@ struct ReminderRow: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
-                HStack(spacing: 10) {
+                HStack(spacing: Theme.Spacing.lg) {
                     if let due = reminder.dueDate {
                         Label(Self.dueText(due, hasTime: reminder.hasDueTime), systemImage: "calendar")
                             .foregroundStyle(reminder.isOverdue ? Color.red : Color.secondary)

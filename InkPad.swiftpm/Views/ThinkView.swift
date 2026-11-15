@@ -109,7 +109,7 @@ struct ThinkView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
                     if isHidden {
                         notice(
                             "Protected by the AI Firewall",
@@ -161,7 +161,7 @@ struct ThinkView: View {
     // MARK: Parts
 
     private var passageCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Label("What you wrote", systemImage: "pencil.and.scribble")
                 .font(.headline)
             if hasPassage {
@@ -178,7 +178,7 @@ struct ThinkView: View {
                 .frame(minHeight: 90, maxHeight: 180)
                 .scrollContentBackground(.hidden)
                 .padding(8)
-                .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
         }
     }
 
@@ -207,12 +207,12 @@ struct ThinkView: View {
     }
 
     private var modePicker: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 12)], spacing: 12) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: Theme.Spacing.xl)], spacing: Theme.Spacing.xl) {
             ForEach(ThinkMode.allCases) { item in
                 Button {
                     mode = item
                 } label: {
-                    VStack(spacing: 8) {
+                    VStack(spacing: Theme.Spacing.md) {
                         Image(systemName: item.systemImage)
                             .font(.title2)
                         Text(tr(item.title))
@@ -220,8 +220,8 @@ struct ThinkView: View {
                     }
                     .foregroundStyle(mode == item ? Color.white : item.tint)
                     .frame(maxWidth: .infinity, minHeight: 78)
-                    .background(mode == item ? item.tint : item.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(item.tint.opacity(0.4)))
+                    .background(mode == item ? item.tint : item.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.xl))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl).stroke(item.tint.opacity(0.4)))
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(mode == item ? .isSelected : [])
@@ -253,17 +253,17 @@ struct ThinkView: View {
     @ViewBuilder
     private var resultCard: some View {
         if !cards.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                 Text("\(cards.count) Flashcards")
                     .font(.title3.bold())
                 ForEach(cards) { card in
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         Text(card.front).font(.headline)
                         Text(card.back).foregroundStyle(.secondary)
                     }
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    .background(Theme.Colors.secondarySurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 }
                 Button {
                     saveCards()
@@ -274,7 +274,7 @@ struct ThinkView: View {
                 .buttonStyle(.bordered)
             }
         } else if let result {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                 MarkdownPreview(text: result) { _ in }
                 HStack {
                     if let placeOnPage {
@@ -302,8 +302,8 @@ struct ThinkView: View {
                 }
             }
             .padding(18)
-            .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(mode.tint.opacity(0.3)))
+            .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xxl).stroke(mode.tint.opacity(0.3)))
         }
     }
 
@@ -314,11 +314,11 @@ struct ThinkView: View {
         tint: Color,
         @ViewBuilder action: () -> some View = { EmptyView() }
     ) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Theme.Spacing.xxl) {
             Image(systemName: image)
                 .font(.title2)
                 .foregroundStyle(tint)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Text(tr(title)).font(.headline)
                 Text(trMessage(message))
                     .font(.subheadline)

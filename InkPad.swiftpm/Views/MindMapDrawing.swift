@@ -65,8 +65,8 @@ struct MindNodeChrome: ViewModifier {
                 .shadow(color: glow, radius: radius)
         case .rounded:
             content
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(fill))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(outline, lineWidth: width))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).fill(fill))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).stroke(outline, lineWidth: width))
                 .shadow(color: glow, radius: radius)
         case .box:
             content
@@ -112,7 +112,7 @@ struct MindNodeChrome: ViewModifier {
                 .shadow(color: glow, radius: radius / 2)
         case .plain:
             content
-                .background(isSelected ? AnyShapeStyle(color.opacity(0.15)) : AnyShapeStyle(Color.clear), in: RoundedRectangle(cornerRadius: 8))
+                .background(isSelected ? AnyShapeStyle(color.opacity(0.15)) : AnyShapeStyle(Color.clear), in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
         }
     }
 }

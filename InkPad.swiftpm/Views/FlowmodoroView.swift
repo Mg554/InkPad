@@ -132,7 +132,7 @@ struct FlowmodoroView: View {
 
     private var timerCard: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            VStack(spacing: 16) {
+            VStack(spacing: Theme.Spacing.xxl2) {
                 Text("Work with focus, rest wisely.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -148,7 +148,7 @@ struct FlowmodoroView: View {
     @ViewBuilder
     private var currentTask: some View {
         if let timer {
-            VStack(spacing: 4) {
+            VStack(spacing: Theme.Spacing.xs) {
                 Text(timer.phase == .working ? "Focusing on" : "Last session")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -187,7 +187,7 @@ struct FlowmodoroView: View {
         if !plants.isEmpty {
             Section {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.xl) {
                         ForEach(plants.prefix(8)) { plant in
                             GardenPlantCard(plant: plant, size: 90)
                         }
@@ -214,7 +214,7 @@ struct FlowmodoroView: View {
     }
 
     private func timerBox(_ title: String, value: String, tint: Color, isRunning: Bool) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Theme.Spacing.sm) {
             Text(tr(title))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -283,7 +283,7 @@ struct FlowmodoroView: View {
 
     private func taskRow(_ task: FlowTask) -> some View {
         let isActive = timer?.taskID == task.id && isWorking
-        return HStack(spacing: 12) {
+        return HStack(spacing: Theme.Spacing.xl) {
             Button {
                 workspace.toggleFlowTask(task.id)
             } label: {
@@ -385,7 +385,7 @@ struct FlowmodoroView: View {
     }
 
     private func sessionRow(_ session: FlowSession) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Text(session.taskTitle)
                 .font(.body.weight(.semibold))
             Text("Work \(Flowmodoro.clock(session.workSeconds, forceHours: true)) · Break \(Flowmodoro.clock(session.breakSeconds))")

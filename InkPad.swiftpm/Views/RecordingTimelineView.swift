@@ -41,14 +41,14 @@ struct RecordingTimelineView: View {
             .navigationBarTitleDisplayMode(.inline)
             .overlay {
                 if let stage {
-                    VStack(spacing: 10) {
+                    VStack(spacing: Theme.Spacing.lg) {
                         ProgressView()
                         Text(trMessage(stage))
                             .font(.subheadline)
                             .multilineTextAlignment(.center)
                     }
                     .padding(22)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
                 }
             }
         }
@@ -123,7 +123,7 @@ struct RecordingTimelineView: View {
                         Button {
                             jump(to: chapter.start)
                         } label: {
-                            HStack(spacing: 12) {
+                            HStack(spacing: Theme.Spacing.xl) {
                                 Text(AudioClock.string(chapter.start))
                                     .font(.subheadline.monospacedDigit())
                                     .foregroundStyle(.secondary)
@@ -208,7 +208,7 @@ struct RecordingTimelineView: View {
         Button {
             jump(to: phrase.start)
         } label: {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.xl) {
                 Text(AudioClock.string(phrase.start))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)

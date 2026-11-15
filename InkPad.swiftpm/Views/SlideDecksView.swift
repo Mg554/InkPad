@@ -79,16 +79,16 @@ private struct DeckCard: View {
     let deck: SlideDeck
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             if let first = deck.slides.first {
                 SlideView(slide: first, theme: deck.theme, image: nil, number: 1, total: deck.slides.count)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                     .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
             }
             Text(tr(deck.title))
                 .font(.headline)
                 .lineLimit(1)
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 if deck.isAIWritten {
                     Image(systemName: "sparkles")
                         .foregroundStyle(.purple)

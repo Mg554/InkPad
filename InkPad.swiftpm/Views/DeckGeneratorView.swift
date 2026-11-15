@@ -113,7 +113,7 @@ struct DeckGeneratorView: View {
 
             Section {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
+                    HStack(spacing: Theme.Spacing.xxl) {
                         ForEach(SlideTheme.allCases) { theme in
                             themeSwatch(theme)
                         }
@@ -168,8 +168,8 @@ struct DeckGeneratorView: View {
         return Button {
             options.theme = theme
         } label: {
-            VStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+            VStack(spacing: Theme.Spacing.sm) {
+                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
                     .fill(theme.background)
                     .frame(width: 104, height: 58)
                     .overlay(alignment: .bottomLeading) {
@@ -179,7 +179,7 @@ struct DeckGeneratorView: View {
                             .padding(10)
                     }
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
                             .stroke(isSelected ? Color.inkAccent : Color.secondary.opacity(0.25), lineWidth: isSelected ? 3 : 1)
                     )
                 Text(tr(theme.title))
@@ -195,7 +195,7 @@ struct DeckGeneratorView: View {
     private func progressCard(_ stage: String) -> some View {
         ZStack {
             Color.black.opacity(0.25).ignoresSafeArea()
-            VStack(spacing: 16) {
+            VStack(spacing: Theme.Spacing.xxl2) {
                 ProgressView()
                     .controlSize(.large)
                 Text(trMessage(stage))
@@ -207,7 +207,7 @@ struct DeckGeneratorView: View {
             }
             .padding(28)
             .frame(maxWidth: 360)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous))
         }
     }
 

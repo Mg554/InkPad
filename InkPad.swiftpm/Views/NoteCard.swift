@@ -10,7 +10,7 @@ struct NoteCard: View {
     private var showsLock: Bool { note.locked && !store.isUnlocked(note.id) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             ZStack(alignment: .topLeading) {
                 Color.white
                 if showsLock {
@@ -38,12 +38,12 @@ struct NoteCard: View {
                 }
             }
             .aspectRatio(PageLayout.templatePageSize.width / PageLayout.templatePageSize.height, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md).stroke(.quaternary))
             .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
             .overlay(alignment: .topTrailing) { badges }
 
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Spacing.xs) {
                 Text(tr(note.title))
                     .font(.headline)
                     .lineLimit(1)
@@ -73,7 +73,7 @@ struct NoteCard: View {
     @ViewBuilder
     private var badges: some View {
         if note.isPinned || note.favorite || showsLock {
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Spacing.xs) {
                 if note.isPinned {
                     Image(systemName: "pin.fill").foregroundStyle(Color.orange)
                 }

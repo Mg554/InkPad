@@ -83,7 +83,7 @@ struct SyncSettingsView: View {
                         Text("Nothing yet.").foregroundStyle(.secondary)
                     }
                     ForEach(sync.log.prefix(60)) { entry in
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                             Text(trMessage(entry.text)).font(.subheadline)
                             Text(entry.date, format: .dateTime.day().month().hour().minute().second())
                                 .font(.caption2).foregroundStyle(.secondary)
@@ -118,7 +118,7 @@ struct SyncStatusLine: View {
     @ObservedObject private var sync = SyncEngine.shared
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Theme.Spacing.md) {
             switch sync.status {
             case .off:
                 Image(systemName: "icloud.slash").foregroundStyle(.secondary)
@@ -210,7 +210,7 @@ struct ConflictCompareView: View {
         NavigationStack {
             List {
                 Section {
-                    HStack(spacing: 16) {
+                    HStack(spacing: Theme.Spacing.xxl2) {
                         side(original, label: "This Copy", tint: .blue)
                         side(copy, label: "Other Copy", tint: .orange)
                     }
@@ -223,7 +223,7 @@ struct ConflictCompareView: View {
                         Text("The words are the same; the drawing or layout differs.").foregroundStyle(.secondary)
                     } else {
                         ForEach(lines.filter { $0.kind != .same || lines.count < 40 }) { line in
-                            HStack(alignment: .top, spacing: 8) {
+                            HStack(alignment: .top, spacing: Theme.Spacing.md) {
                                 Text(line.kind.mark).font(.system(.body, design: .monospaced).weight(.bold))
                                 Text(verbatim: line.text).font(.system(.callout, design: .monospaced))
                             }
@@ -283,12 +283,12 @@ struct ConflictCompareView: View {
     }
 
     private func side(_ note: NoteSummary?, label: LocalizedStringKey, tint: Color) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Theme.Spacing.sm) {
             if let note {
                 NotePreview(note: note)
                     .frame(width: 120, height: 160)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(tint, lineWidth: 2))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(tint, lineWidth: 2))
                 Text(label).font(.caption.weight(.semibold)).foregroundStyle(tint)
                 Text(note.modifiedAt, format: .dateTime.day().month().hour().minute())
                     .font(.caption2).foregroundStyle(.secondary)

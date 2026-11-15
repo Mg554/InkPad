@@ -54,7 +54,7 @@ struct NoteHistoryView: View {
 
     private func row(_ version: LibraryBackup.NoteVersion) -> some View {
         let isCurrent = version.note.modifiedAt == store.note(note.id)?.modifiedAt
-        return HStack(spacing: 14) {
+        return HStack(spacing: Theme.Spacing.xxl) {
             Image(systemName: "clock")
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 3) {

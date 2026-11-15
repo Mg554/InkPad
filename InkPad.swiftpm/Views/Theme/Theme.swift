@@ -173,7 +173,7 @@ struct ThemeRecipe: Codable, Equatable {
     var paper: PaperColor { ThemePreset.named(paperFrom).paper }
 
     var background: Color {
-        guard let pair = colors.background else { return Color(uiColor: .systemBackground) }
+        guard let pair = colors.background else { return Theme.Colors.surface }
         return Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? pair.dark : pair.light })
     }
 
@@ -267,6 +267,48 @@ final class ThemeSettings: ObservableObject {
 extension Color {
     /// The theme's accent color (use instead of `Color.accentColor`).
     static var inkAccent: Color { ThemeSettings.current.accent }
+}
+
+/// Design tokens shared by every screen: corner radii, spacing and the
+/// colors repeated across screens. One place changes a look everywhere
+/// (the same idea Notability's GLPersonality serves). Where the theme has
+/// an opinion, the token reads it; the rest are the steps the UI already
+/// uses.
+enum Theme {
+    /// Corner radii: `xs` for badges and chips, up to `hero` for the
+    /// big showcase cards. Continuous style stays at the call site.
+    enum Radius {
+        public static let xs: CGFloat = 6
+        public static let sm: CGFloat = 8
+        public static let md: CGFloat = 10
+        public static let lg: CGFloat = 12
+        public static let xl: CGFloat = 14
+        public static let xxl: CGFloat = 16
+        public static let huge: CGFloat = 18
+        public static let hero: CGFloat = 22
+    }
+
+    /// The spacing steps between stacked views.
+    enum Spacing {
+        public static let x2: CGFloat = 2
+        public static let xs: CGFloat = 4
+        public static let sm: CGFloat = 6
+        public static let md: CGFloat = 8
+        public static let lg: CGFloat = 10
+        public static let xl: CGFloat = 12
+        public static let xxl: CGFloat = 14
+        public static let xxl2: CGFloat = 16
+        public static let huge: CGFloat = 18
+    }
+
+    /// Colors repeated across screens. They follow the system's light and
+    /// dark appearance, like the literal they replace.
+    enum Colors {
+        public static var surface: Color { Color(uiColor: .systemBackground) }
+        public static var secondarySurface: Color { Color(uiColor: .secondarySystemBackground) }
+        public static var hairline: Color { Color(uiColor: .separator) }
+        public static var fill: Color { Color(uiColor: .systemFill) }
+    }
 }
 
 /// The theme's background behind a screen: its color, or glass colors

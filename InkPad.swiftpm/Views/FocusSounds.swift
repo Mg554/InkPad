@@ -310,7 +310,7 @@ struct FocusSoundPicker: View {
         .navigationTitle("Sound")
         .navigationBarTitleDisplayMode(.inline)
         .overlay {
-            if isWorking { ProgressView().padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) }
+            if isWorking { ProgressView().padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl)) }
         }
         .sheet(isPresented: $isPickingFile) {
             DocumentPicker(contentTypes: [.audio]) { urls in

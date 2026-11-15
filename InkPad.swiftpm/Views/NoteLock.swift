@@ -48,7 +48,7 @@ struct NoteLockGate<Content: View>: View {
         if store.isUnlocked(noteID) {
             content()
         } else {
-            VStack(spacing: 14) {
+            VStack(spacing: Theme.Spacing.xxl) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(.secondary)
@@ -68,7 +68,7 @@ struct NoteLockGate<Content: View>: View {
                 .buttonStyle(.borderedProminent)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(uiColor: .systemBackground))
+            .background(Theme.Colors.surface)
         }
     }
 
@@ -109,7 +109,7 @@ struct FolderLockGate<Content: View>: View {
         if store.isFolderUnlocked(folderID) {
             content()
         } else {
-            VStack(spacing: 14) {
+            VStack(spacing: Theme.Spacing.xxl) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(.secondary)
@@ -129,7 +129,7 @@ struct FolderLockGate<Content: View>: View {
                 .buttonStyle(.borderedProminent)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(uiColor: .systemBackground))
+            .background(Theme.Colors.surface)
         }
     }
 

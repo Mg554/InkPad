@@ -54,12 +54,12 @@ struct PluginsView: View {
 
     @ViewBuilder
     private func row(_ plugin: Plugin) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             Image(systemName: plugin.symbol)
                 .font(.title3)
                 .foregroundStyle(Color.inkAccent)
                 .frame(width: 30)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                 Text(plugin.title)
                 Text(plugin.subtitle)
                     .font(.caption)

@@ -235,7 +235,7 @@ struct GraphView: View {
             case .glow, .dot:
                 let base: CGFloat = look.nodeStyle == .dot ? 8 : 14
                 let size = node.isTag ? 10 : min(base + grow, 34)
-                VStack(spacing: 4) {
+                VStack(spacing: Theme.Spacing.xs) {
                     Circle()
                         .fill(node.isTag ? Color.clear : tint)
                         .overlay(Circle().stroke(tint, lineWidth: node.isTag ? 2 : 0))
@@ -263,7 +263,7 @@ struct GraphView: View {
                     .overlay(Circle().stroke(.white.opacity(0.5), lineWidth: 1))
                     .shadow(color: tint.opacity(dimmed ? 0 : 0.5), radius: isSelected ? 12 : 5)
             case .card:
-                HStack(spacing: 6) {
+                HStack(spacing: Theme.Spacing.sm) {
                     Image(systemName: node.isTag ? "number" : node.isText ? "doc.text" : "pencil.and.scribble")
                         .foregroundStyle(tint)
                     if look.showsLabels {
@@ -275,8 +275,8 @@ struct GraphView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6 + grow / 4)
                 .frame(maxWidth: 170)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(tint.opacity(isSelected ? 1 : 0.5), lineWidth: isSelected ? 2 : 1))
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).stroke(tint.opacity(isSelected ? 1 : 0.5), lineWidth: isSelected ? 2 : 1))
                 .shadow(color: tint.opacity(dimmed ? 0 : 0.35), radius: isSelected ? 10 : 4)
             }
         }
@@ -321,11 +321,11 @@ struct GraphView: View {
     }
 
     private func infoCard(_ node: NoteGraph.Node, graph: NoteGraph) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: Theme.Spacing.xxl) {
             Image(systemName: node.isTag ? "number" : (node.isText ? "doc.text" : "pencil.and.scribble"))
                 .font(.title2)
                 .foregroundStyle(color(of: node))
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                 Text(tr(node.title)).font(.headline)
                 Text("\(graph.degree(of: node.id)) connections")
                     .font(.caption)
@@ -345,7 +345,7 @@ struct GraphView: View {
         }
         .padding(14)
         .frame(maxWidth: 520)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.xxl))
         .glowCard(color(of: node))
     }
 

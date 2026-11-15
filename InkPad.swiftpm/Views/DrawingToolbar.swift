@@ -49,12 +49,12 @@ struct DrawingToolbar<InsertMenu: View>: View {
         .padding(.vertical, isVertical ? 10 : 6)
         .background {
             // Dragging the bar itself (between its buttons) moves it, like Notability.
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous)
                 .fill(.regularMaterial)
                 .contentShape(Rectangle())
                 .gesture(moveGesture)
         }
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.primary.opacity(0.08)).allowsHitTesting(false))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.huge, style: .continuous).stroke(Color.primary.opacity(0.08)).allowsHitTesting(false))
         .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
         .animation(.snappy(duration: 0.2), value: isCollapsed)
         .animation(.snappy(duration: 0.15), value: palette.tool)
@@ -67,7 +67,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     @ViewBuilder
     private var fullBar: some View {
         if isVertical {
-            HStack(alignment: .top, spacing: 4) {
+            HStack(alignment: .top, spacing: Theme.Spacing.xs) {
                 if edge == .trailing {
                     optionsStack
                     toolsStack
@@ -81,7 +81,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 }
             }
         } else {
-            VStack(spacing: 4) {
+            VStack(spacing: Theme.Spacing.xs) {
                 toolsStack
                     .padding(.bottom, 4)
                     .overlay(alignment: .bottom) { hairline }
@@ -119,7 +119,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     }
 
     private var collapsedBar: some View {
-        AxisStack(vertical: isVertical, spacing: 8) {
+        AxisStack(vertical: isVertical, spacing: Theme.Spacing.md) {
             grip
             undoRedoButtons
             Image(systemName: palette.tool.systemImage)
@@ -491,7 +491,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             palette.laserLeavesTail.toggle()
             canvas.applyTool()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "scribble")
                 if !isVertical {
                     Text("Tail")
@@ -513,7 +513,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         return Button {
             palette.returnsAfterErasing.toggle()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "arrow.uturn.backward")
                 if !isVertical {
                     Text("Back to Last Tool")
@@ -613,7 +613,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     private func widthButtons(_ style: ToolStyle) -> some View {
         let widths = style.widths(for: palette.tool)
         let range = palette.tool.widthRange
-        return AxisStack(vertical: isVertical, spacing: 6) {
+        return AxisStack(vertical: isVertical, spacing: Theme.Spacing.sm) {
             ForEach(widths.indices, id: \.self) { index in
                 Button {
                     if index == style.widthIndex {
@@ -654,7 +654,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         let previewHeight: CGFloat = 92
         let previewScale = min(1, (previewHeight - 28) / max(range.upperBound, 1))
 
-        return VStack(spacing: 14) {
+        return VStack(spacing: Theme.Spacing.xxl) {
             // Preview of the stroke at the chosen width.
             Canvas { context, size in
                 var wave = Path()
@@ -710,7 +710,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     get: { !palette.style(for: tool).ignoresPressure(for: tool) },
                     set: { palette.setIgnoresPressure(!$0) }
                 )) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
                         Text("Pressure Sensitivity")
                         Text("Off keeps the width even however hard you press.")
                             .font(.caption)
@@ -784,7 +784,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             canvas.showKeyboard()
             KeyboardHelp.checkAfterShowing { keyboardHelp = $0 }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "keyboard")
                 if !isVertical {
                     Text("Show Keyboard")
@@ -814,7 +814,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
         return Button {
             canvas.toggleTextInputMode()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: mode.switchSymbol)
                 if !isVertical {
                     Text(mode == .keyboard ? "Write with Pencil" : "Use Keyboard")
@@ -833,7 +833,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
             Image(systemName: systemImage)
                 .frame(width: 34, height: 32)
                 .foregroundStyle(isOn ? Color.inkAccent : Color.primary)
-                .background(isOn ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                .background(isOn ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
         }
         .accessibilityLabel(trMessage(label))
     }

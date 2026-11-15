@@ -259,7 +259,7 @@ struct NotebookPane: View {
                 ProgressView().frame(maxHeight: .infinity)
             }
         }
-        .background(Color(uiColor: .systemBackground))
+        .background(Theme.Colors.surface)
         .onReceive(palette.objectWillChange) {
             // Same pen in the book and the notebook.
             DispatchQueue.main.async { notebook.session.canvas.applyTool() }
@@ -278,7 +278,7 @@ private struct NotebookHeader: View {
     let close: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             topRow
             chapterRow
             linksRow
@@ -289,7 +289,7 @@ private struct NotebookHeader: View {
     }
 
     private var topRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Theme.Spacing.lg) {
             Image(systemName: "book.pages").foregroundStyle(Color.inkAccent)
             Text(tr(notebook.title)).font(.subheadline.weight(.semibold)).lineLimit(1)
             Spacer()
@@ -346,7 +346,7 @@ private struct NotebookHeader: View {
     @ViewBuilder
     private var chapterRow: some View {
         if let chapter = notebook.currentChapter {
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.Spacing.md) {
                 Image(systemName: notebook.follows ? "arrow.triangle.2.circlepath" : "book")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -376,7 +376,7 @@ private struct NotebookHeader: View {
         let pages = notebook.bookPages(writtenOn: canvas.currentPage)
         if !pages.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+                HStack(spacing: Theme.Spacing.sm) {
                     Text("Written beside").font(.caption2).foregroundStyle(.secondary)
                     ForEach(pages, id: \.self) { page in
                         Button("p. \(page + 1)") { notebook.showBookPage(page) }

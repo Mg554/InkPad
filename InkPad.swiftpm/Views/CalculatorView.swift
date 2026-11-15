@@ -55,7 +55,7 @@ struct CalculatorView: View {
     // MARK: Display
 
     private var display: some View {
-        VStack(alignment: .trailing, spacing: 10) {
+        VStack(alignment: .trailing, spacing: Theme.Spacing.lg) {
             Picker(selection: $mode) {
                 ForEach(Mode.allCases) { option in
                     Label(tr(option.title), systemImage: option.symbol).tag(option)
@@ -73,7 +73,7 @@ struct CalculatorView: View {
                 .textInputAutocapitalization(.never)
                 .onChange(of: expression) { evaluate(expression) }
 
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.xl) {
                 Spacer()
                 if let result {
                     Text(result)
@@ -102,7 +102,7 @@ struct CalculatorView: View {
     // MARK: Writing
 
     private var writingArea: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Theme.Spacing.xl) {
             CalculatorCanvas(drawing: $ink)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -118,7 +118,7 @@ struct CalculatorView: View {
                     }
                 }
 
-            HStack(spacing: 12) {
+            HStack(spacing: Theme.Spacing.xl) {
                 Button {
                     clearAll()
                 } label: {
@@ -173,13 +173,13 @@ struct CalculatorView: View {
     // MARK: Keys
 
     private var keys: some View {
-        VStack(spacing: 10) {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6), spacing: 8) {
+        VStack(spacing: Theme.Spacing.lg) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Theme.Spacing.md), count: 6), spacing: Theme.Spacing.md) {
                 ForEach(scientificKeys, id: \.self) { key in
                     keyButton(key, prominent: false)
                 }
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Theme.Spacing.md), count: 4), spacing: Theme.Spacing.md) {
                 ForEach(numberKeys, id: \.self) { key in
                     keyButton(key, prominent: key == "=")
                 }
@@ -208,7 +208,7 @@ struct CalculatorView: View {
                 .font(.system(size: 22, weight: .medium, design: .rounded))
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
                         .fill(prominent ? Color.inkAccent : Color.secondary.opacity(0.12))
                 )
                 .foregroundStyle(prominent ? Color.white : Color.primary)
