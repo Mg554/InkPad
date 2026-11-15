@@ -17,6 +17,16 @@ struct PageElement: Codable, Identifiable, Equatable {
     let id: UUID
     var frame: CGRect
     var content: Content
+    /// When true the element cannot be moved, resized or deleted until
+    /// unlocked. `nil` in older files.
+    var isLocked: Bool?
+
+    init(id: UUID, frame: CGRect, content: Content, isLocked: Bool? = nil) {
+        self.id = id
+        self.frame = frame
+        self.content = content
+        self.isLocked = isLocked
+    }
 }
 
 /// Shared text box geometry and defaults, so the editor, thumbnails and

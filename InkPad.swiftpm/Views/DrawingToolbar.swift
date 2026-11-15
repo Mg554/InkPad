@@ -253,9 +253,21 @@ struct DrawingToolbar<InsertMenu: View>: View {
                 textFormattingItems
             case .image:
                 hint("Drag to move. Use the corner handle to resize.")
+                barDivider
+                elementArrangementControls
+                barDivider
                 deleteButton
             case .sticky:
                 hint("Drag the sticky note to move it, or the corner to resize. Tap it to write in it.")
+                barDivider
+                elementArrangementControls
+                barDivider
+                deleteButton
+            case .comment:
+                hint("Drag the comment pin to move it. Tap it to open its thread.")
+                barDivider
+                elementArrangementControls
+                barDivider
                 deleteButton
             case nil:
                 textInputModeButton
@@ -361,6 +373,8 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     canvas.formatText { $0.applyTextColor(color.uiColor) }
                 }
             }
+            barDivider
+            elementArrangementControls
             barDivider
             deleteButton
         }
@@ -845,7 +859,38 @@ struct DrawingToolbar<InsertMenu: View>: View {
             Image(systemName: "trash")
                 .frame(width: 34, height: 32)
         }
+        .disabled(canvas.selectedElementIsLocked)
         .accessibilityLabel("Delete")
+    }
+
+    /// Lock and stacking order for the selected element.
+    private var elementArrangementControls: some View {
+        Group {
+            let locked = canvas.selectedElementIsLocked
+            Button {
+                canvas.toggleLockSelectedElement()
+            } label: {
+                Image(systemName: locked ? "lock.fill" : "lock.open")
+                    .frame(width: 34, height: 32)
+                    .foregroundStyle(locked ? Color.inkAccent : Color.primary)
+                    .background(locked ? Color.inkAccent.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
+            }
+            .accessibilityLabel(tr(locked ? "Unlock" : "Lock"))
+            Button {
+                canvas.sendSelectedElementBackward()
+            } label: {
+                Image(systemName: "square.2.layers.3d.bottom.filled")
+                    .frame(width: 34, height: 32)
+            }
+            .accessibilityLabel(tr("Send Backward"))
+            Button {
+                canvas.bringSelectedElementForward()
+            } label: {
+                Image(systemName: "square.2.layers.3d.top.filled")
+                    .frame(width: 34, height: 32)
+            }
+            .accessibilityLabel(tr("Bring Forward"))
+        }
     }
 
     private func toggleButton(_ title: String, systemImage: String, isOn: Binding<Bool>) -> some View {

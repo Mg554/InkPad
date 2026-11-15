@@ -49,24 +49,25 @@ final class ElementLayerView: UIView {
     func load(_ elements: [PageElement]) {
         subviews.forEach { $0.removeFromSuperview() }
         for element in elements {
+            let locked = element.isLocked ?? false
             switch element.content {
             case let .text(rtf):
                 let text = TextBoxStyle.attributedString(fromRTF: rtf) ?? NSAttributedString()
-                add(TextBoxView(id: element.id, frame: element.frame, text: text))
+                add(TextBoxView(id: element.id, frame: element.frame, text: text, isLocked: locked))
             case let .image(file):
                 guard isPlainFileName(file),
                       let directory = imageDirectory,
                       let image = UIImage(contentsOfFile: directory.appendingPathComponent(file).path)
                 else {
                     // Keep the reference so a missing file is not silently dropped on save.
-                    add(ImageElementView(id: element.id, frame: element.frame, file: file, image: nil))
+                    add(ImageElementView(id: element.id, frame: element.frame, file: file, image: nil, isLocked: locked))
                     continue
                 }
-                add(ImageElementView(id: element.id, frame: element.frame, file: file, image: image))
+                add(ImageElementView(id: element.id, frame: element.frame, file: file, image: image, isLocked: locked))
             case let .sticky(note):
-                add(StickyNoteView(id: element.id, frame: element.frame, note: note))
+                add(StickyNoteView(id: element.id, frame: element.frame, note: note, isLocked: locked))
             case let .comment(comment):
-                add(CommentPinView(id: element.id, frame: element.frame, comment: comment))
+                add(CommentPinView(id: element.id, frame: element.frame, comment: comment, isLocked: locked))
             }
         }
     }
@@ -242,7 +243,7 @@ final class ElementLayerView: UIView {
     }
 
     func removeSelected() {
-        guard let selected else { return }
+        guard let selected, !selected.isElementLocked else { return }
         remove(selected)
     }
 
@@ -305,19 +306,63 @@ final class ElementLayerView: UIView {
             view.setRenderScale(scale)
         }
     }
+
+    // MARK: Z-order and lock
+
+    /// The element views in drawing order (back to front).
+    private var elementViews: [PageElementView] {
+        subviews.compactMap { $0 as? PageElementView }
+    }
+
+    func bringSelectedForward() {
+        guard let selected else { return }
+        let views = elementViews
+        guard let index = views.firstIndex(where: { $0 === selected }), index < views.count - 1 else { return }
+        exchangeSubview(at: subviews.firstIndex(of: selected)!, withSubviewAt: subviews.firstIndex(of: views[index + 1])!)
+        elementsDidChange()
+    }
+
+    func sendSelectedBackward() {
+        guard let selected else { return }
+        let views = elementViews
+        guard let index = views.firstIndex(where: { $0 === selected }), index > 0 else { return }
+        exchangeSubview(at: subviews.firstIndex(of: selected)!, withSubviewAt: subviews.firstIndex(of: views[index - 1])!)
+        elementsDidChange()
+    }
+
+    func bringSelectedToFront() {
+        guard let selected else { return }
+        bringSubviewToFront(selected)
+        elementsDidChange()
+    }
+
+    func sendSelectedToBack() {
+        guard let selected else { return }
+        sendSubviewToBack(selected)
+        elementsDidChange()
+    }
+
+    func toggleLockSelected() {
+        guard let selected else { return }
+        selected.setLocked(!selected.isElementLocked)
+    }
+
+    var isSelectedLocked: Bool { selected?.isElementLocked ?? false }
 }
 
 /// Base class for a movable element on the page.
 class PageElementView: UIView {
     let id: UUID
     weak var layerView: ElementLayerView?
+    private(set) var isElementLocked: Bool
 
     var isSelected = false {
         didSet { updateSelectionAppearance() }
     }
 
-    init(id: UUID, frame: CGRect) {
+    init(id: UUID, frame: CGRect, isLocked: Bool = false) {
         self.id = id
+        self.isElementLocked = isLocked
         super.init(frame: frame)
         layer.borderColor = UIColor.systemBlue.cgColor
     }
@@ -327,6 +372,13 @@ class PageElementView: UIView {
     }
 
     func makeElement() -> PageElement? { nil }
+
+    /// Toggles the lock and refreshes handles/appearance.
+    func setLocked(_ locked: Bool) {
+        isElementLocked = locked
+        updateSelectionAppearance()
+        layerView?.elementsDidChange()
+    }
 
     func updateSelectionAppearance() {
         layer.borderWidth = isSelected ? 1.5 : 0

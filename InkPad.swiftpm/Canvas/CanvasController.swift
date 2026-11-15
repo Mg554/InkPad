@@ -24,6 +24,7 @@ final class CanvasController: NSObject, ObservableObject {
         case text
         case image
         case sticky
+        case comment
     }
 
     @Published private(set) var canUndo = false
@@ -470,6 +471,19 @@ final class CanvasController: NSObject, ObservableObject {
         host?.elementLayer.removeSelected()
     }
 
+    // MARK: Element z-order and lock
+
+    var selectedElementIsLocked: Bool { host?.elementLayer.isSelectedLocked ?? false }
+
+    func bringSelectedElementForward() { host?.elementLayer.bringSelectedForward() }
+    func sendSelectedElementBackward() { host?.elementLayer.sendSelectedBackward() }
+    func bringSelectedElementToFront() { host?.elementLayer.bringSelectedToFront() }
+    func sendSelectedElementToBack() { host?.elementLayer.sendSelectedToBack() }
+    func toggleLockSelectedElement() {
+        host?.elementLayer.toggleLockSelected()
+        formattingRevision += 1
+    }
+
     /// Moves ink and elements past `value` along the pages' direction by
     /// `delta` and removes what lies in `removing`, keeping content on its
     /// page when pages are inserted or deleted.
@@ -546,7 +560,8 @@ final class CanvasController: NSObject, ObservableObject {
             PageElement(
                 id: UUID(),
                 frame: element.frame.offsetBy(dx: axis == .vertical ? 0 : delta, dy: axis == .vertical ? delta : 0),
-                content: element.content
+                content: element.content,
+                isLocked: element.isLocked
             )
         }
         if !copies.isEmpty { host.elementLayer.load(current + copies) }
@@ -557,6 +572,7 @@ final class CanvasController: NSObject, ObservableObject {
         if view is TextBoxView { return .text }
         if view is ImageElementView { return .image }
         if view is StickyNoteView { return .sticky }
+        if view is CommentPinView { return .comment }
         return nil
     }
 

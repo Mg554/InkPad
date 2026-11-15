@@ -40,8 +40,8 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     /// not be removed as empty in between.
     private var isRefocusing = false
 
-    init(id: UUID, frame: CGRect, text: NSAttributedString) {
-        super.init(id: id, frame: frame)
+    init(id: UUID, frame: CGRect, text: NSAttributedString, isLocked: Bool = false) {
+        super.init(id: id, frame: frame, isLocked: isLocked)
         let padding = TextBoxStyle.padding
         textView.frame = bounds
         textView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -84,13 +84,13 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
 
     override func updateSelectionAppearance() {
         super.updateSelectionAppearance()
-        moveHandle.isHidden = !isSelected
-        resizeHandle.isHidden = !isSelected
+        moveHandle.isHidden = !isSelected || isElementLocked
+        resizeHandle.isHidden = !isSelected || isElementLocked
     }
 
     override func makeElement() -> PageElement? {
         guard let rtf = TextBoxStyle.rtfData(from: textView.attributedText) else { return nil }
-        return PageElement(id: id, frame: frame, content: .text(rtf: rtf))
+        return PageElement(id: id, frame: frame, content: .text(rtf: rtf), isLocked: isElementLocked ? true : nil)
     }
 
     var isEmpty: Bool {
@@ -158,12 +158,14 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     // MARK: Gestures
 
     @objc private func handleMove(_ gesture: UIPanGestureRecognizer) {
+        guard !isElementLocked else { return }
         let translation = takeTranslation(gesture)
         center = CGPoint(x: center.x + translation.x, y: center.y + translation.y)
         if gesture.state == .ended { layerView?.elementsDidChange() }
     }
 
     @objc private func handleResize(_ gesture: UIPanGestureRecognizer) {
+        guard !isElementLocked else { return }
         let translation = takeTranslation(gesture)
         frame.size.width = max(TextBoxStyle.minimumWidth, frame.width + translation.x)
         fitHeight()
@@ -201,9 +203,9 @@ final class ImageElementView: PageElementView {
     private let imageView = UIImageView()
     private var resizeHandle: UIView!
 
-    init(id: UUID, frame: CGRect, file: String, image: UIImage?) {
+    init(id: UUID, frame: CGRect, file: String, image: UIImage?, isLocked: Bool = false) {
         self.file = file
-        super.init(id: id, frame: frame)
+        super.init(id: id, frame: frame, isLocked: isLocked)
         imageView.frame = bounds
         imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         imageView.contentMode = .scaleAspectFit
@@ -233,11 +235,11 @@ final class ImageElementView: PageElementView {
 
     override func updateSelectionAppearance() {
         super.updateSelectionAppearance()
-        resizeHandle.isHidden = !isSelected
+        resizeHandle.isHidden = !isSelected || isElementLocked
     }
 
     override func makeElement() -> PageElement? {
-        PageElement(id: id, frame: frame, content: .image(file: file))
+        PageElement(id: id, frame: frame, content: .image(file: file), isLocked: isElementLocked ? true : nil)
     }
 
     var image: UIImage? { imageView.image }
@@ -248,6 +250,7 @@ final class ImageElementView: PageElementView {
     }
 
     @objc private func handleMove(_ gesture: UIPanGestureRecognizer) {
+        guard !isElementLocked else { return }
         if gesture.state == .began {
             layerView?.endEditing(true)
             layerView?.selectElement(self)
@@ -258,6 +261,7 @@ final class ImageElementView: PageElementView {
     }
 
     @objc private func handleResize(_ gesture: UIPanGestureRecognizer) {
+        guard !isElementLocked else { return }
         let translation = takeTranslation(gesture)
         let aspect = frame.height / max(frame.width, 1)
         let width = max(40, frame.width + translation.x)

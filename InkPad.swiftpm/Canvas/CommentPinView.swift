@@ -9,9 +9,9 @@ final class CommentPinView: PageElementView {
 
     static let size = CGSize(width: 40, height: 36)
 
-    init(id: UUID, frame: CGRect, comment: NoteComment) {
+    init(id: UUID, frame: CGRect, comment: NoteComment, isLocked: Bool = false) {
         self.comment = comment
-        super.init(id: id, frame: CGRect(origin: frame.origin, size: Self.size))
+        super.init(id: id, frame: CGRect(origin: frame.origin, size: Self.size), isLocked: isLocked)
         backgroundColor = .clear
         isOpaque = false
         badge.contentMode = .center
@@ -42,7 +42,7 @@ final class CommentPinView: PageElementView {
     }
 
     override func makeElement() -> PageElement? {
-        PageElement(id: id, frame: frame, content: .comment(comment))
+        PageElement(id: id, frame: frame, content: .comment(comment), isLocked: isElementLocked ? true : nil)
     }
 
     @objc func handleTap() {
@@ -52,6 +52,7 @@ final class CommentPinView: PageElementView {
     }
 
     @objc private func handleMove(_ gesture: UIPanGestureRecognizer) {
+        guard !isElementLocked else { return }
         if gesture.state == .began {
             layerView?.endEditing(true)
             layerView?.selectElement(self)
