@@ -22,6 +22,7 @@ p. => ص
 AI => ذكاء اصطناعي
 Translate => ترجم
 Math Steps => خطوات الحل
+Solve Math => حل الرياضيات
 Summarize => لخّص
 Exam Questions => أسئلة امتحان
 Simple => بسيط

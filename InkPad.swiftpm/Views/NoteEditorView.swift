@@ -567,6 +567,22 @@ struct NoteEditorView: View {
         isShowingLiving = true
     }
 
+    /// Solves or checks the handwritten math on the current page by sending a
+    /// picture of it to the configured AI, the same way Write → Think works.
+    private func solveMath() {
+        guard let background = session.background,
+              background.layout.pageRects.indices.contains(canvas.currentPage) else { return }
+        let page = background.layout.pageRects[canvas.currentPage]
+        let image = canvas.picture(of: page)?.jpegData(compressionQuality: 0.8)
+        let anchor = canvas.visibleCenter.map { CGRect(origin: $0, size: .zero) } ?? .zero
+        thinkRequest = ThinkRequest(
+            text: "The handwritten math on this page.",
+            anchor: anchor,
+            mode: .math,
+            image: image
+        )
+    }
+
     /// An answer from Ask This Page, put beside the paragraph it cites.
     private func placeAnswer(_ text: String, near rect: CGRect?, asSticky: Bool) {
         if asSticky {
@@ -1097,6 +1113,13 @@ struct NoteEditorView: View {
                 isShowingMinimap.toggle()
             } label: {
                 Label("Overview", systemImage: "map")
+            }
+            .disabled(session.metadata == nil)
+
+            Button {
+                solveMath()
+            } label: {
+                Label("Solve Math", systemImage: "function")
             }
             .disabled(session.metadata == nil)
 
