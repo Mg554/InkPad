@@ -51,7 +51,7 @@ struct LibraryView: View {
             return
         }
         switch scope {
-        case .planner?, .expenses?, .mindMaps?, .slides?, .study?, .flowmodoro?, .reminders?, .pdfTools?, .gps?:
+        case .planner?, .expenses?, .mindMaps?, .slides?, .study?, .flowmodoro?, .reminders?, .pdfTools?, .gps?, .insights?:
             // Changing the scope clears the path; the note opens once the
             // notes section is up (see `switchSection`).
             noteAfterSwitch = id
@@ -95,6 +95,7 @@ struct LibraryView: View {
         case .reminders: "reminders"
         case .pdfTools: "pdfTools"
         case .gps: "gps"
+        case .insights: "insights"
         default: "notes"
         }
     }
@@ -126,6 +127,8 @@ struct LibraryView: View {
             NavigationStack { PDFToolsView() }
         case .gps:
             NavigationStack { KnowledgeMapsView() }
+        case .insights:
+            NavigationStack { InsightHubView() }
         default:
             NavigationStack(path: $path) {
                 Group {

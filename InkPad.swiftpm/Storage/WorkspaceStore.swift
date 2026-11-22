@@ -26,6 +26,8 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var flowBreakShare = Flowmodoro.defaultBreakShare
     @Published private(set) var distractions: [Distraction] = []
     @Published private(set) var knowledgeMaps: [KnowledgeMap] = []
+    /// Future-Me Marginalia, due questions waiting on the page.
+    @Published private(set) var marginalia: [MarginalQuestion] = []
     @Published var errorMessage: String?
     @Published private(set) var isReadOnly = false
 
@@ -147,6 +149,32 @@ final class WorkspaceStore: ObservableObject {
         // A Focus on This session on it stops.
         if flowTimer?.planTaskID == id, flowTimer?.phase == .working { flowTimer = nil }
         persist()
+    }
+
+    // MARK: Future-Me Marginalia
+
+    /// Leaves a question in the margin of a note, to be answered days later.
+    func askFutureMe(_ question: MarginalQuestion) {
+        guard canWrite() else { return }
+        marginalia.append(question)
+        persist()
+    }
+
+    func answerFutureMe(_ id: UUID, answer: String) {
+        guard canWrite(), let index = marginalia.firstIndex(where: { $0.id == id }) else { return }
+        marginalia[index].answeredAt = Date()
+        marginalia[index].answer = answer
+        persist()
+    }
+
+    func removeFutureMe(_ id: UUID) {
+        guard canWrite() else { return }
+        marginalia.removeAll { $0.id == id }
+        persist()
+    }
+
+    var dueMarginalia: [MarginalQuestion] {
+        marginalia.filter { $0.answeredAt == nil && $0.due <= Date() }
     }
 
     // MARK: Expenses
@@ -580,6 +608,7 @@ final class WorkspaceStore: ObservableObject {
         flowBreakShare = Flowmodoro.defaultBreakShare
         distractions = []
         knowledgeMaps = []
+        marginalia = []
         isReadOnly = false
         load()
     }
@@ -608,6 +637,7 @@ final class WorkspaceStore: ObservableObject {
             flowBreakShare = file.flowBreakShare ?? Flowmodoro.defaultBreakShare
             distractions = file.distractions ?? []
             knowledgeMaps = file.knowledgeMaps ?? []
+            marginalia = file.marginalia ?? []
         } catch {
             isReadOnly = true
             errorMessage = "Your planner and expenses could not be read (\(error.localizedDescription)). "
@@ -663,7 +693,8 @@ final class WorkspaceStore: ObservableObject {
             flowTimer: flowTimer,
             flowBreakShare: flowBreakShare,
             distractions: distractions,
-            knowledgeMaps: knowledgeMaps
+            knowledgeMaps: knowledgeMaps,
+            marginalia: marginalia
         )
         let url = fileURL
         let result: Result<Void, Error> = await withCheckedContinuation { continuation in

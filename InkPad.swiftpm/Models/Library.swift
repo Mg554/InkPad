@@ -271,6 +271,8 @@ enum LibraryScope: Hashable {
     case pdfTools
     /// Knowledge GPS: maps of what to learn.
     case gps
+    /// The insight tools: time-lapse, confidence, doctor, postcards and macros.
+    case insights
     /// Starred notes.
     case favorites
     /// A collection that fills itself.

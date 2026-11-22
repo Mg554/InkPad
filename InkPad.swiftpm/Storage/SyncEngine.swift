@@ -121,6 +121,12 @@ final class SyncEngine: ObservableObject {
         return url
     }
 
+    /// Where Offline Postcards live inside the sync folder. Shared with the
+    /// postcard store so both copies of InkPad read the same file.
+    func postcardsURL() throws -> URL {
+        try folderURL().appendingPathComponent("InkPad Postcards", isDirectory: true)
+    }
+
     // MARK: Running
 
     /// Starts the five-minute rhythm while the app is open.

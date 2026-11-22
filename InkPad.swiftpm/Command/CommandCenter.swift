@@ -139,6 +139,11 @@ final class CommandCenter: ObservableObject {
     @Published var showsFocusScreen = false
 
     func show(prefill text: String = "") {
+        // Closed-Book Exam: no searching notes or running AI commands.
+        guard !ExamSession.shared.isActive else {
+            say(tr("The command palette is closed during an exam."))
+            return
+        }
         prefill = text
         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { isPresented = true }
     }

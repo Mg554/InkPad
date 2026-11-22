@@ -180,6 +180,8 @@ struct WorkspaceFile: Codable {
     var flowBreakShare: Int?
     var distractions: [Distraction]?
     var knowledgeMaps: [KnowledgeMap]?
+    /// Future-Me Marginalia: questions that wait in a page's margin.
+    var marginalia: [MarginalQuestion]?
 }
 
 // MARK: Distraction Box

@@ -49,6 +49,7 @@ struct NoteEditorView: View {
     @State private var notebookSend: AreaRequest?
     /// Focus Mode in this note.
     @ObservedObject private var focus = FocusSession.shared
+    @ObservedObject private var exam = ExamSession.shared
     @State private var showsCompanion = false
     /// Ask This Page in the side panel.
     @State private var showsAsk = false
@@ -65,6 +66,12 @@ struct NoteEditorView: View {
     @StateObject private var split = SplitController()
     @State private var isPickingBeside = false
     @State private var workspacePrompt: NamePrompt?
+    /// Insight tools: time-lapse, confidence, macros, exam and marginalia.
+    @State private var showsTimeline = false
+    @State private var showsConfidence = false
+    @State private var showsMacro = false
+    @State private var showsExam = false
+    @State private var showsMarginalia = false
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -293,12 +300,23 @@ struct NoteEditorView: View {
             areaRequest: $areaRequest
         ))
         .modifier(SplitWiring(split: split, palette: palette, mainCanvas: canvas))
+        .modifier(InsightEditorTools(
+            noteID: noteID, title: title, canvas: canvas, page: canvas.currentPage,
+            content: { session.currentContent() },
+            showsTimeline: $showsTimeline, showsConfidence: $showsConfidence,
+            showsMacro: $showsMacro, showsExam: $showsExam,
+            showsMarginalia: $showsMarginalia, exportedFile: $exportedFile,
+            onMacroAction: runMacro
+        ))
         .sheet(isPresented: $isPickingBeside) {
             NotePickerSheet(excluding: noteID, title: "Open Beside") { openBeside($0) }
                 .environmentObject(store)
         }
         .namePrompt($workspacePrompt)
         .onDisappear {
+            // An exam belongs to this note; leaving ends it so the command
+            // palette is not closed in other notes.
+            if exam.isActive, exam.noteID == noteID { exam.finish() }
             split.session?.save(thumbnail: true)
             SyncEngine.shared.openNotes.remove(noteID)
             // After the note is saved, send it.
@@ -561,6 +579,10 @@ struct NoteEditorView: View {
     }
 
     private func openAsk() {
+        guard !exam.isActive else {
+            CommandCenter.shared.say(tr("AI is closed during an exam."))
+            return
+        }
         showsCompanion = false
         showsBookPanel = false
         showsAsk = true
@@ -570,6 +592,10 @@ struct NoteEditorView: View {
     /// Solves or checks the handwritten math on the current page by sending a
     /// picture of it to the configured AI, the same way Write → Think works.
     private func solveMath() {
+        guard !exam.isActive else {
+            CommandCenter.shared.say(tr("AI is closed during an exam."))
+            return
+        }
         guard let background = session.background,
               background.layout.pageRects.indices.contains(canvas.currentPage) else { return }
         let page = background.layout.pageRects[canvas.currentPage]
@@ -581,6 +607,50 @@ struct NoteEditorView: View {
             mode: .math,
             image: image
         )
+    }
+
+    private func trNote(_ pattern: String, _ values: String...) -> String {
+        var text = pattern
+        for value in values { text = text.replacingOccurrences(of: "{}", with: value) }
+        return trMessage(text)
+    }
+
+    /// Runs the command a drawn Pencil Macro stands for.
+    private func runMacro(_ action: MacroAction) {
+        switch action {
+        case .task:
+            var task = PlanTask(title: "From " + title)
+            task.notes = tr("Added with a Pencil Macro.")
+            workspace.save(task)
+            CommandCenter.shared.say(trNote("Task added from {}.", title))
+        case .beside:
+            isPickingBeside = true
+        case .think:
+            let anchor = canvas.visibleCenter.map { CGRect(origin: $0, size: .zero) } ?? .zero
+            thinkRequest = ThinkRequest(text: trNote("The ideas on page {}.", String(canvas.currentPage + 1)), anchor: anchor, mode: .concepts, image: nil)
+        case .sticky:
+            addSticky()
+        case .focus:
+            if exam.isActive { exam.finish() }
+            startFocus()
+        case .ask:
+            openAsk()
+        }
+    }
+
+    /// Ends the timed exam and leaves something to come back to.
+    private func finishExam() {
+        guard exam.isActive else { return }
+        let name = exam.title
+        exam.finish()
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())
+        var task = PlanTask(title: "Review: " + name, dueDate: tomorrow)
+        task.notes = trNote("Closed-book exam on {}.", Date().formatted(date: .abbreviated, time: .shortened))
+        workspace.save(task)
+        var sticky = StickyNote(tint: .orange)
+        sticky.text = trNote("Exam review: {}", name)
+        canvas.addSticky(sticky, at: canvas.visibleCenter)
+        CommandCenter.shared.say(tr("Exam ended. A review task and sticky are waiting."))
     }
 
     /// An answer from Ask This Page, put beside the paragraph it cites.
@@ -696,6 +766,27 @@ struct NoteEditorView: View {
             },
             PaletteItem(id: "ink-rename", title: "Rename This Note…", systemImage: "pencil", section: .thisNote, keywords: ["اعادة تسمية"]) {
                 prompt = NamePrompt(title: "Rename Note", initialText: title, confirmTitle: "Rename") { store.renameNote(noteID, to: $0) }
+            },
+            PaletteItem(id: "ink-timelapse", title: "Writing Time-Lapse", subtitle: "Watch the page fill in, then export a GIF", systemImage: "film.stack",
+                        section: .thisNote, keywords: ["time lapse", "history", "timeline", "تاريخ", "زمن"]) {
+                showsTimeline = true
+            },
+            PaletteItem(id: "ink-confidence", title: "Confidence Ink", subtitle: "Color the writing by how well you remember it", systemImage: "chart.bar.doc.horizontal",
+                        section: .thisNote, keywords: ["memory", "weak", "ذكر", "ضعيف"]) {
+                showsConfidence = true
+            },
+            PaletteItem(id: "ink-macro", title: "Run Pencil Macro", subtitle: "Draw a saved shape to run a command", systemImage: "command",
+                        section: .thisNote, keywords: ["gesture", "shape", "ماكرو", "رسم"]) {
+                showsMacro = true
+            },
+            PaletteItem(id: "ink-margin", title: "Margin Questions", subtitle: "Questions from your future self", systemImage: "clock.badge.questionmark",
+                        section: .thisNote, keywords: ["review", "question", "سؤال", "مراجعة"]) {
+                showsMarginalia = true
+            },
+            PaletteItem(id: "ink-exam", title: exam.isActive ? "End Closed-Book Exam" : "Closed-Book Exam…",
+                        subtitle: "A timed session with search and AI closed", systemImage: "book.closed", tint: .orange,
+                        section: .thisNote, keywords: ["exam", "test", "امتحان", "اختبار"]) {
+                if exam.isActive { finishExam() } else { showsExam = true }
             },
         ]
     }
@@ -1102,6 +1193,10 @@ struct NoteEditorView: View {
             .disabled(session.metadata == nil)
 
             Button {
+                guard !exam.isActive else {
+                    CommandCenter.shared.say(tr("AI is closed during an exam."))
+                    return
+                }
                 session.save(thumbnail: false)
                 studyRequest = session.currentContent().map { SlidesRequest(content: $0) }
             } label: {
@@ -1147,6 +1242,10 @@ struct NoteEditorView: View {
                 }
                 Section {
                     Button {
+                        guard !exam.isActive else {
+                            CommandCenter.shared.say(tr("AI is closed during an exam."))
+                            return
+                        }
                         slidesRequest = session.currentContent().map { SlidesRequest(content: $0) }
                     } label: {
                         Label("Create Slides from This Note…", systemImage: "rectangle.on.rectangle.angled")
@@ -1184,6 +1283,33 @@ struct NoteEditorView: View {
                         isShowingStickies = true
                     } label: {
                         Label("Sticky Notes…", systemImage: "note.text")
+                    }
+                }
+                Section {
+                    Button {
+                        showsTimeline = true
+                    } label: {
+                        Label("Writing Time-Lapse", systemImage: "film.stack")
+                    }
+                    Button {
+                        showsConfidence = true
+                    } label: {
+                        Label("Confidence Ink", systemImage: "chart.bar.doc.horizontal")
+                    }
+                    Button {
+                        showsMacro = true
+                    } label: {
+                        Label("Run Pencil Macro", systemImage: "command")
+                    }
+                    Button {
+                        showsMarginalia = true
+                    } label: {
+                        Label("Margin Questions", systemImage: "clock.badge.questionmark")
+                    }
+                    Button {
+                        if exam.isActive { finishExam() } else { showsExam = true }
+                    } label: {
+                        Label(exam.isActive ? "End Closed-Book Exam" : "Closed-Book Exam…", systemImage: "book.closed")
                     }
                 }
                 Section {
@@ -1246,6 +1372,17 @@ struct NoteEditorView: View {
                 } label: {
                     Label("Notebook", systemImage: notebook.isOpen ? "book.pages.fill" : "book.pages")
                 }
+            }
+
+            let waiting = workspace.dueMarginalia.filter { $0.noteID == noteID }.count
+            if waiting > 0 {
+                Button {
+                    showsMarginalia = true
+                } label: {
+                    Label("\(waiting)", systemImage: "clock.badge.questionmark")
+                }
+                .tint(.orange)
+                .accessibilityLabel("Margin Questions")
             }
 
             Button {

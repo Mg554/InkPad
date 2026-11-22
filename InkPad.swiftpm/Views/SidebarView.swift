@@ -77,6 +77,8 @@ struct SidebarView: View {
                     .tag(LibraryScope.calculator)
                 Label("Plugins", systemImage: "puzzlepiece.extension")
                     .tag(LibraryScope.plugins)
+                Label("InkPad Insights", systemImage: "sparkles.rectangle.stack")
+                    .tag(LibraryScope.insights)
                 Button {
                     showsRecentlyDeleted = true
                 } label: {
