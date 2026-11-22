@@ -77,7 +77,10 @@ enum NoteOpsLog {
     static func append(_ kind: Kind, detail: String? = nil, to directory: URL) {
         guard !directory.path.isEmpty else { return }
         queue.async {
-            var entries = read(directory)
+            // We are already on `queue` here. Calling `read(_:)` would do a
+            // `queue.sync` onto the queue we own and crash with LIBDISPATCH
+            // "dispatch_sync called on queue already owned by current thread".
+            var entries = readOnQueue(directory)
             entries.append(Entry(kind: kind, detail: detail))
             let trimmed = Array(entries.suffix(maxEntries))
             let lines = trimmed.compactMap { entry -> String? in
@@ -93,14 +96,17 @@ enum NoteOpsLog {
     /// The records in the log, oldest first. Missing, empty or damaged
     /// files read as no records.
     private static func read(_ directory: URL) -> [Entry] {
-        queue.sync {
-            guard let text = try? String(contentsOf: fileURL(directory), encoding: .utf8) else { return [] }
-            return text
-                .split(separator: "\n", omittingEmptySubsequences: true)
-                .compactMap { line in
-                    guard let data = line.data(using: .utf8) else { return nil }
-                    return try? decoder.decode(Entry.self, from: data)
-                }
-        }
+        queue.sync { readOnQueue(directory) }
+    }
+
+    /// Must only be called from a closure already running on `queue`.
+    private static func readOnQueue(_ directory: URL) -> [Entry] {
+        guard let text = try? String(contentsOf: fileURL(directory), encoding: .utf8) else { return [] }
+        return text
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .compactMap { line in
+                guard let data = line.data(using: .utf8) else { return nil }
+                return try? decoder.decode(Entry.self, from: data)
+            }
     }
 }

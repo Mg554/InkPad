@@ -100,7 +100,7 @@ struct CommandCatalog {
             ("go-unfiled", "Unfiled", "tray", .unfiled, nil, ["غير مصنفة"]),
             ("go-pdf", "PDF Tools", "doc.on.doc", .pdfTools, nil, ["merge", "split", "pdf24", "دمج", "تقسيم", "ادوات"]),
             ("go-gps", "Knowledge GPS", "location.north.circle", .gps, nil, ["map", "progress", "exam", "خريطة", "امتحان", "تقدم"]),
-            ("go-insights", "InkPad Insights", "sparkles.rectangle.stack", .insights, nil, ["doctor", "timelapse", "confidence", "رؤى", "طبيب", "مؤقت"]),
+            ("go-insights", "InkPad Insights", "sparkles.rectangle.stack", .insights, "⌘9", ["doctor", "timelapse", "confidence", "رؤى", "طبيب", "مؤقت"]),
         ]
         var items = sections.map { id, title, image, scope, shortcut, keywords in
             PaletteItem(id: id, title: title, systemImage: image, shortcut: shortcut, section: .goTo, keywords: keywords) { [center] in

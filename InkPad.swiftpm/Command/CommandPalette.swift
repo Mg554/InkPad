@@ -468,6 +468,7 @@ struct CommandShortcuts: View {
     private static let sections: [(String, LibraryScope)] = [
         ("All Notes", .allNotes), ("Reminders", .reminders), ("Planner", .planner), ("Expenses", .expenses),
         ("Mind Maps", .mindMaps), ("Study with AI", .study), ("Graph", .graph), ("Flowmodoro", .flowmodoro),
+        ("InkPad Insights", .insights),
     ]
 
     private func shortcut(_ title: String, _ key: KeyEquivalent, _ modifiers: EventModifiers = .command, action: @escaping () -> Void) -> some View {
