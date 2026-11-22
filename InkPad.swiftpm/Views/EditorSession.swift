@@ -44,6 +44,10 @@ final class EditorSession: ObservableObject {
     private var isSaving = false
     private var pendingSave: Bool?
     private var autosaveTask: Task<Void, Never>?
+    /// PencilKit can report many drawing changes per second. Replacing the
+    /// autosave task on every one of them needlessly allocates work on the
+    /// main thread; one task per short window covers all those edits.
+    private var lastAutosaveSchedule = Date.distantPast
     /// Old PDF files to remove once the note has been saved without them.
     private var replacedFiles: [URL] = []
 
@@ -461,10 +465,16 @@ final class EditorSession: ObservableObject {
 
     func markEdited() {
         editGeneration += 1
+        // Keep the trailing save (2 s after writing stops) but do not rebuild
+        // the task for every stroke of the same burst.
+        let now = Date()
+        if autosaveTask != nil, now.timeIntervalSince(lastAutosaveSchedule) < 0.5 { return }
+        lastAutosaveSchedule = now
         autosaveTask?.cancel()
         autosaveTask = Task { [weak self] in
             try? await Task.sleep(for: Self.autosaveDelay)
             guard !Task.isCancelled else { return }
+            self?.autosaveTask = nil
             self?.save(thumbnail: false)
         }
     }

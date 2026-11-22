@@ -245,6 +245,8 @@ final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate 
 
     private var points: [CGPoint] = []
     private var lastMoveLocation: CGPoint = .zero
+    private var currentLocation: CGPoint = .zero
+    private var lastTimerRestart = Date.distantPast
     private var holdTimer: Timer?
     private var didHold = false
 
@@ -265,6 +267,8 @@ final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate 
         let location = touch.location(in: coordinateView)
         points = [location]
         lastMoveLocation = location
+        currentLocation = location
+        lastTimerRestart = Date()
         onTouchBegan?()
         restartHoldTimer()
     }
@@ -275,9 +279,18 @@ final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate 
             points.append(sample.location(in: coordinateView))
         }
         let location = touch.location(in: coordinateView)
+        currentLocation = location
         if Math.distance(location.x - lastMoveLocation.x, location.y - lastMoveLocation.y) > Self.stillDistance {
             lastMoveLocation = location
-            restartHoldTimer()
+            // A Pencil reports over a hundred moves a second. Restarting the
+            // timer on each one allocates a Timer per sample and can hold up
+            // drawing; a short throttle is enough, with a stillness check
+            // when the timer fires so a slow stroke never snaps early.
+            let now = Date()
+            if now.timeIntervalSince(lastTimerRestart) > 0.1 {
+                lastTimerRestart = now
+                restartHoldTimer()
+            }
         }
     }
 
@@ -301,6 +314,11 @@ final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate 
         holdTimer?.invalidate()
         holdTimer = Timer.scheduledTimer(withTimeInterval: Self.holdDuration, repeats: false) { [weak self] _ in
             guard let self, !self.didHold, self.points.count > 2 else { return }
+            let still = Math.distance(
+                self.currentLocation.x - self.lastMoveLocation.x,
+                self.currentLocation.y - self.lastMoveLocation.y
+            ) <= Self.stillDistance
+            guard still else { return }
             self.didHold = true
             self.onHold?(self.points)
         }

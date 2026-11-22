@@ -39,6 +39,9 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     /// Editing ends and begins again to bring the keyboard up; the box must
     /// not be removed as empty in between.
     private var isRefocusing = false
+    /// Scribble can change the text many times per second. Measuring the
+    /// height on every change makes pencil typing stutter, so coalesce it.
+    private var fitScheduled = false
 
     init(id: UUID, frame: CGRect, text: NSAttributedString, isLocked: Bool = false) {
         super.init(id: id, frame: frame, isLocked: isLocked)
@@ -102,6 +105,17 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
         let height = max(fitting.height.rounded(.up), 44)
         if abs(height - frame.height) > 0.5 {
             frame.size.height = height
+        }
+    }
+
+    /// At most one height measurement per run loop, for pencil typing.
+    private func fitHeightSoon() {
+        guard !fitScheduled else { return }
+        fitScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.fitScheduled = false
+            self.fitHeight()
         }
     }
 
@@ -198,7 +212,7 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     }
 
     func textViewDidChange(_ textView: UITextView) {
-        fitHeight()
+        fitHeightSoon()
         layerView?.elementsDidChange()
     }
 
