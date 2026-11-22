@@ -62,6 +62,7 @@ struct NoteEditorView: View {
     @State private var isShowingComments = false
     @State private var isReading = false
     @State private var toolbarWasHiddenBeforeReading = false
+    @State private var toolbarWasHiddenBeforeExam = false
     /// Split workspace: another note or PDF beside this one.
     @StateObject private var split = SplitController()
     @State private var isPickingBeside = false
@@ -313,6 +314,16 @@ struct NoteEditorView: View {
                 .environmentObject(store)
         }
         .namePrompt($workspacePrompt)
+        .onChange(of: exam.isActive) { _, active in
+            // A closed-book exam hides the drawing tools and puts them back
+            // afterwards, exactly like Reading Mode does.
+            if active {
+                toolbarWasHiddenBeforeExam = isToolbarHidden
+                setToolbarHidden(true)
+            } else if exam.noteID == noteID {
+                setToolbarHidden(toolbarWasHiddenBeforeExam)
+            }
+        }
         .onDisappear {
             // An exam belongs to this note; leaving ends it so the command
             // palette is not closed in other notes.
