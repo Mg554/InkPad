@@ -9,6 +9,8 @@ struct AISettingsView: View {
     @State private var keyText = ""
     @State private var isTesting = false
     @State private var testResult: String?
+    /// Keychain writes after a short pause instead of on every keystroke.
+    @State private var keySaveTask: Task<Void, Never>?
 
     private var hiddenCountText: String {
         let count = store.notes.filter { store.aiAccess(of: $0.id) != .allowed }.count
@@ -39,8 +41,19 @@ struct AISettingsView: View {
                         SecureField("Paste your API key", text: $keyText)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
-                            .onSubmit { ai.setKey(keyText, for: ai.provider) }
-                            .onChange(of: keyText) { ai.setKey(keyText, for: ai.provider) }
+                            .onSubmit {
+                                keySaveTask?.cancel()
+                                ai.setKey(keyText, for: ai.provider)
+                            }
+                            .onChange(of: keyText) { _, newKey in
+                                keySaveTask?.cancel()
+                                let provider = ai.provider
+                                keySaveTask = Task {
+                                    try? await Task.sleep(for: .milliseconds(400))
+                                    guard !Task.isCancelled else { return }
+                                    ai.setKey(newKey, for: provider)
+                                }
+                            }
                         if let page = ai.provider.keyPage {
                             Button {
                                 openURL(page)
@@ -117,8 +130,13 @@ struct AISettingsView: View {
                 }
             }
             .onAppear { keyText = ai.key(for: ai.provider) }
-            .onChange(of: ai.provider) {
-                keyText = ai.key(for: ai.provider)
+            .onDisappear {
+                keySaveTask?.cancel()
+                ai.setKey(keyText, for: ai.provider)
+            }
+            .onChange(of: ai.provider) { _, newProvider in
+                keySaveTask?.cancel()
+                keyText = ai.key(for: newProvider)
                 testResult = nil
             }
         }
