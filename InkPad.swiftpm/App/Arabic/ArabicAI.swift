@@ -102,5 +102,11 @@ The shield also shows on each AI sheet. => يظهر الدرع أيضاً في �
 Notes set to Never under the AI Firewall can't be sent as postcards. => الملاحظات المضبوطة على «أبداً» في جدار الذكاء الاصطناعي لا يمكن إرسالها كبطاقات بريدية.
 Break Over => انتهت الاستراحة
 Your {} break is done. Ready for the next focus session? => انتهت استراحة {}. هل أنت جاهز لجلسة التركيز التالية؟
+Back => رجوع
+Connection => الاتصال
+Choose notes and folders that are never sent to AI. The shield also shows on each AI sheet. => اختر الملاحظات والمجلدات التي لا تُرسل أبداً إلى الذكاء الاصطناعي. يظهر الدرع أيضاً في كل نافذة ذكاء اصطناعي.
+Draw a small shape, give it a name and choose an action. In a note, More › Run Pencil Macro reads the shape you draw and runs its action. => ارسم شكلاً صغيراً، أعطه اسماً واختر إجراءً. في الملاحظة، المزيد › شغّل الماكرو يقرأ الشكل الذي ترسمه وينفّذ إجراءه.
+Finds stale notes, words without flashcards, weak concepts and handwriting that has not been read yet. Runs entirely on this iPad. => يجد الملاحظات القديمة والكلمات بلا بطاقات والمفاهيم الضعيفة والكتابة التي لم تُقرأ بعد. يعمل كله على هذا الآيباد.
+PencilKit deletes erased strokes, so the map reads the traces an erasure leaves: long pauses and lines written over several times. => يحذف PencilKit الضربات الممحوة، لذلك تقرأ الخريطة أثر المحو: وقفات طويلة وأسطر كُتبت عدة مرات.
 """#
 }
