@@ -386,3 +386,74 @@ private func trStudy(_ pattern: String) -> String {
 private func trStudyFmt(_ pattern: String, _ value: String) -> String {
     trMessage(pattern).replacingOccurrences(of: "{}", with: value)
 }
+
+/// Flags weak flashcards so they can be rewritten, not just repeated.
+struct CardQualitySheet: View {
+    @EnvironmentObject private var workspace: WorkspaceStore
+    @Environment(\.dismiss) private var dismiss
+
+    private var issues: [CardQuality] { FlashcardQuality.issues(in: workspace.flashcardDecks) }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if issues.isEmpty {
+                    ContentUnavailableView {
+                        Label("Cards Look Clear", systemImage: "checkmark.seal.fill")
+                    } description: {
+                        Text("No short or bare-answer cards were found.")
+                    }
+                }
+                ForEach(issues) { issue in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(verbatim: issue.front).font(.subheadline.weight(.semibold))
+                        Text(issue.reason).font(.caption).foregroundStyle(.orange)
+                    }
+                }
+                Section {
+                    Text("A good card asks one clear question and answers it in a full sentence, with enough context to stand alone.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Card Quality")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+        }
+    }
+}
+
+/// Turns focus time, recall and quiz scores into an efficiency report.
+struct LearningReportSheet: View {
+    @EnvironmentObject private var workspace: WorkspaceStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var metrics: [LearningMetric] = []
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if metrics.isEmpty {
+                    Text("No study data yet.").foregroundStyle(.secondary)
+                }
+                ForEach(metrics) { metric in
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(metric.title).font(.subheadline.weight(.semibold))
+                            Text(metric.detail).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(metric.value).font(.title3.weight(.semibold)).foregroundStyle(Color.inkAccent)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle("Learning Efficiency")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+            .onAppear { metrics = LearningStats.report(workspace: workspace) }
+        }
+    }
+}

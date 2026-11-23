@@ -41,6 +41,7 @@ struct AskPageView: View {
     @State private var status: String?
     @State private var task: Task<Void, Never>?
     @State private var showsSettings = false
+    @AppStorage("socraticMode") private var socratic = false
 
     private var blocked: String? {
         if let problem = ai.problem { return problem }
@@ -98,6 +99,14 @@ struct AskPageView: View {
                 ForEach(Scope.allCases) { Text(tr($0.title)).tag($0) }
             }
             .pickerStyle(.segmented)
+            Toggle(isOn: $socratic) {
+                Label("Guide me, don't tell me", systemImage: "questionmark.bubble")
+                    .font(.caption)
+            }
+            .toggleStyle(.switch)
+            Text("Use @page 4, @note Title or @concept Term in your question to point at a source.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
         .padding(14)
     }
@@ -200,6 +209,8 @@ struct AskPageView: View {
               let content = session.currentContent()
         else { return }
         question = ""
+        let refs = AskReferences.parse(text)
+        let asked = refs.cleanQuestion.isEmpty ? text : refs.cleanQuestion
         turns.append(Turn(question: text))
         let index = turns.count - 1
         let history = turns.dropLast().compactMap { turn -> [AIMessage]? in
@@ -212,7 +223,11 @@ struct AskPageView: View {
                 isAsking = false
                 status = nil
             }
-            let pages = pagesInScope(content)
+            var pages = pagesInScope(content)
+            if !refs.pages.isEmpty {
+                let count = session.background?.layout.pageRects.count ?? 1
+                pages = refs.pages.filter { $0 >= 0 && $0 < count }
+            }
             var paragraphs: [PageParagraph] = []
             var used = 0
             let budget = client.kind.contextBudget
@@ -234,10 +249,25 @@ struct AskPageView: View {
             for paragraph in paragraphs { map[paragraph.label] = paragraph }
             turns[index].paragraphs = map
             status = trMessage("\(client.kind.title) is answering…")
-            let context = paragraphs.map { $0.label + " " + $0.text }.joined(separator: "\n")
+            var context = paragraphs.map { $0.label + " " + $0.text }.joined(separator: "\n")
+            for title in refs.noteTitles {
+                guard let other = store.note(titled: title),
+                      store.mayUseAI(other.id, onDevice: client.kind.isOnDevice) else { continue }
+                let words = await NoteTexts.text(of: other.id, store: store)
+                context += "\n=== \(other.title) ===\n" + String(words.prefix(3000))
+            }
+            for concept in refs.concepts {
+                for (id, words) in store.recognizedText where words.localizedCaseInsensitiveContains(concept) {
+                    guard store.mayUseAI(id, onDevice: client.kind.isOnDevice) else { continue }
+                    context += "\n=== \(store.note(id)?.title ?? "Note") ===\n" + String(words.prefix(1200))
+                }
+            }
+            let system = socratic
+                ? SocraticPrompts.system(context: context, title: store.note(noteID)?.title ?? "")
+                : CitedAnswer.system(context: context, title: store.note(noteID)?.title ?? "")
             do {
-                let reply = try await client.complete(system: CitedAnswer.system(context: context, title: store.note(noteID)?.title ?? ""),
-                                                      messages: history + [AIMessage(.user, text)])
+                let reply = try await client.complete(system: system,
+                                                      messages: history + [AIMessage(.user, asked)])
                 if Task.isCancelled { return }
                 turns[index].answer = reply.trimmingCharacters(in: .whitespacesAndNewlines)
             } catch {

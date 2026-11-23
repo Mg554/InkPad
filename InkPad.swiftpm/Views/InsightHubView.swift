@@ -39,6 +39,10 @@ struct InsightHubView: View {
     @State private var showsPrerequisites = false
     @State private var prerequisiteMap: KnowledgeMap?
     @AppStorage("simpleMode") private var simpleMode = false
+    @AppStorage("retrieveEveryPages") private var recallEvery = 5
+    @State private var showsCardQuality = false
+    @State private var showsExamSim = false
+    @State private var showsLearningReport = false
 
     private enum InsightPicker: Identifiable {
         case friction, postcard, debateA, debateB, question, recall, activity, lecture
@@ -105,6 +109,15 @@ struct InsightHubView: View {
         }
         .sheet(item: $prerequisiteMap) { map in
             PrerequisiteSheet(map: map).environmentObject(workspace)
+        }
+        .sheet(isPresented: $showsCardQuality) {
+            CardQualitySheet().environmentObject(workspace)
+        }
+        .sheet(isPresented: $showsExamSim) {
+            ExamSimulatorView().environmentObject(store).environmentObject(workspace)
+        }
+        .sheet(isPresented: $showsLearningReport) {
+            LearningReportSheet().environmentObject(workspace)
         }
         .themedBackground()
         .onAppear {
@@ -250,6 +263,24 @@ struct InsightHubView: View {
                 showsPrerequisites = true
             } label: {
                 Label("Set Prerequisites on Knowledge GPS", systemImage: "point.3.connected.trianglepath.dotted")
+            }
+            Button {
+                showsCardQuality = true
+            } label: {
+                Label("Check Flashcard Quality", systemImage: "checkmark.seal")
+            }
+            Button {
+                showsExamSim = true
+            } label: {
+                Label("Exam Simulator", systemImage: "timer")
+            }
+            Button {
+                showsLearningReport = true
+            } label: {
+                Label("Learning Efficiency Report", systemImage: "chart.bar.xaxis")
+            }
+            Stepper(value: $recallEvery, in: 0...20) {
+                Text(recallEvery == 0 ? "Recall pauses off" : "Recall every \(recallEvery) pages").font(.caption)
             }
             Toggle("Daily Review Reminder", isOn: $settings.reviewReminders)
             if settings.reviewReminders {

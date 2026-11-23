@@ -223,6 +223,12 @@
     offline active-recall activities, power search operators, saved Graph
     views with pinned notes, and Simple Mode.
 
+14. **Learning loop (23 Nov 2026)** — done, needs an on-iPad pass:
+    Socratic tutor mode and @-references in Ask This Page, interleaved card
+    reviews, flashcard quality checks, a mixed Exam Simulator with
+    handwriting grading, a Learning Efficiency report, retrieve-taking
+    pauses while reading a book, and Arabic root-aware semantic search.
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the

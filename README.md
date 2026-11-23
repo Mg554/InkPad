@@ -442,6 +442,14 @@ Done:
   named Graph views with pinned notes, and a Simple Mode that hides the
   advanced panels while you write.
 
+- Learning loop: Ask This Page can act as a Socratic tutor (questions and
+  hints instead of answers) and understands `@page`, `@note` and `@concept`
+  references. Reviews can mix decks, a flashcard quality check finds vague
+  cards, and a mixed Exam Simulator grades handwriting on the iPad. A
+  Learning Efficiency report combines focus time, recall and quiz scores.
+  Reading a book can pause every few pages for a blank-page recall, and
+  Arabic search now matches word forms by their roots.
+
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 
 > This code is written without access to Apple's iOS SDK, so each change is

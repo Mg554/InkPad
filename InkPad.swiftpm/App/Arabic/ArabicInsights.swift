@@ -177,5 +177,37 @@ extension ArabicStrings {
     Views => العروض
     Pin Note Here => ثبّت الملاحظة هنا
     Unpin Note => ألغِ تثبيت الملاحظة
+    Guide me, don't tell me => اهتدِني ولا تُخبرني
+    Use @page 4, @note Title or @concept Term in your question to point at a source. => استخدم @page 4 أو @note العنوان أو @concept المصطلح في سؤالك لتحديد المصدر.
+    Mix subjects => امزج المواد
+    Check Flashcard Quality => افحص جودة البطاقات
+    Exam Simulator => محاكي الامتحان
+    Learning Efficiency Report => تقرير كفاءة المذاكرة
+    Recall pauses off => توقفات الاستذكار مغلقة
+    Recall every {} pages => استذكار كل {} صفحات
+    Pause and recall this chapter => توقف واستذكر هذا الفصل
+    Card Quality => جودة البطاقات
+    Cards Look Clear => البطاقات واضحة
+    No short or bare-answer cards were found. => لم تُعثر على بطاقات قصيرة أو بإجابة مقتضبة.
+    A good card asks one clear question and answers it in a full sentence, with enough context to stand alone. => البطاقة الجيدة تسأل سؤالاً واضحاً وتجيب بجملة كاملة وسياق يكفي لفهمها وحدها.
+    Question is too short to stand alone. => السؤال قصير جداً ولا يفهم وحده.
+    Answer is one bare word; add a sentence of context. => الإجابة كلمة واحدة؛ أضف جملة تعطي سياقاً.
+    Definition card; add when and where it applies. => بطاقة تعريف؛ أضف متى وأين تُستخدم.
+    Learning Efficiency => كفاءة المذاكرة
+    No study data yet. => لا توجد بيانات مذاكرة بعد.
+    Focus time => وقت التركيز
+    Across all finished Flowmodoro sessions. => عبر كل جلسات Flowmodoro المنتهية.
+    Concepts remembered per hour => مفاهيم متذكّرة في الساعة
+    Cards with at least 80% recall divided by focus hours. => بطاقات بتذكّر 80% على الأقل مقسومة على ساعات التركيز.
+    Cards due => بطاقات مستحقة
+    Review these to keep the recall curve high. => راجعها لتظل منحنى الذاكرة مرتفعاً.
+    Best quiz scores => أفضل نتائج الاختبارات
+    Average of your best results. => متوسط أفضل نتائجك.
+    Stations understood or mastered. => محطات مفهومة أو متقنة.
+    Make flashcards or quizzes in Study with AI first, then come back for a mixed exam. => أنشئ بطاقات أو اختبارات في «ذاكر بالذكاء الاصطناعي» أولاً، ثم عد إلى الامتحان المختلط.
+    Score {}% => النتيجة {}%
+    Added to Today's Note. => أُضيفت إلى ملاحظة اليوم.
+    Nothing was added. => لم يُضف شيء.
+    Handwriting is read on this iPad and added with your typed words. => تُقرأ الكتابة على هذا الآيباد وتُضاف إلى ما كتبته.
     """#
 }

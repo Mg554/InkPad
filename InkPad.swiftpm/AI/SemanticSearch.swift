@@ -99,9 +99,11 @@ final class SemanticSearch: ObservableObject {
         // A vector of each phrasing in each language that has a model.
         var queryVectors: [String: [[Double]]] = [:]
         var queryWords: [Set<String>] = []
+        var queryLanguages: [String] = []
         for phrase in phrasings {
             queryWords.append(words(phrase))
             let language = detect(phrase)
+            queryLanguages.append(language)
             if let embedding = NLEmbedding.sentenceEmbedding(for: NLLanguage(rawValue: language)), let vector = embedding.vector(for: phrase) {
                 queryVectors[language, default: []].append(vector)
             }
@@ -114,8 +116,11 @@ final class SemanticSearch: ObservableObject {
             }
             // Words in common still count (names, terms, languages without a model).
             let passageWords = words(passage.text)
-            for query in queryWords where !query.isEmpty {
-                let shared = Double(query.intersection(passageWords).count) / Double(query.count)
+            for (index, query) in queryWords.enumerated() where !query.isEmpty {
+                let language = queryLanguages.indices.contains(index) ? queryLanguages[index] : "en"
+                let shared = (language == "ar" || passage.language == "ar")
+                    ? ArabicSemantics.matchingScore(query, passageWords)
+                    : Double(query.intersection(passageWords).count) / Double(query.count)
                 best = max(best, shared * 0.9)
             }
             if best > 0 { results.append((passage, best)) }

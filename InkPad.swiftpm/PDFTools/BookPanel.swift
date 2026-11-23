@@ -26,6 +26,7 @@ struct BookPanel: View {
     @ObservedObject var canvas: CanvasController
     let noteID: UUID
     let open: (BookResult) -> Void
+    let onRecall: () -> Void
 
     @State private var tab = 0
     @State private var chapters: [BookChapter] = []
@@ -37,6 +38,8 @@ struct BookPanel: View {
     @State private var query = ""
     @State private var results: [SearchHit] = []
     @State private var isSearching = false
+    @AppStorage("retrieveEveryPages") private var recallEvery = 5
+    @State private var lastRecallPage = 0
 
     struct SearchHit: Identifiable {
         let id = UUID()
@@ -54,6 +57,18 @@ struct BookPanel: View {
         VStack(spacing: 0) {
             progressHeader
             ocrBanner
+            if document != nil, recallEvery > 0, canvas.currentPage - lastRecallPage >= recallEvery {
+                Button {
+                    lastRecallPage = canvas.currentPage
+                    onRecall()
+                } label: {
+                    Label("Pause and recall this chapter", systemImage: "doc.text.fill")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+                .padding(.bottom, 6)
+            }
             Picker("Show", selection: $tab) {
                 Text("Chapters").tag(0)
                 Text("Bookmarks").tag(1)

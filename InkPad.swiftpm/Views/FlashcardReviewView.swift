@@ -17,6 +17,7 @@ struct FlashcardReviewView: View {
     @State private var showsBack = false
     @State private var reviewed = 0
     @State private var didLoad = false
+    @AppStorage("interleavedReview") private var interleaved = true
 
     private var current: Flashcard? {
         guard queue.indices.contains(position) else { return nil }
@@ -27,6 +28,14 @@ struct FlashcardReviewView: View {
 
     var body: some View {
         VStack(spacing: 24) {
+            if deckID == nil, workspace.flashcardDecks.count > 1 {
+                Toggle(isOn: $interleaved) {
+                    Label("Mix subjects", systemImage: "shuffle")
+                        .font(.caption)
+                }
+                .toggleStyle(.button)
+                .onChange(of: interleaved) { _, _ in load(all: false) }
+            }
             if let card = current {
                 Text("\(position + 1) of \(queue.count)")
                     .font(.subheadline.monospacedDigit())
@@ -131,7 +140,12 @@ struct FlashcardReviewView: View {
             let chosen = cards.isEmpty && deckID != nil && !all ? deck.cards : cards
             items += chosen.map { Item(deckID: deck.id, cardID: $0.id) }
         }
-        queue = items.shuffled()
+        if interleaved && deckID == nil {
+            let mixed = InterleaveEngine.ordered(items.map { ($0.deckID, $0.cardID) })
+            queue = mixed.map { Item(deckID: $0.0, cardID: $0.1) }
+        } else {
+            queue = items.shuffled()
+        }
         position = 0
         reviewed = 0
         showsBack = false

@@ -497,9 +497,9 @@ struct NoteEditorView: View {
         } else if showsCompanion {
             FocusCompanionView(noteID: noteID, pageText: currentPageText)
         } else if showsBookPanel {
-            BookPanel(session: session, canvas: canvas, noteID: noteID) { result in
-                bookResult = result
-            }
+            BookPanel(session: session, canvas: canvas, noteID: noteID,
+                      open: { result in bookResult = result },
+                      onRecall: { showsRecall = true })
         } else {
             LivingPanel(noteID: noteID, tab: $livingTab)
         }
