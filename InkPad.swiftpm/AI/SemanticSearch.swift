@@ -78,7 +78,7 @@ final class SemanticSearch: ObservableObject {
     /// The question in English and Arabic, from the AI service (cached).
     private func expand(_ query: String) async -> [String] {
         if let cached = expansions[query] { return cached }
-        guard let client = AISettings.shared.client() else { return [] }
+        guard let client = AISettings.shared.client(for: .search) else { return [] }
         let prompt = [
             "Rewrite this search question for finding notes: give it once in English and once in Arabic, "
                 + "each with a few key words. One per line, nothing else.",

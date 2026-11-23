@@ -110,6 +110,10 @@ struct ThinkView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.huge) {
+                    HStack {
+                        Spacer()
+                        AIFirewallBadge(noteID: noteID)
+                    }
                     if isHidden {
                         notice(
                             "Protected by the AI Firewall",

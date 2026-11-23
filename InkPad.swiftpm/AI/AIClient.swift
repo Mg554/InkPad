@@ -198,6 +198,36 @@ struct AIClient: Sendable {
         return request
     }
 
+    /// The models this account can use, for the setup wizard's picker.
+    /// An empty list simply means the service does not publish them.
+    func availableModels() async -> [String] {
+        guard let url = try? endpoint("/models") else { return [] }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 20
+        if kind == .anthropic {
+            request.setValue(key, forHTTPHeaderField: "x-api-key")
+            request.setValue("2026-10-21", forHTTPHeaderField: "anthropic-version")
+        } else {
+            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        }
+        guard let json = try? await send(request) else { return [] }
+        let entries: [[String: Any]]
+        if let data = json["data"] as? [[String: Any]] {
+            entries = data
+        } else {
+            entries = json["models"] as? [[String: Any]] ?? []
+        }
+        var ids: [String] = []
+        for entry in entries {
+            if let id = entry["id"] as? String {
+                ids.append(id)
+            } else if let name = entry["name"] as? String {
+                ids.append(name)
+            }
+        }
+        return Array(Set(ids)).sorted()
+    }
+
     private func send(_ request: URLRequest) async throws -> [String: Any] {
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0

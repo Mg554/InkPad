@@ -106,7 +106,7 @@ final class DeckGenerator: ObservableObject {
         if hasText, options.writer == .connected, !aiMayWrite {
             notice = "Some of these notes are protected by the AI Firewall, so InkPad outlined the slides itself."
         }
-        if hasText, aiMayWrite, options.writer == .connected, let client = AISettings.shared.client() {
+        if hasText, aiMayWrite, options.writer == .connected, let client = AISettings.shared.client(for: .slides) {
             do {
                 if client.kind == .apple {
                     outline = try await SlideWriterAI.outline(

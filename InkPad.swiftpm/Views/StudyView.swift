@@ -471,7 +471,7 @@ struct StudyView: View {
     }
 
     private func makeFlashcards() {
-        guard let client = ai.client() else { return }
+        guard let client = ai.client(for: .study) else { return }
         Task {
             guard let notes = await notesText(for: client) else { return }
             stage = "Writing flashcards…"
@@ -501,7 +501,7 @@ struct StudyView: View {
     }
 
     private func makeQuiz() {
-        guard let client = ai.client() else { return }
+        guard let client = ai.client(for: .study) else { return }
         Task {
             guard let notes = await notesText(for: client) else { return }
             stage = "Writing a quiz…"
@@ -530,7 +530,7 @@ struct StudyView: View {
 
     /// Organized study notes, saved as a text note in "Smart Notes".
     private func makeSmartNotes() {
-        guard let client = ai.client() else { return }
+        guard let client = ai.client(for: .study) else { return }
         Task {
             guard let notes = await notesText(for: client) else { return }
             stage = "Writing smart notes…"

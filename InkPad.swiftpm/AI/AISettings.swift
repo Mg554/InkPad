@@ -90,6 +90,32 @@ enum AIProviderKind: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// Which job a model is chosen for. Light jobs use a fast model, slides and
+/// deep study use a stronger one, all with the same connected account.
+enum AITask: String, CaseIterable, Identifiable {
+    case general, search, study, slides
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .general: "Everyday"
+        case .search: "Quick Search"
+        case .study: "Deep Study"
+        case .slides: "Slide Writing"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .general: "sparkles"
+        case .search: "magnifyingglass"
+        case .study: "graduationcap"
+        case .slides: "rectangle.on.rectangle.angled"
+        }
+    }
+}
+
 /// The chosen AI service, its model, and the user's API keys (kept in the
 /// iPad's keychain). Shared by every screen.
 @MainActor
@@ -100,6 +126,11 @@ final class AISettings: ObservableObject {
         var provider: AIProviderKind
         var models: [String: String]
         var customBaseURL: String?
+        /// Per-job model choices, keyed by "provider|task".
+        var taskModels: [String: String]?
+        /// Last connection test, keyed by provider.
+        var lastTestAt: [String: Date]?
+        var lastTestOK: [String: Bool]?
     }
 
     private static let defaultsKey = "aiSettings"
@@ -107,6 +138,9 @@ final class AISettings: ObservableObject {
     @Published var provider: AIProviderKind = .anthropic { didSet { save() } }
     @Published private var models: [String: String] = [:] { didSet { save() } }
     @Published var customBaseURL = "" { didSet { save() } }
+    @Published private var taskModels: [String: String] = [:] { didSet { save() } }
+    @Published private var lastTestAt: [String: Date] = [:] { didSet { save() } }
+    @Published private var lastTestOK: [String: Bool] = [:] { didSet { save() } }
     /// Bumped when a key changes, so views re-read `hasKey`.
     @Published private(set) var keyRevision = 0
 
@@ -116,6 +150,9 @@ final class AISettings: ObservableObject {
             provider = saved.provider
             models = saved.models
             customBaseURL = saved.customBaseURL ?? ""
+            taskModels = saved.taskModels ?? [:]
+            lastTestAt = saved.lastTestAt ?? [:]
+            lastTestOK = saved.lastTestOK ?? [:]
         }
     }
 
@@ -163,9 +200,33 @@ final class AISettings: ObservableObject {
     var isReady: Bool { problem == nil }
 
     /// A client for the chosen service, or `nil` when it is not set up.
-    func client() -> AIClient? {
+    func client() -> AIClient? { client(for: .general) }
+
+    /// A client with the model chosen for one kind of job.
+    func client(for task: AITask) -> AIClient? {
         guard isReady else { return nil }
-        return AIClient(kind: provider, baseURL: baseURL, model: model, key: key(for: provider))
+        return AIClient(kind: provider, baseURL: baseURL, model: model(for: task), key: key(for: provider))
+    }
+
+    private func taskKey(_ task: AITask) -> String { provider.rawValue + "|" + task.rawValue }
+
+    func model(for task: AITask) -> String {
+        taskModels[taskKey(task)] ?? model
+    }
+
+    func setModel(_ value: String, for task: AITask) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { taskModels[taskKey(task)] = nil } else { taskModels[taskKey(task)] = trimmed }
+    }
+
+    /// What the last connection test said about this provider.
+    func testStatus(for kind: AIProviderKind) -> (date: Date?, ok: Bool?) {
+        (lastTestAt[kind.rawValue], lastTestOK[kind.rawValue])
+    }
+
+    func recordTest(for kind: AIProviderKind, ok: Bool) {
+        lastTestAt[kind.rawValue] = Date()
+        lastTestOK[kind.rawValue] = ok
     }
 
     /// A short description such as "Claude · claude-opus-5-5".
@@ -174,7 +235,10 @@ final class AISettings: ObservableObject {
     }
 
     private func save() {
-        let saved = Saved(provider: provider, models: models, customBaseURL: customBaseURL)
+        let saved = Saved(
+            provider: provider, models: models, customBaseURL: customBaseURL,
+            taskModels: taskModels, lastTestAt: lastTestAt, lastTestOK: lastTestOK
+        )
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: Self.defaultsKey)
         }

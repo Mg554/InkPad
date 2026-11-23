@@ -89,7 +89,11 @@ struct AskPageView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            Label("Ask This Page", systemImage: "sparkles").font(.headline)
+            HStack {
+                Label("Ask This Page", systemImage: "sparkles").font(.headline)
+                Spacer()
+                AIFirewallBadge(noteID: noteID)
+            }
             Picker("Scope", selection: $scope) {
                 ForEach(Scope.allCases) { Text(tr($0.title)).tag($0) }
             }
