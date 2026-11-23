@@ -99,5 +99,8 @@ No Model List => لا توجد قائمة نماذج
 This service does not publish a model list. Type the model name above instead. => هذه الخدمة لا تنشر قائمة نماذج. اكتب اسم النموذج في الأعلى بدلاً من ذلك.
 Find a model => ابحث عن نموذج
 The shield also shows on each AI sheet. => يظهر الدرع أيضاً في كل نافذة ذكاء اصطناعي.
+Notes set to Never under the AI Firewall can't be sent as postcards. => الملاحظات المضبوطة على «أبداً» في جدار الذكاء الاصطناعي لا يمكن إرسالها كبطاقات بريدية.
+Break Over => انتهت الاستراحة
+Your {} break is done. Ready for the next focus session? => انتهت استراحة {}. هل أنت جاهز لجلسة التركيز التالية؟
 """#
 }

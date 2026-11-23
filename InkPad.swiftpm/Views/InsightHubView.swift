@@ -375,6 +375,10 @@ struct InsightHubView: View {
 
     private func sendPostcard() {
         guard let noteID = postcardNote, postcards.problem == nil else { return }
+        guard store.aiAccess(of: noteID) != .never else {
+            CommandCenter.shared.say(tr("Notes set to Never under the AI Firewall can't be sent as postcards."))
+            return
+        }
         postcards.send(noteID: noteID, page: 0, text: postcardText, author: settings.postcardAuthor)
         postcardText = ""
     }

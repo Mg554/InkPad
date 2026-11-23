@@ -485,6 +485,7 @@ final class WorkspaceStore: ObservableObject {
         if flowTimer?.phase == .working { stopFlowWork() }
         // An earned break is skipped when a new focus session starts.
         if flowTimer != nil { flowTimer = nil }
+        FlowNotifications.cancelBreak()
         if !flowTasks.contains(where: { $0.title == name && !$0.isDone }) {
             flowTasks.append(FlowTask(title: name))
         }
@@ -565,12 +566,16 @@ final class WorkspaceStore: ObservableObject {
         timer.breakStartedAt = Date()
         flowTimer = timer
         persist()
+        Task {
+            await FlowNotifications.scheduleBreak(seconds: timer.breakSeconds, task: timer.taskTitle)
+        }
     }
 
     /// Ends the break (when it runs out, or skipped) and clears the timer.
     func endFlowBreak() {
         guard canWrite(), flowTimer != nil, flowTimer?.phase != .working else { return }
         flowTimer = nil
+        FlowNotifications.cancelBreak()
         persist()
     }
 

@@ -207,6 +207,16 @@
    Postponed: layers and an infinite canvas. Real-time collaboration is
    out of scope (needs a paid server or program).
 
+12. **Insight tools and simpler AI setup (23 Nov 2026)** — done, needs an
+    on-iPad pass with the Pencil: `InkPad Insights` (⌘9) with Writing
+    Time-Lapse, Confidence Ink, Note Doctor, Friction Map, Pencil Macros,
+    Future-Me Marginalia, Cross-Note Debate, Closed-Book Exam and Offline
+    Postcards. AI setup became a three-step flow with provider cards,
+    one-key recommendation, inline test, model discovery, per-job models,
+    connection health and a Firewall badge on AI sheets. Flowmodoro's
+    break-end notification is back in the installed app only (it crashes
+    inside Swift Playgrounds).
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the

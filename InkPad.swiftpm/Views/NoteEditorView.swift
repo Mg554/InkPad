@@ -216,6 +216,8 @@ struct NoteEditorView: View {
                 thinkRequest = ThinkRequest(text: text, anchor: rect, mode: chosen, image: picture)
             }
             canvas.livingNoteID = noteID
+            canvas.aiNoteID = noteID
+            canvas.mayUseAI = { id, onDevice in store.mayUseAI(id, onDevice: onDevice) }
             canvas.onReadArea = { image, rect in areaRequest = AreaRequest(image: image, rect: rect) }
             canvas.onConcept = { CommandCenter.shared.sheet = .concept($0) }
             if session.snapshot?.pdf != nil {

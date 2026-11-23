@@ -62,7 +62,14 @@ struct AISettingsView: View {
             }
             .onAppear {
                 keyText = ai.key(for: ai.provider)
+                // Coming back to a working setup shows status, not the wizard.
+                if ai.provider != .anthropic || !keyText.isEmpty { step = 2 }
                 retestIfStale()
+            }
+            .onChange(of: ai.provider) { _, newProvider in
+                keySaveTask?.cancel()
+                keyText = ai.key(for: newProvider)
+                testResult = nil
             }
             .onDisappear {
                 keySaveTask?.cancel()

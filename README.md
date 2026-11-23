@@ -416,6 +416,22 @@ Done:
   backup. "Earlier Versions…" in a note's menu brings back an older
   version of that note from these backups, as a copy. AI keys stay in the keychain and are never in a backup
 
+- Insight tools (`InkPad Insights` in the sidebar, ⌘9, or ⌘K): Writing
+  Time-Lapse (play a page back stroke by stroke and export an animated GIF),
+  Confidence Ink (a color map of the writing from flashcard memory), Note
+  Doctor (a library health check), a Friction Map (pauses and rewrites read
+  from stroke times), Pencil Macros (draw a shape to run a command),
+  Future-Me Marginalia (questions that wait in a page's margin), Cross-Note
+  Debate (contradictions between two notes), Closed-Book Exam (a timed
+  session that closes search and AI) and Offline Postcards (notes left in
+  the free sync folder). Everything runs on the iPad unless a tool
+  explicitly asks the connected AI, and the AI Firewall still applies.
+- AI setup: a three-step Connect AI flow with grouped provider cards, a
+  recommended one-key provider, an inline connection test, model discovery
+  from the account, different models for search / study / slides, connection
+  health with a quiet daily recheck, and a Firewall shield on AI sheets.
+  API keys stay in the iPad keychain and are written only after typing stops.
+
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 
 > This code is written without access to Apple's iOS SDK, so each change is

@@ -109,6 +109,10 @@ private var drawingBeforeRefine: PKDrawing?
     private var refineTask: Task<Void, Never>?
     /// Living Notes: the open note, and strokes not yet read for concepts.
     var livingNoteID: UUID?
+    /// The note this canvas belongs to, and the firewall answer for it.
+    /// Set by the editor so AI actions on selected text can be blocked.
+    var aiNoteID: UUID?
+    var mayUseAI: ((UUID, Bool) -> Bool)?
     /// Called with a concept key when a Living Notes bubble is tapped.
     var onConcept: ((String) -> Void)?
     private var livingStart: Int?
@@ -546,6 +550,10 @@ private var drawingBeforeRefine: PKDrawing?
         }
         guard let client = AISettings.shared.client() else {
             CommandCenter.shared.say(tr("Set up an AI service in Settings to use this."))
+            return
+        }
+        if let noteID = aiNoteID, let allowed = mayUseAI, !allowed(noteID, client.kind.isOnDevice) {
+            CommandCenter.shared.say(NoteTexts.firewallMessage(onDevice: client.kind.isOnDevice))
             return
         }
         let system = "You rewrite text. Return only the rewritten text, with no preamble, quotes, or explanation. Keep the original language unless asked to translate."
