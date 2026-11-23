@@ -45,8 +45,21 @@ final class SemanticSearch: ObservableObject {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 3 else { return [] }
         await refresh(store: store)
-        let phrasings = [trimmed] + (await expand(trimmed))
         let all: [Passage] = passages.values.flatMap { $0 }
+        // Local matching first. Asking an AI service on every search costs a
+        // network round trip and makes typing feel stuck, so only ask when
+        // the on-device search found too little.
+        var found = await matches(for: [trimmed], in: all, limit: limit)
+        if found.count < 3 {
+            let otherLanguages = await expand(trimmed)
+            if !otherLanguages.isEmpty {
+                found = await matches(for: [trimmed] + otherLanguages, in: all, limit: limit)
+            }
+        }
+        return found
+    }
+
+    private func matches(for phrasings: [String], in all: [Passage], limit: Int) async -> [MeaningHit] {
         let scored: [(Passage, Double)] = await Task.detached(priority: .userInitiated) {
             Self.score(all, phrasings: phrasings)
         }.value
@@ -158,8 +171,10 @@ final class SemanticSearch: ObservableObject {
     // MARK: Index
 
     /// Makes passages for notes that are new or changed since last time.
+    /// All PDF text is read in the background: doing it here used to read up
+    /// to 400 pages per book on the main thread and froze the search field.
     func refresh(store: LibraryStore) async {
-        var jobs: [(UUID, String, [(String, Int?)])] = []
+        var jobs: [(id: UUID, title: String, markdown: String?, pdf: URL?)] = []
         let current = Set(store.notes.map(\.id))
         for id in passages.keys where !current.contains(id) {
             passages[id] = nil
@@ -167,38 +182,43 @@ final class SemanticSearch: ObservableObject {
         }
         for note in store.notes {
             if let built = builtAt[note.id], built >= note.modifiedAt { continue }
-            jobs.append((note.id, note.title, texts(of: note, store: store)))
+            var pdfURL: URL?
+            if note.hasPDF == true, let content = try? store.loadContent(for: note.id) {
+                pdfURL = content.pdf?.fileURL
+            }
+            jobs.append((
+                id: note.id, title: note.title,
+                markdown: note.isText ? (store.textIndex[note.id]?.text ?? "") : nil,
+                pdf: pdfURL
+            ))
         }
         guard !jobs.isEmpty else { return }
         isIndexing = true
         defer { isIndexing = false }
+        let recognized = store.recognizedText
         let made: [(UUID, [Passage])] = await Task.detached(priority: .utility) {
-            jobs.map { job in (job.0, Self.passages(note: job.0, title: job.1, texts: job.2)) }
+            jobs.map { job in
+                var texts: [(String, Int?)] = []
+                if let markdown = job.markdown, !markdown.isEmpty { texts.append((markdown, nil)) }
+                if let url = job.pdf, let document = PDFDocument(url: url) {
+                    let count = min(document.pageCount, 400)
+                    for index in 0..<count {
+                        if let text = document.page(at: index)?.string, !text.isEmpty {
+                            texts.append((text, index))
+                        }
+                    }
+                }
+                let ink = recognized[job.id] ?? ""
+                if !ink.isEmpty, texts.isEmpty { texts.append((ink, nil)) }
+                texts.append((job.title, nil))
+                return (job.id, Self.passages(note: job.id, title: job.title, texts: texts))
+            }
         }.value
         let now = Date()
         for (id, list) in made {
             passages[id] = list
             builtAt[id] = now
         }
-    }
-
-    /// The note's words: Markdown, PDF text page by page, or recognized handwriting.
-    private func texts(of note: NoteSummary, store: LibraryStore) -> [(String, Int?)] {
-        if note.isText {
-            return [(store.textIndex[note.id]?.text ?? "", nil)]
-        }
-        var result: [(String, Int?)] = []
-        if note.hasPDF == true, let content = try? store.loadContent(for: note.id), let document = content.pdf?.pdfDocument {
-            let count = min(document.pageCount, 400)
-            for index in 0..<count {
-                if let text = document.page(at: index)?.string, !text.isEmpty { result.append((text, index)) }
-            }
-        }
-        if let ink = store.recognizedText[note.id], !ink.isEmpty, result.isEmpty {
-            result.append((ink, nil))
-        }
-        result.append((note.title, nil))
-        return result
     }
 
     private nonisolated static func passages(note: UUID, title: String, texts: [(String, Int?)]) -> [Passage] {
@@ -287,7 +307,7 @@ struct MeaningResults: View {
         .padding(.vertical, 12)
         .task(id: query) {
             // Wait for typing to pause.
-            try? await Task.sleep(for: .milliseconds(450))
+            try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
             isSearching = true
             hits = await search.search(query, store: store)

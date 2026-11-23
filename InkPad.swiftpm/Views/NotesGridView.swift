@@ -156,7 +156,7 @@ struct NotesGridView: View {
                 appliedSearch = ""
                 return
             }
-            try? await Task.sleep(for: .milliseconds(300))
+            try? await Task.sleep(for: .milliseconds(180))
             guard !Task.isCancelled else { return }
             appliedSearch = searchText
         }
