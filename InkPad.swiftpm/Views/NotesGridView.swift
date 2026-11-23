@@ -90,6 +90,11 @@ struct NotesGridView: View {
                 if appliedSearch.isEmpty {
                     quickActions
                         .padding([.horizontal, .top], 24)
+                } else {
+                    Text(trMessage("{} results").replacingOccurrences(of: "{}", with: String(visibleNotes.count)))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 24)
                 }
                 if visibleNotes.isEmpty {
                     ContentUnavailableView(

@@ -22,6 +22,9 @@ struct GraphView: View {
     @State private var panStart: CGSize?
     @State private var scale: CGFloat = 1
     @State private var scaleStart: CGFloat?
+    @State private var presets = GraphViewStore.load()
+    @State private var viewPrompt: NamePrompt?
+    @State private var pinnedPositions: [String: CGPoint] = [:]
 
     private var currentGraph: NoteGraph {
         NoteGraph(store: store, showsTags: showsTags, showsOrphans: showsOrphans)
@@ -86,6 +89,34 @@ struct GraphView: View {
                     .toggleStyle(.button)
                 Toggle(isOn: $showsOrphans) { Label("Unlinked Notes", systemImage: "circle.dotted") }
                     .toggleStyle(.button)
+                Menu {
+                    Button {
+                        viewPrompt = NamePrompt(title: "Save Graph View", initialText: "", confirmTitle: "Save") { name in
+                            let preset = GraphViewPreset(name: name, positions: layout, pinned: look.pinned)
+                            presets.append(preset)
+                            GraphViewStore.save(presets)
+                            look.manual = layout
+                        }
+                    } label: {
+                        Label("Save This View…", systemImage: "bookmark.badge.plus")
+                    }
+                    ForEach(presets) { preset in
+                        Button(preset.name) {
+                            look.arrangement = .manual
+                            look.manual = preset.positions
+                            look.pinned = preset.pinned
+                            pinnedPositions = preset.positions
+                            rearrange(graph)
+                        }
+                    }
+                    if let selected {
+                        Button(look.pinned.contains(selected) ? "Unpin Note" : "Pin Note Here") {
+                            togglePin(selected)
+                        }
+                    }
+                } label: {
+                    Label("Views", systemImage: "bookmark")
+                }
                 Button {
                     isCustomizing = true
                 } label: {
@@ -104,6 +135,7 @@ struct GraphView: View {
         .sheet(isPresented: $isCustomizing) {
             GraphStyleView(look: $look)
         }
+        .namePrompt($viewPrompt)
         .onChange(of: look) { look.save() }
         .onChange(of: look.arrangement) { rearrange(graph) }
         .onChange(of: selected) {
@@ -124,9 +156,26 @@ struct GraphView: View {
     private func rearrange(_ graph: NoteGraph) {
         let folderNames = Dictionary(uniqueKeysWithValues: store.folders.map { ($0.id, $0.name) })
         let arranged = graph.arrange(look.arrangement, focus: selected, folderNames: folderNames, manual: look.manual, current: webLayout)
+        var positions = arranged.positions
+        for id in look.pinned {
+            if let fixed = pinnedPositions[id] { positions[id] = fixed }
+        }
         withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) {
-            layout = arranged.positions
+            layout = positions
             guides = arranged.guides
+        }
+    }
+
+    private func togglePin(_ id: String) {
+        if look.pinned.contains(id) {
+            look.pinned.removeAll { $0 == id }
+            pinnedPositions[id] = nil
+        } else {
+            look.pinned.append(id)
+            if let point = layout[id] {
+                pinnedPositions[id] = point
+                look.manual[id] = point
+            }
         }
     }
 

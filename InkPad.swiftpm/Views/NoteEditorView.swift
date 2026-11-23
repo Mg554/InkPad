@@ -25,6 +25,7 @@ struct NoteEditorView: View {
     @AppStorage("toolbarEdge") private var toolbarEdge: ToolbarEdge = .top
     @AppStorage("toolbarAlignment") private var toolbarAlignment: ToolbarAlignment = .center
     @AppStorage("toolbarHidden") private var isToolbarHidden = false
+    @AppStorage("simpleMode") private var simpleMode = false
     /// While the toolbar is dragged: where it would dock (the drag itself
     /// stays inside the toolbar, so the page doesn't redraw on every move).
     @State private var dropTarget: ToolbarPlacement?
@@ -73,6 +74,9 @@ struct NoteEditorView: View {
     @State private var showsMacro = false
     @State private var showsExam = false
     @State private var showsMarginalia = false
+    @State private var showsRecall = false
+    @State private var showsActivities = false
+    @State private var showsLecturePack = false
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -314,6 +318,15 @@ struct NoteEditorView: View {
         .sheet(isPresented: $isPickingBeside) {
             NotePickerSheet(excluding: noteID, title: "Open Beside") { openBeside($0) }
                 .environmentObject(store)
+        }
+        .sheet(isPresented: $showsRecall) {
+            RecallSheet(noteID: noteID).environmentObject(store).environmentObject(workspace)
+        }
+        .sheet(isPresented: $showsActivities) {
+            ActivitySheet(noteID: noteID).environmentObject(store)
+        }
+        .sheet(isPresented: $showsLecturePack) {
+            LecturePackSheet(noteID: noteID).environmentObject(store).environmentObject(workspace)
         }
         .namePrompt($workspacePrompt)
         .onChange(of: exam.isActive) { _, active in
@@ -801,6 +814,21 @@ struct NoteEditorView: View {
                         section: .thisNote, keywords: ["exam", "test", "امتحان", "اختبار"]) {
                 if exam.isActive { finishExam() } else { showsExam = true }
             },
+            PaletteItem(id: "ink-recall", title: "Blank-Page Recall", subtitle: "Write from memory, then find the gaps",
+                        systemImage: "doc.text.fill", tint: .green, section: .thisNote,
+                        keywords: ["recall", "memory", "استذكار", "ذاكرة"]) {
+                showsRecall = true
+            },
+            PaletteItem(id: "ink-activities", title: "Active Recall Activities", subtitle: "Fill blanks, order steps, explain and label",
+                        systemImage: "questionmark.circle", tint: .blue, section: .thisNote,
+                        keywords: ["activity", "quiz", "نشاط", "سؤال"]) {
+                showsActivities = true
+            },
+            PaletteItem(id: "ink-lecture", title: "Lecture Study Pack", subtitle: "Notes, flashcards and questions from this recording",
+                        systemImage: "waveform.and.magnifyingglass", tint: .purple, section: .thisNote,
+                        keywords: ["lecture", "recording", "محاضرة", "تسجيل"]) {
+                showsLecturePack = true
+            },
         ]
     }
 
@@ -1198,38 +1226,46 @@ struct NoteEditorView: View {
                 }
             }
 
-            Button {
-                if showsAsk && isShowingLiving { isShowingLiving = false } else { openAsk() }
-            } label: {
-                Label("Ask This Page", systemImage: "sparkles")
-            }
-            .disabled(session.metadata == nil)
-
-            Button {
-                guard !exam.isActive else {
-                    CommandCenter.shared.say(tr("AI is closed during an exam."))
-                    return
+            if !simpleMode {
+                Button {
+                    if showsAsk && isShowingLiving { isShowingLiving = false } else { openAsk() }
+                } label: {
+                    Label("Ask This Page", systemImage: "sparkles")
                 }
-                session.save(thumbnail: false)
-                studyRequest = session.currentContent().map { SlidesRequest(content: $0) }
-            } label: {
-                Label("Study with AI", systemImage: "graduationcap")
+                .disabled(session.metadata == nil)
             }
-            .disabled(session.metadata == nil)
 
-            Button {
-                isShowingMinimap.toggle()
-            } label: {
-                Label("Overview", systemImage: "map")
+            if !simpleMode {
+                Button {
+                    guard !exam.isActive else {
+                        CommandCenter.shared.say(tr("AI is closed during an exam."))
+                        return
+                    }
+                    session.save(thumbnail: false)
+                    studyRequest = session.currentContent().map { SlidesRequest(content: $0) }
+                } label: {
+                    Label("Study with AI", systemImage: "graduationcap")
+                }
+                .disabled(session.metadata == nil)
             }
-            .disabled(session.metadata == nil)
 
-            Button {
-                solveMath()
-            } label: {
-                Label("Solve Math", systemImage: "function")
+            if !simpleMode {
+                Button {
+                    isShowingMinimap.toggle()
+                } label: {
+                    Label("Overview", systemImage: "map")
+                }
+                .disabled(session.metadata == nil)
             }
-            .disabled(session.metadata == nil)
+
+            if !simpleMode {
+                Button {
+                    solveMath()
+                } label: {
+                    Label("Solve Math", systemImage: "function")
+                }
+                .disabled(session.metadata == nil)
+            }
 
             UndoRedoButtons(canvas: canvas)
 

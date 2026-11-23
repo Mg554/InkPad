@@ -432,6 +432,16 @@ Done:
   health with a quiet daily recheck, and a Firewall shield on AI sheets.
   API keys stay in the iPad keychain and are written only after typing stops.
 
+- Study toolkit (Insights and ⌘K): Blank-Page Recall (write from memory,
+  compare with the note and turn missed words into cards), Quick Capture
+  (typed or handwritten, straight into Today's Note), a daily review
+  reminder, prerequisite links in Knowledge GPS with weak-foundation
+  warnings, Lecture Study Pack (notes, flashcards and questions from a
+  recording), four offline active-recall activities, power search operators
+  (`tag:`, `folder:`, `kind:`, `hasaudio:`, `before:` and quoted phrases),
+  named Graph views with pinned notes, and a Simple Mode that hides the
+  advanced panels while you write.
+
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 
 > This code is written without access to Apple's iOS SDK, so each change is

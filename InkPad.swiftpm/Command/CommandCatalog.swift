@@ -78,6 +78,11 @@ struct CommandCatalog {
             fillItem("new-task", "Task…", "checklist", .blue, "⌘⇧T", "task ", ["مهمة", "todo"]),
             fillItem("new-expense", "Expense…", "creditcard", .red, "⌘⇧E", "spent ", ["مصروف", "صرفت", "money"]),
             fillItem("new-map", "Mind Map…", "point.3.connected.trianglepath.dotted", .pink, "⌘⇧M", "mind map ", ["خريطة"]),
+            PaletteItem(id: "quick-capture", title: "Quick Capture", subtitle: "Write or type it — goes into Today's Note",
+                        systemImage: "bolt.badge.clock", tint: .teal, section: .create,
+                        keywords: ["capture", "inbox", "quick", "التقاط", "سريع"]) { [center] in
+                center.sheet = .quickCapture
+            },
         ]
     }
 

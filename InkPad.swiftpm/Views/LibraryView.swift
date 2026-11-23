@@ -305,6 +305,9 @@ struct LibraryView: View {
             DistractionCapture()
         case .garden:
             FocusGardenView()
+        case .quickCapture:
+            QuickCaptureSheet()
+                .environmentObject(store)
         }
     }
 

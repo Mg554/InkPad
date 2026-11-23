@@ -32,9 +32,16 @@ struct InsightHubView: View {
     @State private var picker: InsightPicker?
     @State private var answerText = ""
     @State private var answering: UUID?
+    @State private var showsQuickCapture = false
+    @State private var recallNote: NoteIDBox?
+    @State private var activityNote: NoteIDBox?
+    @State private var lectureNote: NoteIDBox?
+    @State private var showsPrerequisites = false
+    @State private var prerequisiteMap: KnowledgeMap?
+    @AppStorage("simpleMode") private var simpleMode = false
 
     private enum InsightPicker: Identifiable {
-        case friction, postcard, debateA, debateB, question
+        case friction, postcard, debateA, debateB, question, recall, activity, lecture
 
         var id: Int {
             switch self {
@@ -43,6 +50,9 @@ struct InsightHubView: View {
             case .debateA: 2
             case .debateB: 3
             case .question: 4
+            case .recall: 5
+            case .activity: 6
+            case .lecture: 7
             }
         }
     }
@@ -52,6 +62,7 @@ struct InsightHubView: View {
             introSection
             doctorSection
             writingSection
+            studyToolkitSection
             confidenceSection
             frictionSection
             macroSection
@@ -62,9 +73,47 @@ struct InsightHubView: View {
         }
         .navigationTitle("InkPad Insights")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showsQuickCapture) {
+            QuickCaptureSheet().environmentObject(store)
+        }
+        .sheet(item: $recallNote) { id in
+            RecallSheet(noteID: id.id).environmentObject(store).environmentObject(workspace)
+        }
+        .sheet(item: $activityNote) { id in
+            ActivitySheet(noteID: id.id).environmentObject(store)
+        }
+        .sheet(item: $lectureNote) { id in
+            LecturePackSheet(noteID: id.id).environmentObject(store).environmentObject(workspace)
+        }
+        .sheet(isPresented: $showsPrerequisites) {
+            NavigationStack {
+                List(workspace.knowledgeMaps) { map in
+                    Button {
+                        showsPrerequisites = false
+                        prerequisiteMap = map
+                    } label: {
+                        Text(verbatim: map.title).foregroundStyle(Color.primary)
+                    }
+                }
+                .navigationTitle("Choose a Map")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showsPrerequisites = false }
+                    }
+                }
+            }
+        }
+        .sheet(item: $prerequisiteMap) { map in
+            PrerequisiteSheet(map: map).environmentObject(workspace)
+        }
         .themedBackground()
-        .onAppear { postcards.refresh() }
+        .onAppear {
+            postcards.refresh()
+            updateReviewReminder()
+        }
         .onChange(of: settings) { settings.save() }
+        .onChange(of: settings.reviewReminders) { _, _ in updateReviewReminder() }
+        .onChange(of: settings.reviewHour) { _, _ in updateReviewReminder() }
         .sheet(item: $picker) { kind in
             NotePickerSheet(excluding: nil, title: "Choose a Note") { id in picked(id, for: kind) }
                 .environmentObject(store)
@@ -170,6 +219,49 @@ struct InsightHubView: View {
             }
         } header: {
             Label("Writing Tools", systemImage: "pencil.and.scribble")
+        }
+    }
+
+    // MARK: Study toolkit
+
+    private var studyToolkitSection: some View {
+        Section {
+            Button {
+                showsQuickCapture = true
+            } label: {
+                Label("Quick Capture", systemImage: "bolt.badge.clock")
+            }
+            Button {
+                picker = .recall
+            } label: {
+                Label("Blank-Page Recall", systemImage: "doc.text.fill")
+            }
+            Button {
+                picker = .activity
+            } label: {
+                Label("Active Recall Activities", systemImage: "questionmark.circle")
+            }
+            Button {
+                picker = .lecture
+            } label: {
+                Label("Lecture Study Pack", systemImage: "waveform.and.magnifyingglass")
+            }
+            Button {
+                showsPrerequisites = true
+            } label: {
+                Label("Set Prerequisites on Knowledge GPS", systemImage: "point.3.connected.trianglepath.dotted")
+            }
+            Toggle("Daily Review Reminder", isOn: $settings.reviewReminders)
+            if settings.reviewReminders {
+                Stepper(value: $settings.reviewHour, in: 0...23) {
+                    Text("Remind at \(String(format: "%02d", settings.reviewHour)):00").font(.caption)
+                }
+            }
+            Toggle("Simple Mode", isOn: $simpleMode)
+        } header: {
+            Label("Study Toolkit", systemImage: "graduationcap")
+        } footer: {
+            Text("Quick Capture lands in Today's Note without asking for a title. Blank-Page Recall compares your handwriting with the note and turns missed words into flashcards. Activities and lecture packs use your AI only when you ask.")
         }
     }
 
@@ -532,6 +624,16 @@ struct InsightHubView: View {
 
     // MARK: Picker
 
+    private func updateReviewReminder() {
+        Task {
+            if settings.reviewReminders {
+                await FlowNotifications.scheduleDailyReview(hour: settings.reviewHour)
+            } else {
+                FlowNotifications.cancelDailyReview()
+            }
+        }
+    }
+
     private func picked(_ id: UUID, for kind: InsightPicker) {
         switch kind {
         case .friction:
@@ -548,6 +650,12 @@ struct InsightHubView: View {
             questionNote = id
             questionText = "What do I still not understand about \(store.note(id)?.title ?? "this note")?"
             isComposingQuestion = true
+        case .recall:
+            recallNote = NoteIDBox(id: id)
+        case .activity:
+            activityNote = NoteIDBox(id: id)
+        case .lecture:
+            lectureNote = NoteIDBox(id: id)
         }
     }
 }

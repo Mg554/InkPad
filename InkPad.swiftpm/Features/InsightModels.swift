@@ -74,6 +74,10 @@ struct InsightSettings: StoredLook {
     var macros: [PencilMacro] = []
     var examMinutes = 20
     var postcardAuthor = ""
+    /// Hides advanced panels during study; the page and tools stay.
+    var _simpleMode = false
+    var reviewRemindersOn = true
+    var reviewHour = 9
 
     init() {}
 
@@ -85,6 +89,9 @@ struct InsightSettings: StoredLook {
         macros = box.value(.macros, or: macros)
         examMinutes = box.value(.examMinutes, or: examMinutes)
         postcardAuthor = box.value(.postcardAuthor, or: postcardAuthor)
+        _simpleMode = box.value(._simpleMode, or: _simpleMode)
+        reviewRemindersOn = box.value(.reviewRemindersOn, or: reviewRemindersOn)
+        reviewHour = box.value(.reviewHour, or: reviewHour)
     }
 }
 

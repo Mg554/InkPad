@@ -17,6 +17,7 @@ struct SidebarView: View {
     @State private var themeToApply: ThemeRecipe?
     @AppStorage(BackupView.lastBackupKey) private var lastBackupAt: Double = 0
     @AppStorage(AutoBackupFrequency.lastKey) private var lastAutomaticAt: Double = 0
+    @AppStorage("simpleMode") private var simpleMode = false
 
     /// No backup of any kind for two weeks while there are notes.
     private var backupIsOverdue: Bool {
@@ -57,6 +58,11 @@ struct SidebarView: View {
                     .draggable(CanvasDragType.notePayload(note.id))
                 }
                 Button {
+                    CommandCenter.shared.sheet = .quickCapture
+                } label: {
+                    Label("Quick Capture", systemImage: "bolt.badge.clock")
+                }
+                Button {
                     let today = workspace.tasks
                         .filter { task in task.status != .done && (task.dueDate.map(Calendar.current.isDateInToday) ?? false) }
                         .map(\.title)
@@ -75,10 +81,12 @@ struct SidebarView: View {
                     .tag(LibraryScope.aiChat)
                 Label("Calculator", systemImage: "plus.forwardslash.minus")
                     .tag(LibraryScope.calculator)
-                Label("Plugins", systemImage: "puzzlepiece.extension")
-                    .tag(LibraryScope.plugins)
-                Label("InkPad Insights", systemImage: "sparkles.rectangle.stack")
-                    .tag(LibraryScope.insights)
+                if !simpleMode {
+                    Label("Plugins", systemImage: "puzzlepiece.extension")
+                        .tag(LibraryScope.plugins)
+                    Label("InkPad Insights", systemImage: "sparkles.rectangle.stack")
+                        .tag(LibraryScope.insights)
+                }
                 Button {
                     showsRecentlyDeleted = true
                 } label: {

@@ -45,12 +45,15 @@ enum CommandSheet: Identifiable {
     case distractions
     case catchDistraction
     case garden
+    /// One-tap capture into the daily note.
+    case quickCapture
 
     var id: String {
         switch self {
         case .distractions: "distractions"
         case .catchDistraction: "catch-distraction"
         case .garden: "garden"
+        case .quickCapture: "quick-capture"
         case .themes: "themes"
         case let .history(note): "history-\(note.id)"
         case let .reminder(draft): "reminder-\(draft.id)"

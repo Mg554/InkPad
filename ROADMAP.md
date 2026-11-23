@@ -217,6 +217,12 @@
     break-end notification is back in the installed app only (it crashes
     inside Swift Playgrounds).
 
+13. **Study toolkit (23 Nov 2026)** — done, needs an on-iPad pass:
+    Blank-Page Recall, Quick Capture, daily review notifications,
+    prerequisite-aware Knowledge GPS, one-tap Lecture Study Pack, four
+    offline active-recall activities, power search operators, saved Graph
+    views with pinned notes, and Simple Mode.
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the

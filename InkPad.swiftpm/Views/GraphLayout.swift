@@ -86,6 +86,8 @@ struct GraphLook: StoredLook {
     var backdrop = ScreenBackdrop.plain
     /// Where notes were dragged in By Hand.
     var manual: [String: CGPoint] = [:]
+    /// Notes fixed in place so arrangements keep them where the owner put them.
+    var pinned: [String] = []
 
     init() {}
 
@@ -100,6 +102,7 @@ struct GraphLook: StoredLook {
         showsLabels = container.value(.showsLabels, or: showsLabels)
         backdrop = container.value(.backdrop, or: backdrop)
         manual = container.value(.manual, or: manual)
+        pinned = container.value(.pinned, or: pinned)
     }
 }
 

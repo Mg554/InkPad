@@ -103,6 +103,8 @@ struct KnowledgeStation: Codable, Identifiable, Equatable {
     var firstPage: Int?
     var lastPage: Int?
     var mark: Mark
+    /// Stations that should be mastered before this one (prerequisites).
+    var prerequisiteList: [UUID]?
 
     init(title: String, noteID: UUID? = nil, firstPage: Int? = nil, lastPage: Int? = nil) {
         id = UUID()
@@ -111,6 +113,7 @@ struct KnowledgeStation: Codable, Identifiable, Equatable {
         self.firstPage = firstPage
         self.lastPage = lastPage
         mark = .none
+        prerequisiteList = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -121,6 +124,7 @@ struct KnowledgeStation: Codable, Identifiable, Equatable {
         firstPage = container.value(.firstPage, or: nil)
         lastPage = container.value(.lastPage, or: nil)
         mark = container.value(.mark, or: Mark.none)
+        prerequisiteList = container.value(.prerequisiteList, or: nil)
     }
 }
 

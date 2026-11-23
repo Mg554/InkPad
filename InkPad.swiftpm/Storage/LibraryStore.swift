@@ -441,10 +441,34 @@ final class LibraryStore: ObservableObject {
 
     /// Title, tags, and for text notes the whole text.
     func matches(_ note: NoteSummary, search: String) -> Bool {
-        note.title.localizedCaseInsensitiveContains(search)
-            || tags(of: note).contains { $0.localizedCaseInsensitiveContains(search.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) }
-            || (textIndex[note.id]?.text.localizedCaseInsensitiveContains(search) ?? false)
-            || (recognizedText[note.id]?.localizedCaseInsensitiveContains(search) ?? false)
+        let query = SearchQuery.parse(search)
+        if !query.text.isEmpty {
+            let needle = query.text
+            let found = note.title.localizedCaseInsensitiveContains(needle)
+                || tags(of: note).contains { $0.localizedCaseInsensitiveContains(needle.trimmingCharacters(in: CharacterSet(charactersIn: "#"))) }
+                || (textIndex[note.id]?.text.localizedCaseInsensitiveContains(needle) ?? false)
+                || (recognizedText[note.id]?.localizedCaseInsensitiveContains(needle) ?? false)
+            guard found else { return false }
+        }
+        for tag in query.tags {
+            let key = NoteLinks.key(tag)
+            guard tags(of: note).contains(where: { NoteLinks.key($0) == key }) else { return false }
+        }
+        if !query.folder.isEmpty {
+            guard let id = folders.first(where: { $0.name.localizedCaseInsensitiveContains(query.folder) })?.id,
+                  note.folderID == id else { return false }
+        }
+        if !query.kind.isEmpty {
+            switch query.kind.lowercased() {
+            case "text", "markdown": guard note.isText else { return false }
+            case "handwritten", "ink": guard !note.isText else { return false }
+            case "pdf", "book": guard note.hasPDF == true else { return false }
+            default: return false
+            }
+        }
+        if let hasAudio = query.hasAudio, hasAudio, note.hasAudio != true { return false }
+        if let before = query.before, note.modifiedAt > before { return false }
+        return true
     }
 
     func note(titled title: String) -> NoteSummary? {
