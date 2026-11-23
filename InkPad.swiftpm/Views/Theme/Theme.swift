@@ -58,6 +58,18 @@ struct ThemePreset: Identifiable, Equatable {
                     accent: Color(uiColor: rgb(0xC8741A)), glass: [.orange, .yellow, .red, .brown], paper: .sand, season: .autumn),
         ThemePreset(id: "winter", name: "Winter", background: pair(0xEEF4FA, 0x0E1520), sidebar: pair(0xE2ECF6, 0x131C2A),
                     accent: Color(uiColor: rgb(0x4A8FD9)), glass: [.cyan, .blue, .white, .indigo], paper: .mist, season: .winter),
+        ThemePreset(id: "archive", name: "Old Library", background: pair(0xEDE2CE, 0x241C14), sidebar: pair(0xE2D3B8, 0x2E2418),
+                    accent: Color(uiColor: rgb(0xB08D3F)), glass: [.brown, .orange, .yellow, .pink], paper: .sand),
+        ThemePreset(id: "blueprint", name: "Blueprint", background: pair(0xE7F0FA, 0x0A1A2E), sidebar: pair(0xD8E6F6, 0x10243D),
+                    accent: .blue, glass: [.blue, .cyan, .teal, .indigo], paper: .mist),
+        ThemePreset(id: "linen", name: "Linen", background: pair(0xF3EFE6, 0x23231F), sidebar: pair(0xE8E2D5, 0x2D2D27),
+                    accent: Color(uiColor: rgb(0x7C8C6B)), glass: [.green, .brown, .mint, .yellow], paper: .ivory),
+        ThemePreset(id: "cork", name: "Cork Board", background: pair(0xF0E3CE, 0x2B2118), sidebar: pair(0xE4D2B4, 0x35291D),
+                    accent: Color(uiColor: rgb(0xA8653A)), glass: [.orange, .brown, .yellow, .red], paper: .sand),
+        ThemePreset(id: "chalkboard", name: "Chalkboard", background: pair(0xE8EFE9, 0x0C1712), sidebar: pair(0xDCE7DF, 0x13221B),
+                    accent: Color(uiColor: rgb(0x8FD9B6)), glass: [.green, .mint, .teal, .white], paper: .charcoal),
+        ThemePreset(id: "newspaper", name: "Newspaper", background: pair(0xF2EFE8, 0x1D1C1A), sidebar: pair(0xE7E3D9, 0x272622),
+                    accent: Color(uiColor: rgb(0x4A4A48)), glass: [.gray, .brown, .yellow, .white], paper: .ivory),
     ]
 
     static func named(_ id: String) -> ThemePreset {

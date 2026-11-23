@@ -329,6 +329,9 @@ struct NoteEditorView: View {
             LecturePackSheet(noteID: noteID).environmentObject(store).environmentObject(workspace)
         }
         .namePrompt($workspacePrompt)
+        .onChange(of: HandwritingSettingsStore.shared.undoLevels) { _, count in
+            canvas.setUndoLevels(count)
+        }
         .onChange(of: exam.isActive) { _, active in
             // A closed-book exam hides the drawing tools and puts them back
             // afterwards, exactly like Reading Mode does.

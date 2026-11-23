@@ -125,6 +125,7 @@ private var drawingBeforeRefine: PKDrawing?
         self.host = host
         self.palette = palette
         host.canvas.isRulerActive = isRulerActive
+        host.canvas.undoManager?.levelsOfUndo = HandwritingSettingsStore.shared.undoLevels
         host.elementLayer.onChange = { [weak self] in self?.contentDidChange() }
         host.lasso.onChange = { [weak self] in self?.contentDidChange() }
         host.lasso.onThink = { [weak self] text, rect, mode in self?.onThink?(text, rect, mode) }
@@ -293,6 +294,10 @@ private var drawingBeforeRefine: PKDrawing?
 
     // MARK: Undo
 
+    func setUndoLevels(_ count: Int) {
+        host?.canvas.undoManager?.levelsOfUndo = count
+    }
+
     func undo() {
         host?.canvas.undoManager?.undo()
         refreshUndoState()
@@ -367,13 +372,35 @@ private var drawingBeforeRefine: PKDrawing?
             noteStrokeForRefining(at: host.canvas.drawing.strokes.count - 1, settings: settings)
             noteStrokeForLiving(at: host.canvas.drawing.strokes.count - 1)
         }
-        guard flattens || smooths else { return true }
+        // Apple Notes quietly cleans simple shapes when the pencil lifts.
+        // Do the same, but keep the original stroke time so audio replay and
+        // the writing time-lapse still line up.
+        if settings.notesLike,
+           let tool = palette.pkTool as? PKInkingTool,
+           let shape = ShapeRecognizer.recognize(ShapeRecognizer.points(of: stroke)) {
+            var clean = ShapeRecognizer.stroke(
+                for: shape, ink: tool.ink,
+                width: palette.style(for: palette.tool).selectedWidth(for: palette.tool)
+            )
+            let points = Array(clean.path)
+            clean.path = PKStrokePath(controlPoints: points, creationDate: stroke.path.creationDate)
+            var shaped = host.canvas.drawing
+            shaped.strokes[shaped.strokes.count - 1] = clean
+            host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
+                canvas.drawing = before
+            }
+            isReplacingStroke = true
+            host.canvas.drawing = shaped
+            isReplacingStroke = false
+            return true
+        }
+        guard flattens || smooths || settings.notesLike else { return true }
         var replacement = stroke
         if flattens {
             replacement = ShapeRecognizer.withoutPressure(replacement, width: palette.style(for: palette.tool).selectedWidth(for: palette.tool))
         }
-        if smooths {
-            replacement = HandwritingRefiner.smooth(replacement, strength: settings.smoothStrength)
+        if smooths || settings.notesLike {
+            replacement = HandwritingRefiner.smooth(replacement, strength: settings.notesLike && !smooths ? 0.45 : settings.smoothStrength)
         }
         var even = host.canvas.drawing
         even.strokes[even.strokes.count - 1] = replacement

@@ -3,7 +3,7 @@ import SwiftUI
 /// A background a screen can have of its own (Expenses, Reminders):
 /// the theme's, plain, old paper, glass, or a season.
 enum ScreenBackdrop: String, Codable, CaseIterable, Identifiable {
-    case theme, plain, oldPaper, glass, spring, summer, autumn, winter
+    case theme, plain, oldPaper, glass, spring, summer, autumn, winter, linen, blueprint, leather
 
     var id: Self { self }
 
@@ -17,6 +17,9 @@ enum ScreenBackdrop: String, Codable, CaseIterable, Identifiable {
         case .summer: "Summer"
         case .autumn: "Autumn"
         case .winter: "Winter"
+        case .linen: "Linen"
+        case .blueprint: "Blueprint"
+        case .leather: "Old Leather"
         }
     }
 
@@ -30,6 +33,9 @@ enum ScreenBackdrop: String, Codable, CaseIterable, Identifiable {
         case .summer: Season.summer.systemImage
         case .autumn: Season.autumn.systemImage
         case .winter: Season.winter.systemImage
+        case .linen: "rectangle.grid.2x2"
+        case .blueprint: "grid"
+        case .leather: "book.closed"
         }
     }
 
@@ -52,6 +58,8 @@ struct ScreenBackdropView: View {
             ThemeBackground(recipe: glassRecipe)
         case .spring, .summer, .autumn, .winter:
             ThemeBackground(recipe: seasonRecipe)
+        case .linen, .blueprint, .leather:
+            TexturedBackdropView(style: backdrop)
         }
     }
 
@@ -67,6 +75,78 @@ struct ScreenBackdropView: View {
         var recipe = ThemeRecipe.preset(.named(backdrop.rawValue))
         recipe.animateSeason = animated && ThemeSettings.current.animateSeason
         return recipe
+    }
+}
+
+/// Procedural textures for the paper-like skins. Drawn in Canvas so they
+/// need no image assets and stay sharp at any size.
+struct TexturedBackdropView: View {
+    let style: ScreenBackdrop
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Canvas { context, size in
+            let rect = CGRect(origin: .zero, size: size)
+            context.fill(Path(rect), with: .color(base))
+            switch style {
+            case .linen: drawLinen(in: &context, size: size)
+            case .blueprint: drawBlueprint(in: &context, size: size)
+            case .leather: drawLeather(in: &context, size: size)
+            default: break
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    private var base: Color {
+        let dark = colorScheme == .dark
+        switch style {
+        case .linen: return dark ? Color(red: 0.19, green: 0.19, blue: 0.17) : Color(red: 0.95, green: 0.93, blue: 0.88)
+        case .blueprint: return dark ? Color(red: 0.04, green: 0.11, blue: 0.22) : Color(red: 0.86, green: 0.92, blue: 0.98)
+        default: return dark ? Color(red: 0.18, green: 0.10, blue: 0.06) : Color(red: 0.42, green: 0.23, blue: 0.13)
+        }
+    }
+
+    private func drawLinen(in context: inout GraphicsContext, size: CGSize) {
+        let dark = colorScheme == .dark
+        let ink = dark ? Color.white.opacity(0.045) : Color.brown.opacity(0.06)
+        for index in stride(from: 0, to: size.width, by: 6) {
+            let x = CGFloat(index)
+            context.stroke(Path { path in path.move(to: CGPoint(x: x, y: 0)); path.addLine(to: CGPoint(x: x, y: size.height)) },
+                           with: .color(ink), lineWidth: 1)
+        }
+        for index in stride(from: 0, to: size.height, by: 6) {
+            let y = CGFloat(index)
+            context.stroke(Path { path in path.move(to: CGPoint(x: 0, y: y)); path.addLine(to: CGPoint(x: size.width, y: y)) },
+                           with: .color(ink), lineWidth: 1)
+        }
+    }
+
+    private func drawBlueprint(in context: inout GraphicsContext, size: CGSize) {
+        let dark = colorScheme == .dark
+        let ink = dark ? Color.cyan.opacity(0.16) : Color.blue.opacity(0.14)
+        for index in stride(from: 0, to: size.width, by: 28) {
+            let x = CGFloat(index)
+            context.stroke(Path { path in path.move(to: CGPoint(x: x, y: 0)); path.addLine(to: CGPoint(x: x, y: size.height)) },
+                           with: .color(ink), lineWidth: 1)
+        }
+        for index in stride(from: 0, to: size.height, by: 28) {
+            let y = CGFloat(index)
+            context.stroke(Path { path in path.move(to: CGPoint(x: 0, y: y)); path.addLine(to: CGPoint(x: size.width, y: y)) },
+                           with: .color(ink), lineWidth: 1)
+        }
+    }
+
+    private func drawLeather(in context: inout GraphicsContext, size: CGSize) {
+        let dark = colorScheme == .dark
+        let ink = dark ? Color.black.opacity(0.25) : Color.black.opacity(0.10)
+        for index in 0..<260 {
+            let seed = Double(index) * 7.31
+            let x = CGFloat(Math.sine(seed) * 0.5 + 0.5) * size.width
+            let y = CGFloat(Math.sine(seed * 1.7) * 0.5 + 0.5) * size.height
+            let r: CGFloat = 1.5 + CGFloat(Math.sine(seed * 3.1) * 0.5 + 0.5) * 3
+            context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: r, height: r)), with: .color(ink))
+        }
     }
 }
 

@@ -229,6 +229,12 @@
     handwriting grading, a Learning Efficiency report, retrieve-taking
     pauses while reading a book, and Arabic root-aware semantic search.
 
+15. **Writing feel and skins (23 Nov 2026)** — done, needs a Pencil pass on
+    the iPad: Notes-style refining, adjustable undo depth, six extra text
+    fonts, six texture-inspired theme presets and three procedural screen
+    skins, chosen after a search of GoodNotes/Notability template and
+    student-community discussions.
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the

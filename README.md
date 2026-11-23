@@ -450,6 +450,13 @@ Done:
   Reading a book can pause every few pages for a blank-page recall, and
   Arabic search now matches word forms by their roots.
 
+- Writing feel and looks: Notes-style handwriting refining gently rounds
+  writing and cleans simple shapes on pencil lift while keeping corners,
+  with an undo history of up to 500 steps; text boxes offer 13 fonts
+  including Courier, Times, Futura, Didot and Chalkboard; six more themes
+  (Old Library, Blueprint, Linen, Cork Board, Chalkboard, Newspaper) and
+  three procedural screen skins (Linen, Blueprint, Old Leather).
+
 See [ROADMAP.md](ROADMAP.md) for the next phases.
 
 > This code is written without access to Apple's iOS SDK, so each change is

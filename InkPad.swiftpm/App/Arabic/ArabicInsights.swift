@@ -209,5 +209,25 @@ extension ArabicStrings {
     Added to Today's Note. => أُضيفت إلى ملاحظة اليوم.
     Nothing was added. => لم يُضف شيء.
     Handwriting is read on this iPad and added with your typed words. => تُقرأ الكتابة على هذا الآيباد وتُضاف إلى ما كتبته.
+    Old Library => المكتبة القديمة
+    Blueprint => مخطط هندسي
+    Linen => كتان
+    Cork Board => لوح فلين
+    Chalkboard => سبورة
+    Newspaper => صحيفة
+    Old Leather => جلد قديم
+    Notes-Style Refining => تحسين بأسلوب الملاحظات
+    Undo Steps: {} => خطوات التراجع: {}
+    Courier New => كورييه نيو
+    Times New Roman => تايمز نيو رومان
+    Futura => فيوتشرا
+    Didot => ديدو
+    Snell Roundhand => سنيل راند هاند
+    Chalkboard => سبورة
+    Menlo => مينلو
+    Avenir Next => أفينير نكست
+    Bradley Hand => برادلي هاند
+    Marker Felt => ماركر فيلت
+    Helvetica Neue => هيلفيتيكا نيو
     """#
 }

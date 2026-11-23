@@ -15,6 +15,9 @@ struct HandwritingSettings: StoredLook {
     var evensSize = false
     /// Seconds without writing before a line is straightened.
     var pause = 1.2
+    /// Notes-style refining: clean simple shapes on pencil lift and gently
+    /// smooth handwriting, then level lines after a pause.
+    var notesLike = true
 
     init() {}
 
@@ -26,6 +29,7 @@ struct HandwritingSettings: StoredLook {
         straightens = container.value(.straightens, or: straightens)
         evensSize = container.value(.evensSize, or: evensSize)
         pause = container.value(.pause, or: pause)
+        notesLike = container.value(.notesLike, or: notesLike)
     }
 
     var isActive: Bool { smooths || straightens || evensSize }
@@ -37,6 +41,10 @@ final class HandwritingSettingsStore: ObservableObject {
     @Published var settings = HandwritingSettings.load() {
         didSet { settings.save() }
     }
+
+    /// How many undo steps the canvas keeps. PencilKit's default can feel
+    /// short when writing fast; the editor applies this to its undo manager.
+    @AppStorage("inkUndoLevels") var undoLevels: Int = 200
 }
 
 /// Makes handwriting neater without changing what it says: smoother
@@ -49,17 +57,25 @@ enum HandwritingRefiner {
         let path = stroke.path
         guard path.count >= 5 else { return stroke }
         var locations = path.map(\.location)
-        let passes = 1 + Int((strength * 4).rounded())
-        let weight = 0.35 + strength * 0.25
+        let passes = 1 + Int((strength * 3).rounded())
+        let weight: CGFloat = 0.35 + CGFloat(strength) * 0.35
         for _ in 0..<passes {
             var next = locations
             for index in 1..<(locations.count - 1) {
                 let previous = locations[index - 1]
+                let current = locations[index]
                 let following = locations[index + 1]
+                let incoming = CGPoint(x: current.x - previous.x, y: current.y - previous.y)
+                let outgoing = CGPoint(x: following.x - current.x, y: following.y - current.y)
+                let lengths = Math.distance(incoming.x, incoming.y) * Math.distance(outgoing.x, outgoing.y)
+                // Keep real corners (letter joins, drawn shapes) sharp.
+                let cosine: CGFloat = lengths > 0
+                    ? (incoming.x * outgoing.x + incoming.y * outgoing.y) / lengths : 1
+                if cosine < 0.55 { continue }
                 let middle = CGPoint(x: (previous.x + following.x) / 2, y: (previous.y + following.y) / 2)
                 next[index] = CGPoint(
-                    x: locations[index].x + (middle.x - locations[index].x) * weight,
-                    y: locations[index].y + (middle.y - locations[index].y) * weight
+                    x: current.x + (middle.x - current.x) * weight,
+                    y: current.y + (middle.y - current.y) * weight
                 )
             }
             locations = next
@@ -213,6 +229,9 @@ struct HandwritingSettingsView: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
             Text("Refine Handwriting")
                 .font(.headline)
+            Toggle(isOn: $store.settings.notesLike) {
+                Label("Notes-Style Refining", systemImage: "sparkles.rectangle.stack")
+            }
             Toggle(isOn: $store.settings.smooths) {
                 Label("Smooth Strokes", systemImage: "scribble.variable")
             }
@@ -229,6 +248,15 @@ struct HandwritingSettingsView: View {
             if store.settings.straightens || store.settings.evensSize {
                 LabeledSlider(title: "After a Pause Of", systemImage: "timer", value: $store.settings.pause, range: 0.6...3,
                               text: String(format: "%.1f s", store.settings.pause))
+            }
+            Divider()
+            Stepper(value: $store.undoLevels, in: 20...500, step: 20) {
+                Label {
+                    Text(trMessage("Undo Steps: {}").replacingOccurrences(of: "{}", with: String(store.undoLevels)))
+                } icon: {
+                    Image(systemName: "arrow.uturn.backward")
+                }
+                .font(.caption)
             }
             Divider()
             Text("Smoothing happens when you lift the pencil. Lines are leveled after you pause. Undo puts your writing back as it was. To refine writing already on the page, select it with the lasso and choose Refine.")

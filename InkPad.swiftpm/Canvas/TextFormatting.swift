@@ -2,7 +2,7 @@ import UIKit
 
 /// The fonts InkPad offers for typed text, from plain to handwriting.
 enum TextFont: String, CaseIterable, Identifiable {
-    case system, georgia, avenir, helvetica, bradleyHand, markerFelt, menlo
+    case system, georgia, avenir, helvetica, bradleyHand, markerFelt, menlo, courier, times, futura, didot, snell, chalkboard
 
     var id: String { rawValue }
 
@@ -15,6 +15,12 @@ enum TextFont: String, CaseIterable, Identifiable {
         case .bradleyHand: "Bradley Hand"
         case .markerFelt: "Marker Felt"
         case .menlo: "Menlo"
+        case .courier: "Courier New"
+        case .times: "Times New Roman"
+        case .futura: "Futura"
+        case .didot: "Didot"
+        case .snell: "Snell Roundhand"
+        case .chalkboard: "Chalkboard"
         }
     }
 
@@ -30,6 +36,12 @@ enum TextFont: String, CaseIterable, Identifiable {
         case .bradleyHand: name = "BradleyHand-Regular"
         case .markerFelt: name = "MarkerFelt-Wide"
         case .menlo: name = "Menlo-Regular"
+        case .courier: name = "CourierNewPSMT"
+        case .times: name = "TimesNewRomanPSMT"
+        case .futura: name = "Futura-Medium"
+        case .didot: name = "Didot"
+        case .snell: name = "SnellRoundhand"
+        case .chalkboard: name = "ChalkboardSE-Regular"
         }
         guard let name, let font = UIFont(name: name, size: size) else { return .systemFont(ofSize: size) }
         return font
