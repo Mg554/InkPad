@@ -51,6 +51,7 @@ struct FloatingQuickNotePanel: View {
 
     @State private var message = ""
     @State private var drag: CGSize = .zero
+    @State private var placed: CGSize = .zero
 
     var body: some View {
         GeometryReader { geometry in
@@ -59,8 +60,19 @@ struct FloatingQuickNotePanel: View {
                 .position(notePosition(in: geometry))
                 .gesture(
                     DragGesture(minimumDistance: 12, coordinateSpace: .local)
-                        .onChanged { value in drag = value.translation }
-                        .onEnded { value in drag = value.translation }
+                        .onChanged { value in
+                            drag = CGSize(
+                                width: placed.width + value.translation.width,
+                                height: placed.height + value.translation.height
+                            )
+                        }
+                        .onEnded { value in
+                            placed = CGSize(
+                                width: placed.width + value.translation.width,
+                                height: placed.height + value.translation.height
+                            )
+                            drag = placed
+                        }
                 )
         }
         .opacity(center.opacity)
