@@ -53,7 +53,9 @@ final class ElementLayerView: UIView {
             switch element.content {
             case let .text(rtf):
                 let text = TextBoxStyle.attributedString(fromRTF: rtf) ?? NSAttributedString()
-                add(TextBoxView(id: element.id, frame: element.frame, text: text, isLocked: locked))
+                let box = TextBoxView(id: element.id, frame: element.frame, text: text, isLocked: locked)
+                box.anchorTo = element.anchorTo
+                add(box)
             case let .image(file):
                 guard isPlainFileName(file),
                       let directory = imageDirectory,
@@ -228,8 +230,34 @@ final class ElementLayerView: UIView {
 
     private func add(_ view: PageElementView) {
         view.layerView = self
+        if let box = view as? TextBoxView, box.anchorTo == nil {
+            box.anchorTo = nearestBlockAbove(box)
+        }
         addSubview(view)
         view.setRenderScale(renderScale)
+    }
+
+    /// The closest text block directly above `view`, used as its anchor.
+    private func nearestBlockAbove(_ view: TextBoxView) -> UUID? {
+        var best: TextBoxView?
+        var bestGap: CGFloat = 70
+        for other in subviews where other !== view {
+            guard let box = other as? TextBoxView else { continue }
+            let gap = view.frame.minY - box.frame.maxY
+            guard gap >= -4, gap < bestGap else { continue }
+            best = box
+            bestGap = gap
+        }
+        return best?.id
+    }
+
+    /// Keeps anchored blocks below a resized block from overlapping it.
+    func anchorDidResize(_ source: TextBoxView, delta: CGFloat) {
+        guard abs(delta) > 0.5 else { return }
+        for case let view as PageElementView in subviews where view !== source {
+            guard view.anchorTo == source.id, view.frame.minY >= source.frame.maxY - 70 else { continue }
+            view.center.y += delta
+        }
     }
 
     // MARK: Selection and editing
@@ -412,6 +440,7 @@ final class TapeElementView: PageElementView {
 // Base class for a movable element on the page.
 class PageElementView: UIView {
     let id: UUID
+    var anchorTo: UUID?
     weak var layerView: ElementLayerView?
     private(set) var isElementLocked: Bool
 

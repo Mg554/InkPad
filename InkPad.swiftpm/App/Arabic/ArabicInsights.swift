@@ -230,6 +230,7 @@ extension ArabicStrings {
     Marker Felt => ماركر فيلت
     Helvetica Neue => هيلفيتيكا نيو
     Predictive Ink => تنبؤ الحبر
+    Night PDF Reading => قراءة PDF ليلية
     Auto-Hide Tools While Writing => إخفاء الأدوات تلقائياً أثناء الكتابة
     """#
 }

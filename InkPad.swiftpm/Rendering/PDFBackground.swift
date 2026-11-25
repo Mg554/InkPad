@@ -55,7 +55,13 @@ final class PDFBackground {
     }
 
     /// Draws the page scaled to fill `rect` (UIKit, y-down coordinates).
-    func draw(page index: Int, in rect: CGRect, context: CGContext) {
+    func draw(page index: Int, in rect: CGRect, context: CGContext, dark: Bool = false) {
+        if dark, let image = darkImage(page: index, size: rect.size), let cgImage = image.cgImage {
+            context.saveGState()
+            context.draw(cgImage, in: rect)
+            context.restoreGState()
+            return
+        }
         guard let page = document.page(at: index + 1) else { return }
         let box = page.getBoxRect(.cropBox)
         let size = displaySize(ofPage: index)
@@ -165,5 +171,59 @@ extension PDFBackground {
             result.append((text, CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)))
         }
         return result.sorted { $0.rect.minY < $1.rect.minY }
+    }
+
+    /// A night-reading copy: only neutral (low-saturation) pixels are
+    /// inverted, so coloured diagrams and photos keep their original RGB.
+    private static let darkCache = NSCache<NSString, UIImage>()
+
+    private func darkImage(page index: Int, size: CGSize) -> UIImage? {
+        let key = NSString(string: "\(index)-\(Int(size.width))x\(Int(size.height))")
+        if let cached = Self.darkCache.object(forKey: key) { return cached }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let base = UIGraphicsImageRenderer(size: size, format: format).image { renderer in
+            draw(page: index, in: CGRect(origin: .zero, size: size), context: renderer.cgContext)
+        }
+        guard let cg = base.cgImage,
+              let provider = cg.dataProvider,
+              let data = provider.data else { return nil }
+        let bytes = cfDataBytes(data)
+        let count = cg.width * cg.height * 4
+        guard bytes.count >= count else { return nil }
+        var pixels = Array(bytes[0..<count])
+        for offset in stride(from: 0, to: count, by: 4) {
+            let r = pixels[offset], g = pixels[offset + 1], b = pixels[offset + 2]
+            if PDFNight.shouldInvert(r: r, g: g, b: b) {
+                pixels[offset] = 255 - r
+                pixels[offset + 1] = 255 - g
+                pixels[offset + 2] = 255 - b
+            }
+        }
+        guard let output = CGContext(data: &pixels, width: cg.width, height: cg.height,
+                                     bitsPerComponent: 8,
+                                     bytesPerRow: cg.width * 4,
+                                     space: CGColorSpaceCreateDeviceRGB(),
+                                     bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let image = output.makeImage() else { return nil }
+        let result = UIImage(cgImage: image)
+        Self.darkCache.setObject(result, forKey: key)
+        return result
+    }
+
+    private func cfDataBytes(_ data: CFData) -> UnsafeBufferPointer<UInt8> {
+        let length = CFDataGetLength(data)
+        let pointer = CFDataGetBytePtr(data).map { UnsafeBufferPointer(start: $0, count: length) }
+        return pointer ?? UnsafeBufferPointer(start: UnsafePointer<UInt8>(bitPattern: 1)!, count: 0)
+    }
+
+}
+
+/// Pure pixel test for night PDF reading, kept separate so it can be unit-tested.
+enum PDFNight {
+    static func shouldInvert(r: UInt8, g: UInt8, b: UInt8) -> Bool {
+        let saturation = Int(max(r, g, b)) - Int(min(r, g, b))
+        return saturation < 28
     }
 }

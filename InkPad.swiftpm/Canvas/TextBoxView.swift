@@ -96,7 +96,8 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     override func makeElement() -> PageElement? {
         let stored = BidiIsolation.strippedAttributed(textView.attributedText)
         guard let rtf = TextBoxStyle.rtfData(from: stored) else { return nil }
-        return PageElement(id: id, frame: frame, content: .text(rtf: rtf), isLocked: isElementLocked ? true : nil)
+        return PageElement(id: id, frame: frame, content: .text(rtf: rtf),
+                           isLocked: isElementLocked ? true : nil, anchorTo: anchorTo)
     }
 
     var isEmpty: Bool {
@@ -106,8 +107,10 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     func fitHeight() {
         let fitting = textView.sizeThatFits(CGSize(width: bounds.width, height: .greatestFiniteMagnitude))
         let height = max(fitting.height.rounded(.up), 44)
-        if abs(height - frame.height) > 0.5 {
+        let delta = height - frame.height
+        if abs(delta) > 0.5 {
             frame.size.height = height
+            layerView?.anchorDidResize(self, delta: delta)
         }
     }
 

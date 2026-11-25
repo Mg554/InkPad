@@ -40,6 +40,7 @@ struct InsightHubView: View {
     @State private var prerequisiteMap: KnowledgeMap?
     @AppStorage("simpleMode") private var simpleMode = false
     @AppStorage("retrieveEveryPages") private var recallEvery = 5
+    @AppStorage("smartPDFDarkMode") private var nightPDF = false
     @State private var showsCardQuality = false
     @State private var showsExamSim = false
     @State private var showsLearningReport = false
@@ -288,6 +289,7 @@ struct InsightHubView: View {
                     Text("Remind at \(String(format: "%02d", settings.reviewHour)):00").font(.caption)
                 }
             }
+            Toggle("Night PDF Reading", isOn: $nightPDF)
             Toggle("Simple Mode", isOn: $simpleMode)
         } header: {
             Label("Study Toolkit", systemImage: "graduationcap")

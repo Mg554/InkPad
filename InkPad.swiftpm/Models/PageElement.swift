@@ -23,12 +23,15 @@ struct PageElement: Codable, Identifiable, Equatable {
     /// When true the element cannot be moved, resized or deleted until
     /// unlocked. `nil` in older files.
     var isLocked: Bool?
+    /// The block above that this element follows when its height changes.
+    var anchorTo: UUID?
 
-    init(id: UUID, frame: CGRect, content: Content, isLocked: Bool? = nil) {
+    init(id: UUID, frame: CGRect, content: Content, isLocked: Bool? = nil, anchorTo: UUID? = nil) {
         self.id = id
         self.frame = frame
         self.content = content
         self.isLocked = isLocked
+        self.anchorTo = anchorTo
     }
 }
 

@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// What is drawn underneath the ink: the PDF's pages first, then template paper.
 /// Shared by the canvas, thumbnails and PDF export so they always match.
@@ -49,7 +50,8 @@ struct NoteBackground: Equatable {
     func drawPage(at index: Int, in context: CGContext, includePaper: Bool = true) {
         let rect = layout.pageRects[index]
         if let pdf, let pdfIndex = pdfPage(at: index) {
-            pdf.draw(page: pdfIndex, in: rect, context: context)
+            let night = UserDefaults.standard.bool(forKey: "smartPDFDarkMode")
+            pdf.draw(page: pdfIndex, in: rect, context: context, dark: night)
         } else if includePaper {
             TemplateRenderer.drawPage(template, paper: paper, in: rect, context: context)
         } else {
