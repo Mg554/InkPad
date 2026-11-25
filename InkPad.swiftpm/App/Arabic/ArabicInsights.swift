@@ -231,6 +231,24 @@ extension ArabicStrings {
     Helvetica Neue => هيلفيتيكا نيو
     Predictive Ink => تنبؤ الحبر
     Night PDF Reading => قراءة PDF ليلية
+    Lock Page => قفل الصفحة
+    Unlock Page => فتح الصفحة
+    This Page Is Locked => هذه الصفحة مقفلة
+    Unlock with Face ID => افتح بـ Face ID
+    Unlock page {}. => افتح الصفحة {}.
     Auto-Hide Tools While Writing => إخفاء الأدوات تلقائياً أثناء الكتابة
+    Floating Quick Note => ملاحظة سريعة عائمة
+    Write a thought without leaving the library => اكتب فكرة دون مغادرة المكتبة
+    Quick Note => ملاحظة سريعة
+    Close => إغلاق
+    Clear => مسح
+    Save to Today => حفظ في اليوم
+    Find on Page => البحث في الصفحة
+    Find words in your handwriting and see where they are => ابحث عن الكلمات في خطّك وشاهد مكانها
+    Words in your handwriting => كلمات من خطّك
+    Read Ink => قراءة الحبر
+    No preview for this page. => لا توجد معاينة لهذه الصفحة.
+    Page {} => الصفحة {}
+    No handwriting has been read in this note yet. Tap Read Ink to index it on this iPad. => لم تُقرأ كتابة يدوية في هذه الملاحظة بعد. اضغط قراءة الحبر لفهرستها على هذا الآيباد.
     """#
 }

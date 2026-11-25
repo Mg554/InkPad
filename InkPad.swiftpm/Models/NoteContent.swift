@@ -231,6 +231,8 @@ struct NoteMetadata: Codable, Equatable {
     var notebookFor: UUID?
     var notebookChapters: [NotebookChapter]?
     var bookPageLinks: [NotebookPageLink]?
+    /// Layout pages protected with Face ID, independently of the note.
+    var lockedPages: [Int]?
 
     func resolvedPages(pdfPageCount: Int) -> [PageSource] {
         pages ?? (0..<pdfPageCount).map { PageSource.pdf($0) } + Array(repeating: .paper, count: max(pageCount, 0))

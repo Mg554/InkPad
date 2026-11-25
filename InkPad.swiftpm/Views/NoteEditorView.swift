@@ -30,6 +30,7 @@ struct NoteEditorView: View {
     @State private var hudIsHidden = false
     @State private var toolbarBeforeHud = false
     @State private var hudRestoreTask: Task<Void, Never>?
+    @State private var unlockedPages: Set<Int> = []
     /// While the toolbar is dragged: where it would dock (the drag itself
     /// stays inside the toolbar, so the page doesn't redraw on every move).
     @State private var dropTarget: ToolbarPlacement?
@@ -81,6 +82,7 @@ struct NoteEditorView: View {
     @State private var showsRecall = false
     @State private var showsActivities = false
     @State private var showsLecturePack = false
+    @State private var findRequest: FindOnPageRequest?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -282,6 +284,41 @@ struct NoteEditorView: View {
         ))
         .toolbar(isReading ? .hidden : .automatic, for: .navigationBar)
         .statusBarHidden(isReading)
+        .overlay(alignment: .bottomTrailing) {
+            if hudIsHidden, !isReading, !exam.isActive {
+                Button {
+                    hudRestoreTask?.cancel()
+                    restoreHud()
+                } label: {
+                    Label("Show Tools", systemImage: "eye")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(14)
+            }
+        }
+        .overlay {
+            if session.isPageLocked(canvas.currentPage), !unlockedPages.contains(canvas.currentPage) {
+                ZStack {
+                    Color(uiColor: .systemBackground).opacity(0.97).ignoresSafeArea()
+                    VStack(spacing: Theme.Spacing.lg) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 44))
+                            .foregroundStyle(Color.inkAccent)
+                        Text("This Page Is Locked").font(.title3.weight(.semibold))
+                        Button {
+                            unlockCurrentPage()
+                        } label: {
+                            Label("Unlock with Face ID", systemImage: "faceid")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if isReading {
                 Button {
@@ -328,6 +365,12 @@ struct NoteEditorView: View {
         }
         .sheet(isPresented: $showsActivities) {
             ActivitySheet(noteID: noteID).environmentObject(store)
+        }
+        .sheet(item: $findRequest) { request in
+            FindOnPageSheet(request: request) { page in
+                canvas.scrollToPage(page)
+            }
+            .environmentObject(store)
         }
         .sheet(isPresented: $showsLecturePack) {
             LecturePackSheet(noteID: noteID).environmentObject(store).environmentObject(workspace)
@@ -757,6 +800,18 @@ struct NoteEditorView: View {
                         keywords: ["thumbnails", "صفحات"]) {
                 isShowingPages.toggle()
             },
+            PaletteItem(id: "ink-find-page", title: "Find on Page", subtitle: "Find words in your handwriting and see where they are",
+                        systemImage: "doc.text.magnifyingglass", section: .thisNote,
+                        keywords: ["search", "handwriting", "ocr", "بحث", "خط"]) {
+                if let content = session.currentContent(), let background = session.background {
+                    findRequest = FindOnPageRequest(
+                        noteID: noteID,
+                        content: content,
+                        background: background,
+                        initialHits: store.cachedRecognizedHits(for: noteID)
+                    )
+                }
+            },
             PaletteItem(id: "ink-toolbar", title: isToolbarHidden ? "Show Toolbar" : "Hide Toolbar", systemImage: "eye", section: .thisNote,
                         keywords: ["tools", "ادوات"]) {
                 setToolbarHidden(!isToolbarHidden)
@@ -1175,6 +1230,14 @@ struct NoteEditorView: View {
             return copy
         }
         canvas.addStrokes(strokes)
+    }
+
+    private func unlockCurrentPage() {
+        let page = canvas.currentPage
+        Task {
+            let result = await NoteLock.authenticate(reason: trMessage("Unlock page \(page + 1)."))
+            if case .unlocked = result { unlockedPages.insert(page) }
+        }
     }
 
     private func restoreHud() {

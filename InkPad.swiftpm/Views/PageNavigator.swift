@@ -243,6 +243,12 @@ struct PageSidebar: View {
                             Label(tab == nil ? "Add Tab…" : "Edit Tab…", systemImage: "bookmark")
                         }
                         Button {
+                            session.togglePageLock(index)
+                        } label: {
+                            Label(session.isPageLocked(index) ? "Unlock Page" : "Lock Page",
+                                  systemImage: session.isPageLocked(index) ? "lock.open" : "lock")
+                        }
+                        Button {
                             movePages = [index]
                         } label: {
                             Label("Move to Another Note…", systemImage: "arrow.right.doc.on.clipboard")

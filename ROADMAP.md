@@ -251,6 +251,16 @@
     simulator-verified; iPad install blocked because the device reports
     unavailable.
 
+18. **Phase 2 Stage C — productivity (25 Nov 2026)** — built and
+    simulator-verified, installed on the iPad but awaiting owner testing:
+    per-page lock (Face ID gate in the editor, toggled from the page menu),
+    an in-app floating Quick Note (draggable, saved to Today's Note), and
+    OCR hit indexing with page positions and a Find on Page sheet (preview
+    with highlights, jumps to the page, Read Ink re-indexes on device).
+    Auto-straighten, the vector-ink restyle and the pen preset dock were
+    already present, so no duplicate controls were added. OS picture-in-picture
+    is not possible without entitlements this free app does not have.
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the

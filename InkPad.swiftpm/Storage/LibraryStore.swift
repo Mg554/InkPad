@@ -31,6 +31,7 @@ private enum NoteFiles {
     static let markdownFile = "note.md"
     static let audioFolder = "audio"
     static let textFile = "text.json"
+    static let hitsFile = "ocr-hits.json"
 }
 
 /// What the library knows about a text note's contents, read from its
@@ -1247,6 +1248,24 @@ final class LibraryStore: ObservableObject {
         guard let data = try? JSONEncoder().encode(saved) else { return }
         try? data.write(to: noteDirectory(id).appendingPathComponent(NoteFiles.textFile), options: .atomic)
         recognizedText[id] = text
+    }
+
+    /// Recognized lines with their page positions, read on this iPad.
+    func cachedRecognizedHits(for id: UUID) -> [OCRHit] {
+        guard let note = note(id),
+              let data = try? Data(contentsOf: noteDirectory(id).appendingPathComponent(NoteFiles.hitsFile)),
+              let saved = try? JSONDecoder().decode(OCRHitFile.self, from: data),
+              saved.readAt + 1 >= note.modifiedAt.timeIntervalSinceReferenceDate
+        else { return [] }
+        return saved.hits
+    }
+
+    /// Stores OCR hits next to the plain text. An empty list clears stale hits.
+    func saveRecognizedHits(_ hits: [OCRHit], for id: UUID) {
+        guard !isReadOnly, note(id) != nil else { return }
+        let saved = OCRHitFile(readAt: Date().timeIntervalSinceReferenceDate, hits: hits)
+        guard let data = try? JSONEncoder().encode(saved) else { return }
+        try? data.write(to: noteDirectory(id).appendingPathComponent(NoteFiles.hitsFile), options: .atomic)
     }
 
     // MARK: Persistence

@@ -35,15 +35,18 @@ enum NoteTexts {
         let background = content.makeBackground()
         let count = min(background.layout.pageRects.count, maxPages)
         var pages: [String] = []
+        var hits: [OCRHit] = []
         for index in 0..<count {
             progress?("Reading \(summary.title): page \(index + 1) of \(count)…")
             let page = await Task.detached(priority: .utility) {
                 NoteReader.read(page: index, of: content, background: background, wantsImage: false)
             }.value
             if !page.text.isEmpty { pages.append(page.text) }
+            hits.append(contentsOf: page.hits)
         }
         let text = pages.joined(separator: "\n\n")
         store.saveRecognizedText(text, for: id)
+        store.saveRecognizedHits(hits, for: id)
         return text
     }
 

@@ -154,6 +154,18 @@ final class EditorSession: ObservableObject {
     /// Tabs (colored, named page markers) are the note's bookmarks.
     var tabs: [NoteBookmark] { (metadata?.bookmarks ?? []).sorted { $0.page < $1.page } }
 
+    func isPageLocked(_ page: Int) -> Bool {
+        metadata?.lockedPages?.contains(page) ?? false
+    }
+
+    func togglePageLock(_ page: Int) {
+        updateMetadata { metadata in
+            var list = metadata.lockedPages ?? []
+            if list.contains(page) { list.removeAll { $0 == page } } else { list.append(page) }
+            metadata.lockedPages = list
+        }
+    }
+
     func tab(onPage page: Int) -> NoteBookmark? {
         metadata?.bookmarks?.first { $0.page == page }
     }

@@ -321,6 +321,7 @@ struct LibraryView: View {
         withCommands
             .task { syncOpenTaskNotes() }
             .onChange(of: workspace.tasks) { syncOpenTaskNotes() }
+            .modifier(FloatingQuickNoteLayer())
             .modifier(FocusExtras())
     }
 
