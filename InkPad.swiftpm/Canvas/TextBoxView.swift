@@ -58,6 +58,8 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
             ? text.attributes(at: text.length - 1, effectiveRange: nil)
             : TextBoxStyle.defaultAttributes
         textView.delegate = self
+        let display = BidiIsolation.displayReady(text)
+        textView.attributedText = display
         addSubview(textView)
         applyInputMode()
         NotificationCenter.default.addObserver(self, selector: #selector(inputModeDidChange), name: TextInputMode.didChange, object: nil)
@@ -92,7 +94,8 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     }
 
     override func makeElement() -> PageElement? {
-        guard let rtf = TextBoxStyle.rtfData(from: textView.attributedText) else { return nil }
+        let stored = BidiIsolation.strippedAttributed(textView.attributedText)
+        guard let rtf = TextBoxStyle.rtfData(from: stored) else { return nil }
         return PageElement(id: id, frame: frame, content: .text(rtf: rtf), isLocked: isElementLocked ? true : nil)
     }
 
@@ -211,6 +214,13 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
         layerView?.selectElement(self)
     }
 
+    override func becomeFirstResponder() -> Bool {
+        if let current = textView.attributedText {
+            textView.attributedText = BidiIsolation.strippedAttributed(current)
+        }
+        return super.becomeFirstResponder()
+    }
+
     func textViewDidChange(_ textView: UITextView) {
         fitHeightSoon()
         layerView?.elementsDidChange()
@@ -221,6 +231,8 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
+        textView.attributedText = BidiIsolation.displayReady(textView.attributedText ?? NSAttributedString())
+        fitHeight()
         guard !isRefocusing else { return }
         if isEmpty {
             layerView?.remove(self)

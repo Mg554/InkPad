@@ -242,6 +242,12 @@
     local-first files and folder sync remain as-is; no CRDT was claimed.
     Parts B, C, and D follow after this stage passes iPad review.
 
+17. **Phase 2 Stage B (25 Nov 2026)** — in progress: Unicode bidi
+    isolation for Arabic text boxes (display-only, stripped from stored RTF),
+    unit-tested. Item 7 (true vector ink restyle) already existed in the
+    lasso style panel. Anchored blocks, smart PDF dark mode and content-aware
+    page breaks remain queued for the next round.
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the
