@@ -235,6 +235,13 @@
     skins, chosen after a search of GoodNotes/Notability template and
     student-community discussions.
 
+16. **Phase 2 Stage A — foundations (25 Nov 2026)** — Stage A done and
+    simulator-verified: predictive ink overlay, bucketed spatial stroke index,
+    fuzzy command-palette matching, and auto-hiding writing HUD. AC-002 (CRDT)
+    was revised: Yjs/Automerge are unavailable in this Swift package, so
+    local-first files and folder sync remain as-is; no CRDT was claimed.
+    Parts B, C, and D follow after this stage passes iPad review.
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the

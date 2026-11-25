@@ -241,6 +241,10 @@ final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate 
     var onTouchBegan: (() -> Void)?
     /// Called once per touch, with the points drawn so far.
     var onHold: (([CGPoint]) -> Void)?
+    /// Live samples, for the predictive ink overlay.
+    var onSample: (([CGPoint]) -> Void)?
+    /// Whether the beginning touch came from a real Pencil.
+    var onPencilTouch: ((Bool) -> Void)?
     var onTouchEnded: (() -> Void)?
 
     private var points: [CGPoint] = []
@@ -264,12 +268,14 @@ final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate 
             return
         }
         didHold = false
+        onPencilTouch?(touch.type == .pencil)
         let location = touch.location(in: coordinateView)
         points = [location]
         lastMoveLocation = location
         currentLocation = location
         lastTimerRestart = Date()
         onTouchBegan?()
+        onSample?(points)
         restartHoldTimer()
     }
 
@@ -280,6 +286,7 @@ final class StrokeHoldTracker: UIGestureRecognizer, UIGestureRecognizerDelegate 
         }
         let location = touch.location(in: coordinateView)
         currentLocation = location
+        onSample?(points)
         if Math.distance(location.x - lastMoveLocation.x, location.y - lastMoveLocation.y) > Self.stillDistance {
             lastMoveLocation = location
             // A Pencil reports over a hundred moves a second. Restarting the

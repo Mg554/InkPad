@@ -224,11 +224,19 @@ enum HandwritingRefiner {
 /// The toolbar popover for handwriting refinement.
 struct HandwritingSettingsView: View {
     @ObservedObject private var store = HandwritingSettingsStore.shared
+    @AppStorage("predictiveInk") private var predictiveInk = true
+    @AppStorage("autoHideHud") private var autoHideHud = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
             Text("Refine Handwriting")
                 .font(.headline)
+            Toggle(isOn: $predictiveInk) {
+                Label("Predictive Ink", systemImage: "pencil.line")
+            }
+            Toggle(isOn: $autoHideHud) {
+                Label("Auto-Hide Tools While Writing", systemImage: "eye.slash")
+            }
             Toggle(isOn: $store.settings.notesLike) {
                 Label("Notes-Style Refining", systemImage: "sparkles.rectangle.stack")
             }

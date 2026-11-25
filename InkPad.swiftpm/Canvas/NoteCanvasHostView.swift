@@ -25,6 +25,7 @@ final class NoteCanvasHostView: UIView {
     private var savedPanTouchTypes: [NSNumber]?
     private var savedPanMinimumTouches = 1
     private let pageBackground = PageBackgroundView()
+    let predictiveOverlay = PredictiveInkOverlay()
     private(set) var background: NoteBackground?
     private var fitScale: CGFloat = 0
     private lazy var textTap = UITapGestureRecognizer(target: self, action: #selector(handleTextTap(_:)))
@@ -88,6 +89,7 @@ final class NoteCanvasHostView: UIView {
         addSubview(pageBackground)
         addSubview(elementLayer)
         addSubview(canvas)
+        addSubview(predictiveOverlay)
         addSubview(replay.mirror)
         addSubview(selectionOverlay)
         addSubview(livingOverlay)
@@ -342,7 +344,7 @@ final class NoteCanvasHostView: UIView {
         if canvas.contentSize != scaledSize {
             canvas.contentSize = scaledSize
         }
-        for view in [pageBackground, elementLayer, selectionOverlay, livingOverlay] as [UIView] {
+        for view in [pageBackground, elementLayer, predictiveOverlay, selectionOverlay, livingOverlay] as [UIView] {
             view.transform = .identity
             view.bounds = CGRect(origin: .zero, size: size)
             view.transform = CGAffineTransform(scaleX: zoom, y: zoom)
@@ -358,6 +360,7 @@ final class NoteCanvasHostView: UIView {
         let center = CGPoint(x: size.width * zoom / 2 - offset.x, y: size.height * zoom / 2 - offset.y)
         pageBackground.center = center
         elementLayer.center = center
+        predictiveOverlay.center = center
         selectionOverlay.center = center
         livingOverlay.center = center
         replay.syncGeometry()

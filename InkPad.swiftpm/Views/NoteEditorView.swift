@@ -26,6 +26,10 @@ struct NoteEditorView: View {
     @AppStorage("toolbarAlignment") private var toolbarAlignment: ToolbarAlignment = .center
     @AppStorage("toolbarHidden") private var isToolbarHidden = false
     @AppStorage("simpleMode") private var simpleMode = false
+    @AppStorage("autoHideHud") private var autoHideHud = true
+    @State private var hudIsHidden = false
+    @State private var toolbarBeforeHud = false
+    @State private var hudRestoreTask: Task<Void, Never>?
     /// While the toolbar is dragged: where it would dock (the drag itself
     /// stays inside the toolbar, so the page doesn't redraw on every move).
     @State private var dropTarget: ToolbarPlacement?
@@ -852,6 +856,21 @@ struct NoteEditorView: View {
         }
         canvas.onEditorAction = { action in handleEditorAction(action) }
         canvas.onTouchBegan = { if split.active != .main { split.active = .main } }
+        canvas.onPencilTouch = { isPencil in
+            guard isPencil, self.autoHideHud,
+                  !self.exam.isActive, !self.isReading else { return }
+            if !self.hudIsHidden {
+                self.toolbarBeforeHud = self.isToolbarHidden
+                self.hudIsHidden = true
+                self.setToolbarHidden(true)
+            }
+            self.hudRestoreTask?.cancel()
+            self.hudRestoreTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2.5))
+                guard !Task.isCancelled else { return }
+                self.restoreHud()
+            }
+        }
         canvas.onDrop = { drop, point in handleDrop(drop, at: point, onMain: true) }
         if let beside = CommandCenter.shared.takePendingBeside(for: noteID) ?? SplitMemory.shared.openPartner(of: noteID) {
             openBeside(beside)
@@ -1156,6 +1175,12 @@ struct NoteEditorView: View {
             return copy
         }
         canvas.addStrokes(strokes)
+    }
+
+    private func restoreHud() {
+        guard hudIsHidden else { return }
+        hudIsHidden = false
+        setToolbarHidden(toolbarBeforeHud)
     }
 
     private func setToolbarHidden(_ hidden: Bool) {

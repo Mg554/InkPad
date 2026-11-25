@@ -229,5 +229,7 @@ extension ArabicStrings {
     Bradley Hand => برادلي هاند
     Marker Felt => ماركر فيلت
     Helvetica Neue => هيلفيتيكا نيو
+    Predictive Ink => تنبؤ الحبر
+    Auto-Hide Tools While Writing => إخفاء الأدوات تلقائياً أثناء الكتابة
     """#
 }

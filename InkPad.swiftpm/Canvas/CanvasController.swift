@@ -50,6 +50,8 @@ final class CanvasController: NSObject, ObservableObject {
     var onInkTapped: ((Date) -> Void)?
     /// A touch began on this canvas (split workspace: this side is active).
     var onTouchBegan: (() -> Void)?
+    /// A touch began, and whether it was Pencil (for auto-hiding chrome).
+    var onPencilTouch: ((Bool) -> Void)?
     /// Something was dropped here that needs the editor (a picture to
     /// store, a note to open beside, a page to copy in).
     var onDrop: ((CanvasDrop, CGPoint) -> Void)?
@@ -162,12 +164,17 @@ private var drawingBeforeRefine: PKDrawing?
             self?.didEraseDuringTouch = false
             self?.awaitsEraseAfterTouch = false
         }
+        holdTracker.onPencilTouch = { [weak self] isPencil in self?.onPencilTouch?(isPencil) }
+        holdTracker.onSample = { [weak host] points in
+            host?.predictiveOverlay.update(points)
+        }
         holdTracker.onHold = { [weak self] points in
             self?.snapHeldStroke(points)
         }
         holdTracker.onTouchEnded = { [weak self] in
             // PencilKit may add the stroke before or after this; handle both.
             guard let self else { return }
+            host.predictiveOverlay.clear()
             self.expectsNewStroke = !self.evenOutNewStroke()
             self.eraseTouchEnded()
         }

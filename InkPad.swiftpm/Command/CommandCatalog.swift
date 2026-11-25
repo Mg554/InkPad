@@ -268,8 +268,31 @@ struct CommandCatalog {
             else if w.hasPrefix(q) { best = max(best, 80 + bonus) }
             else if w.split(separator: " ").contains(where: { $0.hasPrefix(q) }) { best = max(best, 60 + bonus) }
             else if w.contains(q) { best = max(best, 40 + bonus) }
+            else { best = max(best, Self.fuzzyScore(q, w)) }
         }
         return best
+    }
+
+    /// Subsequence match: `tlp` finds `Writing Time-Lapse`. Lower than
+    /// prefix and whole-word matches so exact hits still rank first.
+    private static func fuzzyScore(_ query: String, _ word: String) -> Int {
+        let needle = Array(query.lowercased())
+        let haystack = Array(word.lowercased())
+        guard !needle.isEmpty else { return 0 }
+        var target = 0
+        var first = -1
+        var gaps = 0
+        for (index, character) in haystack.enumerated() {
+            if character == needle[target] {
+                if first < 0 { first = index }
+                target += 1
+                if target == needle.count { break }
+            } else if first >= 0 {
+                gaps += 1
+            }
+        }
+        guard target == needle.count else { return 0 }
+        return max(5, 25 - gaps)
     }
 }
 
