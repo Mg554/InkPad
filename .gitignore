@@ -3,3 +3,7 @@
 xcuserdata/
 .swiftpm/xcode/
 .build/
+
+# Local coding-agent tool files (ECC / ZadLoop)
+/.agents/
+/.dsh/
