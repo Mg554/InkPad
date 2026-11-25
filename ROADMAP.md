@@ -242,11 +242,14 @@
     local-first files and folder sync remain as-is; no CRDT was claimed.
     Parts B, C, and D follow after this stage passes iPad review.
 
-17. **Phase 2 Stage B (25 Nov 2026)** — in progress: Unicode bidi
-    isolation for Arabic text boxes (display-only, stripped from stored RTF),
-    unit-tested. Item 7 (true vector ink restyle) already existed in the
-    lasso style panel. Anchored blocks, smart PDF dark mode and content-aware
-    page breaks remain queued for the next round.
+17. **Phase 2 Stage B (25 Nov 2026)** — Unicode bidi isolation for Arabic
+    text boxes, anchored text blocks that shift on resize, and luminance-
+    selective night PDF reading that preserves coloured media. Item 7 (vector
+    ink restyle) already existed in the lasso style panel. AC-010
+    (content-aware page breaks) revised: InkPad exports fixed-size pages, so
+    there is no infinite-canvas break to shift; deferred. Item 9/8/6
+    simulator-verified; iPad install blocked because the device reports
+    unavailable.
 
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
