@@ -261,6 +261,17 @@
     already present, so no duplicate controls were added. OS picture-in-picture
     is not possible without entitlements this free app does not have.
 
+19. **Phase 2 Stage D batch 1 — luxury AI, opt-in (25 Nov 2026)** — built
+    and simulator-verified, installed on the iPad but awaiting owner testing.
+    Both features are off by default and never send anything to AI without
+    the owner asking: Cognitive Replay (an optional amber heatmap over ink
+    pauses and rewrites, tap to replay the matching audio moment and offer
+    an AI question) and the Socratic Ghost (an offline margin question read
+    from the note's own words, fading unless tapped, then handed to Ask This
+    Page). The rest of the luxury tier — spatial canvas, sketch-to-3D,
+    acoustic diagramming and workspace assembly — follows after these pass
+    review.
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the

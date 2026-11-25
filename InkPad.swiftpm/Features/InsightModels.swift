@@ -371,6 +371,12 @@ struct FrictionPoint: Identifiable {
     let title: String
     let detail: String
     let date: Date
+    /// Where on the page this happened, as 0…1 fractions (top-left origin).
+    /// Pages from older builds have no position and are simply not drawn.
+    var x: Double?
+    var y: Double?
+
+    var hasLocation: Bool { x != nil && y != nil }
 }
 
 struct FrictionReport {
@@ -399,11 +405,14 @@ enum FrictionEngine {
             let gap = current.path.creationDate.timeIntervalSince(previous.path.creationDate)
             guard gap > 45, gap < 86_400 else { continue }
             longest = max(longest, gap)
+            let pointPage = page(of: current, rects: rects)
+            let spot = location(of: current, page: pointPage, rects: rects)
             points.append(FrictionPoint(
-                page: page(of: current, rects: rects),
+                page: pointPage,
                 title: tr("A long pause here"),
                 detail: trInsight("{} seconds before the next stroke.", String(format: "%.0f", gap)),
-                date: current.path.creationDate
+                date: current.path.creationDate,
+                x: spot?.x, y: spot?.y
             ))
         }
 
@@ -416,11 +425,22 @@ enum FrictionEngine {
         for (key, samples) in bands where samples.count >= 4 {
             let xs = samples.map(\.0)
             guard let low = xs.min(), let high = xs.max(), high - low < 260 else { continue }
+            let pointPage = key / 1000
+            var spot: (x: Double, y: Double)?
+            if rects.indices.contains(pointPage) {
+                let rect = rects[pointPage]
+                let midY = CGFloat(key % 1000) * 40 + 20
+                spot = (
+                    Double(((low + high) / 2) / max(rect.width, 1)),
+                    Double(midY / max(rect.height, 1))
+                )
+            }
             points.append(FrictionPoint(
-                page: key / 1000,
+                page: pointPage,
                 title: tr("Written over several times"),
                 detail: trInsight("{} strokes close together on this line.", String(samples.count)),
-                date: samples.last?.1 ?? Date()
+                date: samples.last?.1 ?? Date(),
+                x: spot?.x, y: spot?.y
             ))
         }
         return FrictionReport(
@@ -431,6 +451,18 @@ enum FrictionEngine {
 
     private static func page(of stroke: PKStroke, rects: [CGRect]) -> Int {
         rects.firstIndex { $0.contains(stroke.renderBounds.origin) } ?? 0
+    }
+
+    private static func location(of stroke: PKStroke, page: Int, rects: [CGRect]) -> (x: Double, y: Double)? {
+        guard rects.indices.contains(page) else { return nil }
+        let rect = rects[page]
+        let bounds = stroke.renderBounds
+        let midX = bounds.minX + bounds.width / 2
+        let midY = bounds.minY + bounds.height / 2
+        return (
+            Double((midX - rect.minX) / max(rect.width, 1)),
+            Double((midY - rect.minY) / max(rect.height, 1))
+        )
     }
 }
 

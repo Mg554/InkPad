@@ -258,6 +258,34 @@ enum ArabicSemantics {
     }
 }
 
+// MARK: - Socratic Ghost (optional luxury tier)
+
+/// A quiet, offline margin critic. It spots gaps in study notes with simple
+/// language checks and asks one short question. No text leaves the iPad; the
+/// owner can promote a question into Ask This Page to use the connected AI.
+struct GhostQuestion: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+}
+
+enum GhostCritic {
+    /// Reads a note's own words and returns at most two concise questions.
+    static func questions(in text: String) -> [GhostQuestion] {
+        let lower = text.lowercased()
+        var result: [GhostQuestion] = []
+        if lower.contains("because") || lower.contains("therefore") || lower.contains("لذلك") {
+            result.append(GhostQuestion(text: tr("What would disprove this?")))
+        }
+        if lower.contains("increases") || lower.contains("improves") || lower.contains("reduces") || lower.contains("يزيد") {
+            result.append(GhostQuestion(text: tr("Compared with what baseline?")))
+        }
+        if result.isEmpty {
+            result.append(GhostQuestion(text: tr("What assumption are you making here?")))
+        }
+        return Array(result.prefix(2))
+    }
+}
+
 private func trMessage(_ pattern: String, _ value: String) -> String {
     trMessage(pattern).replacingOccurrences(of: "{}", with: value)
 }

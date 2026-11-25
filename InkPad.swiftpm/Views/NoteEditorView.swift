@@ -83,6 +83,14 @@ struct NoteEditorView: View {
     @State private var showsActivities = false
     @State private var showsLecturePack = false
     @State private var findRequest: FindOnPageRequest?
+    /// Luxury AI tier, off by default: a heatmap of hesitation spots.
+    @AppStorage("luxuryConfusionHeatmap") private var showsHeatmap = false
+    @State private var frictionReport: FrictionReport?
+    @State private var confusionSpot: FrictionPoint?
+    @State private var pendingAsk: String?
+    /// Luxury AI tier, off by default: an offline Socratic question in the margin.
+    @AppStorage("luxuryGhostMargin") private var showsGhost = false
+    @State private var ghostQuestion: GhostQuestion?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -126,6 +134,12 @@ struct NoteEditorView: View {
             } else {
                 ProgressView()
             }
+        }
+        .task(id: showsHeatmap) {
+            if showsHeatmap { analyzeFriction() }
+        }
+        .task(id: showsGhost) {
+            await prepareGhost()
         }
         .overlay {
             if isExporting {
@@ -372,6 +386,9 @@ struct NoteEditorView: View {
             }
             .environmentObject(store)
         }
+        .sheet(item: $confusionSpot) { spot in
+            confusionDetail(spot)
+        }
         .sheet(isPresented: $showsLecturePack) {
             LecturePackSheet(noteID: noteID).environmentObject(store).environmentObject(workspace)
         }
@@ -439,6 +456,28 @@ struct NoteEditorView: View {
             )
             .id(session.generation)
             .ignoresSafeArea(edges: isToolbarDocked(at: .bottom) ? [] : .bottom)
+            .overlay {
+                if showsHeatmap, let frictionReport {
+                    ConfusionHeatmap(
+                        report: frictionReport,
+                        page: canvas.currentPage,
+                        audio: session.audio,
+                        selected: $confusionSpot
+                    )
+                    .allowsHitTesting(!isReading)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if showsGhost, let ghostQuestion, !isReading {
+                    GhostMarginView(
+                        question: ghostQuestion,
+                        onPromote: { askGhost(ghostQuestion) },
+                        onDismiss: { self.ghostQuestion = nil }
+                    )
+                    .padding(.trailing, 70)
+                    .padding(.top, 60)
+                }
+            }
             .overlay(alignment: .top) {
                 AudioPlaybackBar(
                     audio: session.audio,
@@ -541,9 +580,11 @@ struct NoteEditorView: View {
     @ViewBuilder
     private var sidePanel: some View {
         if showsAsk {
-            AskPageView(noteID: noteID, session: session, canvas: canvas) { text, rect, asSticky in
+            AskPageView(noteID: noteID, session: session, canvas: canvas,
+                        place: { text, rect, asSticky in
                 placeAnswer(text, near: rect, asSticky: asSticky)
-            }
+            }, initialQuestion: pendingAsk)
+            .onAppear { pendingAsk = nil }
         } else if showsCompanion {
             FocusCompanionView(noteID: noteID, pageText: currentPageText)
         } else if showsBookPanel {
@@ -652,6 +693,33 @@ struct NoteEditorView: View {
                 await notebook.send(image: request.image, fromLayoutPage: page)
             }
         }
+    }
+
+    private func analyzeFriction() {
+        guard let content = session.currentContent(), let background = session.background else { return }
+        frictionReport = FrictionEngine.make(drawing: content.drawing, background: background)
+    }
+
+    private func confusionDetail(_ spot: FrictionPoint) -> some View {
+        ConfusionDetailSheet(point: spot, noteID: noteID, onAsk: askAboutConfusion)
+            .environmentObject(store)
+    }
+
+    private func askAboutConfusion() {
+        let message = trMessage("Why did I get stuck at @page {}? What should I review?")
+        pendingAsk = message.replacingOccurrences(of: "{}", with: String(canvas.currentPage + 1))
+        openAsk()
+    }
+
+    private func prepareGhost() async {
+        guard showsGhost else { ghostQuestion = nil; return }
+        let words = await NoteTexts.text(of: noteID, store: store)
+        ghostQuestion = GhostCritic.questions(in: words).first
+    }
+
+    private func askGhost(_ question: GhostQuestion) {
+        pendingAsk = question.text
+        openAsk()
     }
 
     private func openAsk() {
@@ -811,6 +879,20 @@ struct NoteEditorView: View {
                         initialHits: store.cachedRecognizedHits(for: noteID)
                     )
                 }
+            },
+            PaletteItem(id: "ink-ghost", title: showsGhost ? "Hide Socratic Ghost" : "Show Socratic Ghost",
+                        subtitle: "An offline question in the margin; tap to ask the AI",
+                        systemImage: "questionmark.bubble", section: .thisNote,
+                        keywords: ["ghost", "socratic", "critique", "شبح", "سقراط"]) {
+                showsGhost.toggle()
+                if !showsGhost { ghostQuestion = nil }
+            },
+            PaletteItem(id: "ink-heatmap", title: showsHeatmap ? "Hide Confusion Heatmap" : "Show Confusion Heatmap",
+                        subtitle: "Optional luxury tier: where writing slowed or was rewritten",
+                        systemImage: "waveform.path.ecg", section: .thisNote,
+                        keywords: ["friction", "heatmap", "confusion", "خريطة", "ارتباك"]) {
+                showsHeatmap.toggle()
+                if showsHeatmap { analyzeFriction() }
             },
             PaletteItem(id: "ink-toolbar", title: isToolbarHidden ? "Show Toolbar" : "Hide Toolbar", systemImage: "eye", section: .thisNote,
                         keywords: ["tools", "ادوات"]) {

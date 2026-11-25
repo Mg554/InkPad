@@ -12,6 +12,9 @@ struct AskPageView: View {
     @ObservedObject var canvas: CanvasController
     /// Puts text on the page: (text, near this rect, as a sticky note).
     let place: (String, CGRect?, Bool) -> Void
+    /// A question handed over by another tool (a heat spot, a ghost margin
+    /// question); the owner can edit it before sending.
+    var initialQuestion: String?
 
     enum Scope: String, CaseIterable, Identifiable {
         case page, chapter, note
@@ -79,6 +82,9 @@ struct AskPageView: View {
             inputBar
         }
         .sheet(isPresented: $showsSettings) { AISettingsView() }
+        .onAppear {
+            if let initialQuestion, question.isEmpty { question = initialQuestion }
+        }
         .onDisappear { task?.cancel() }
         .environment(\.openURL, OpenURLAction { url in
             openCitation(url)

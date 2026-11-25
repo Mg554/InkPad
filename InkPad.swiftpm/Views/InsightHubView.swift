@@ -10,6 +10,7 @@ struct InsightHubView: View {
     @ObservedObject private var ai = AISettings.shared
     @ObservedObject private var postcards = PostcardStore.shared
     @State private var settings = InsightSettings.load()
+    @AppStorage("luxuryConfusionHeatmap") private var heatmapEnabled = false
     @State private var doctor: DoctorReport?
     @State private var isChecking = false
     @State private var frictionNote: UUID?
@@ -338,6 +339,7 @@ struct InsightHubView: View {
     private var frictionSection: some View {
         Section {
             Toggle("Track Friction", isOn: $settings.frictionTracking)
+            Toggle("Confusion Heatmap in Notes", isOn: $heatmapEnabled)
             Button {
                 picker = .friction
             } label: {
