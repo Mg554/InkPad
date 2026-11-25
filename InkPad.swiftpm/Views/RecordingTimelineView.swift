@@ -20,6 +20,12 @@ struct RecordingTimelineView: View {
     @State private var task: Task<Void, Never>?
     /// The current replay mode (faded, reveal, spotlight).
     @State private var replayMode: InkReplay.ReplayMode = .faded
+    @State private var showsDiagram = false
+
+    private var diagramRows: [DiagramRow] {
+        guard let transcript else { return [] }
+        return AcousticDiagrammer.rows(in: transcript)
+    }
 
     private var audioURL: URL {
         store.audioDirectory(for: noteID).appendingPathComponent(recording.file)
@@ -199,9 +205,19 @@ struct RecordingTimelineView: View {
                     } label: {
                         Label("Save as Text Note", systemImage: "doc.badge.plus")
                     }
+                    Button {
+                        showsDiagram = true
+                    } label: {
+                        Label("Live Diagram", systemImage: "chart.flow")
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+            }
+        }
+        .sheet(isPresented: $showsDiagram) {
+            AcousticDiagramSheet(rows: diagramRows) { time in
+                jump(to: time)
             }
         }
     }

@@ -74,6 +74,11 @@ struct CommandCatalog {
                     .map(\.title)
                 if let note = store.dailyNote(tasks: today) { center.openNote(note.id) }
             },
+            PaletteItem(id: "today-dashboard", title: "Today / Up Next", subtitle: "A dashboard assembled from your own tasks, cards and recent notes",
+                        systemImage: "rectangle.on.rectangle", tint: .indigo, section: .create,
+                        keywords: ["dashboard", "today", "up next", "لوحة", "اليوم"]) { [center] in
+                center.sheet = .todayDashboard
+            },
             fillItem("new-reminder", "Reminder…", "bell.badge", .orange, "⌘⇧R", "remind me ", ["تذكير", "ذكرني"]),
             fillItem("new-task", "Task…", "checklist", .blue, "⌘⇧T", "task ", ["مهمة", "todo"]),
             fillItem("new-expense", "Expense…", "creditcard", .red, "⌘⇧E", "spent ", ["مصروف", "صرفت", "money"]),

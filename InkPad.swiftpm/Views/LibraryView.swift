@@ -308,6 +308,10 @@ struct LibraryView: View {
         case .quickCapture:
             QuickCaptureSheet()
                 .environmentObject(store)
+        case .todayDashboard:
+            TodayDashboard()
+                .environmentObject(store)
+                .environmentObject(workspace)
         }
     }
 

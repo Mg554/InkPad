@@ -272,6 +272,19 @@
     acoustic diagramming and workspace assembly — follows after these pass
     review.
 
+20. **Phase 2 Stage D batch 2 — luxury AI complete (25 Nov 2026)** —
+    built and simulator-verified, installed on the iPad but awaiting owner
+    testing. All four remaining features are offline-native approximations
+    with no new packages: Live Math (formulas in a note evaluated with the
+    existing MathExpression engine), Today / Up Next (a dashboard assembled
+    from local tasks, due cards and recent notes), Transform Sketch (lasso
+    ink classified into a rotatable SceneKit solid) and Live Diagram (a
+    structure read from a recording's own transcript, tappable to replay that
+    moment). With batch 1 (Cognitive Replay and the Socratic Ghost) this
+    completes the agreed 21-feature Phase 2/3 list. WebGL/Three.js, live HTML
+    prototypes and true CRDT remain out of reach in a Swift Playgrounds
+    package; native equivalents were used and are toggleable.
+
 Not yet possible with PencilKit: dashed and dotted pen strokes.
 
 AI is optional and your choice: study features and slide writing use the

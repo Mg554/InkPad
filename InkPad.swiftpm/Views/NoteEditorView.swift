@@ -91,6 +91,9 @@ struct NoteEditorView: View {
     /// Luxury AI tier, off by default: an offline Socratic question in the margin.
     @AppStorage("luxuryGhostMargin") private var showsGhost = false
     @State private var ghostQuestion: GhostQuestion?
+    @State private var showsLiveMath = false
+    @State private var liveMathLines: [MathLine] = []
+    @State private var sketch3D: Sketch3DRequest?
 
     private var canvas: CanvasController { session.canvas }
     private var title: String { store.note(noteID)?.title ?? "Note" }
@@ -385,6 +388,12 @@ struct NoteEditorView: View {
                 canvas.scrollToPage(page)
             }
             .environmentObject(store)
+        }
+        .sheet(isPresented: $showsLiveMath) {
+            LiveMathSheet(lines: liveMathLines)
+        }
+        .sheet(item: $sketch3D) { request in
+            Sketch3DSheet(request: request)
         }
         .sheet(item: $confusionSpot) { spot in
             confusionDetail(spot)
@@ -880,6 +889,15 @@ struct NoteEditorView: View {
                     )
                 }
             },
+            PaletteItem(id: "ink-live-math", title: "Work Out Live Math", subtitle: "Evaluate formulas written in this note, on this iPad",
+                        systemImage: "function", section: .thisNote,
+                        keywords: ["math", "formula", "calculate", "حساب", "معادلة"]) {
+            Task {
+                let words = await NoteTexts.text(of: noteID, store: store)
+                liveMathLines = ReactiveMath.lines(in: words)
+                showsLiveMath = true
+            }
+            },
             PaletteItem(id: "ink-ghost", title: showsGhost ? "Hide Socratic Ghost" : "Show Socratic Ghost",
                         subtitle: "An offline question in the margin; tap to ask the AI",
                         systemImage: "questionmark.bubble", section: .thisNote,
@@ -1016,6 +1034,9 @@ struct NoteEditorView: View {
             if StickerStore.shared.add(ink: drawing, name: tr("Handwriting"), folder: nil) != nil {
                 CommandCenter.shared.say(tr("Saved to My Stickers"))
             }
+        }
+        canvas.onTransformSketch = { drawing in
+            sketch3D = Sketch3DRequest(drawing: drawing)
         }
         var target: Int? = CommandCenter.shared.takePendingPage(for: noteID)
         if let pdfPage = CommandCenter.shared.takePendingPDFPage(for: noteID), let metadata = session.metadata {

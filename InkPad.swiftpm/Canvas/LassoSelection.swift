@@ -26,6 +26,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     var onReadArea: ((UIImage, CGRect) -> Void)?
     /// Save as Sticker: the selected ink, moved to start at 0,0.
     var onSaveSticker: ((PKDrawing) -> Void)?
+    /// Luxury tier: the selected ink as a rotatable 3D preview.
+    var onTransformSketch: ((PKDrawing) -> Void)?
     /// Send to Notebook (books with a notebook beside them).
     var onSendArea: ((UIImage, CGRect) -> Void)?
     /// Make Editable Text: the handwriting became a text box, to edit it.
@@ -386,6 +388,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
                 UIAction(title: tr("Make Editable Text"), image: UIImage(systemName: "character.textbox")) { [weak self] _ in self?.makeEditableText() },
                 UIAction(title: tr("Add Comment"), image: UIImage(systemName: "plus.bubble")) { [weak self] _ in self?.offerComment() },
                 UIAction(title: "Save as Sticker", image: UIImage(systemName: "seal")) { [weak self] _ in self?.saveAsSticker() },
+                UIAction(title: tr("Transform Sketch"), image: UIImage(systemName: "cube.transparent"),
+                         attributes: onTransformSketch == nil ? .hidden : []) { [weak self] _ in self?.transformSketch() },
                 UIAction(title: "Send to the Note Beside", image: UIImage(systemName: "rectangle.righthalf.inset.filled.arrow.right"),
                          attributes: onSendAcross == nil ? .hidden : []) { [weak self] _ in self?.sendAcross() },
                 UIAction(title: "Duplicate", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in self?.duplicateSelection() },
@@ -514,6 +518,11 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
             return copy
         }
         onSaveSticker?(PKDrawing(strokes: moved))
+    }
+
+    private func transformSketch() {
+        guard !selected.isEmpty else { return }
+        onTransformSketch?(PKDrawing(strokes: selected))
     }
 
     private func copyInkAsText() {

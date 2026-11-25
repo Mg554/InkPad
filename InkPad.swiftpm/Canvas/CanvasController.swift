@@ -61,6 +61,10 @@ final class CanvasController: NSObject, ObservableObject {
     }
     /// Lasso › Save as Sticker: the selected ink.
     var onSaveSticker: ((PKDrawing) -> Void)?
+    /// Lasso › Transform Sketch: selected ink as a rotatable preview.
+    var onTransformSketch: ((PKDrawing) -> Void)? {
+        didSet { host?.lasso.onTransformSketch = onTransformSketch }
+    }
     /// A sticky note was tapped: open it.
     var onStickyTapped: ((UUID, StickyNote) -> Void)?
     var onCommentTapped: ((UUID, NoteComment) -> Void)?
@@ -134,6 +138,7 @@ private var drawingBeforeRefine: PKDrawing?
         host.lasso.onRemind = { [weak self] text in self?.onRemind?(text) }
         host.lasso.onMakeEditableText = { [weak self] box in self?.beginEditingTextBox(box) }
         host.lasso.onSaveSticker = { [weak self] drawing in self?.onSaveSticker?(drawing) }
+        host.lasso.onTransformSketch = onTransformSketch
         host.lasso.onSendAcross = onSendAcross
         host.dropHandler.onDrop = { [weak self] drop, point in self?.receive(drop, at: point) }
         host.lasso.onReadArea = { [weak self] image, rect in self?.onReadArea?(image, rect) }

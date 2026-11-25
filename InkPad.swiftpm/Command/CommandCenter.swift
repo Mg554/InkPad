@@ -47,6 +47,8 @@ enum CommandSheet: Identifiable {
     case garden
     /// One-tap capture into the daily note.
     case quickCapture
+    /// Optional luxury tier: a dashboard assembled from local signals.
+    case todayDashboard
 
     var id: String {
         switch self {
@@ -54,6 +56,7 @@ enum CommandSheet: Identifiable {
         case .catchDistraction: "catch-distraction"
         case .garden: "garden"
         case .quickCapture: "quick-capture"
+        case .todayDashboard: "today-dashboard"
         case .themes: "themes"
         case let .history(note): "history-\(note.id)"
         case let .reminder(draft): "reminder-\(draft.id)"
