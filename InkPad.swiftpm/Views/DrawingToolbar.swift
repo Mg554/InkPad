@@ -24,6 +24,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
     @AppStorage("toolbarCollapsed") private var isCollapsed = false
     @State private var customColor = Color.black
     @State private var isAdjustingWidth = false
+    @State private var isAdjustingHighlighter = false
     @State private var isCustomizing = false
     @State private var isNamingPalette = false
     @State private var paletteName = ""
@@ -226,6 +227,10 @@ struct DrawingToolbar<InsertMenu: View>: View {
             paletteMenu
             barDivider
             widthButtons(style)
+            if palette.tool == .highlighter {
+                barDivider
+                highlighterButton
+            }
 
         case .eraser:
             eraserModes
@@ -678,6 +683,58 @@ struct DrawingToolbar<InsertMenu: View>: View {
         }
     }
 
+    /// The highlighter's own controls: how see-through it is, and whether it
+    /// draws a straight line like Notability.
+    private var highlighterButton: some View {
+        Button {
+            isAdjustingHighlighter = true
+        } label: {
+            Image(systemName: "circle.lefthalf.filled")
+                .frame(width: 34, height: 32)
+                .foregroundStyle(Color.inkAccent)
+                .background(Color.inkAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        }
+        .accessibilityLabel(trMessage("Highlighter Opacity and Line"))
+        .popover(isPresented: $isAdjustingHighlighter) {
+            highlighterPanel
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private var highlighterPanel: some View {
+        let percent = Int((palette.highlighterOpacity * 100).rounded())
+        return VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
+            // The highlight colour at the chosen see-through amount.
+            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                .fill(palette.style(for: .highlighter).selectedColor.color.opacity(palette.highlighterOpacity))
+                .frame(height: 44)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                        .stroke(Color.primary.opacity(0.12))
+                )
+            Label {
+                Text(trMessage("Opacity: {}%").replacingOccurrences(of: "{}", with: String(percent)))
+            } icon: {
+                Image(systemName: "circle.lefthalf.filled")
+            }
+            .font(.subheadline.weight(.medium))
+            Slider(value: $palette.highlighterOpacity, in: 0.12...0.7, step: 0.02)
+                .onChange(of: palette.highlighterOpacity) {
+                    canvas.applyTool()
+                }
+            Toggle(isOn: $palette.straightenHighlights) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.x2) {
+                    Text("Straight Highlights")
+                    Text("Highlights come out as straight, even lines that follow the text.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding()
+        .frame(width: 320)
+    }
+
     /// Notability-style width bar with a live preview stroke; drag along it to
     /// change the width smoothly.
     private var widthSlider: some View {
@@ -701,7 +758,7 @@ struct DrawingToolbar<InsertMenu: View>: View {
                     control1: CGPoint(x: size.width * 0.35, y: size.height / 2 - 14),
                     control2: CGPoint(x: size.width * 0.65, y: size.height / 2 + 14)
                 )
-                let opacity = tool == .highlighter ? DrawingTool.highlighterOpacity : 1
+                let opacity = tool == .highlighter ? palette.highlightAlpha : 1
                 let lineWidth = max(current * previewScale, 0.75)
                 if style.ignoresPressure(for: tool) || !tool.isInking {
                     context.stroke(

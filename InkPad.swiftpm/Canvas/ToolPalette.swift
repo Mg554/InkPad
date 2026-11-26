@@ -197,6 +197,8 @@ final class ToolPalette: ObservableObject {
         var toolbarOrder: [DrawingTool]?
         var hiddenTools: [DrawingTool]?
         var laserLeavesTail: Bool?
+        var highlighterOpacity: Double?
+        var straightenHighlights: Bool?
         var presets: [PenPreset]?
         var palettes: [ColorPalette]?
     }
@@ -221,6 +223,12 @@ final class ToolPalette: ObservableObject {
     /// The laser leaves a short tail that follows the pencil; otherwise the
     /// whole line stays until you lift the pencil, then fades away.
     @Published var laserLeavesTail = false { didSet { save() } }
+    /// How see-through the highlighter is, 0…1 (Notability keeps text readable
+    /// through the colour).
+    @Published var highlighterOpacity: Double = Double(DrawingTool.highlighterOpacity) { didSet { save() } }
+    /// Notability's highlighter draws a straight, even line rather than the
+    /// hand's wobble, so a highlight follows the line of text.
+    @Published var straightenHighlights = true { didSet { save() } }
     /// Saved pens shown in the toolbar (PenPresets.swift).
     @Published var presets: [PenPreset] = [] { didSet { save() } }
     /// The owner's named color palettes; built-in ones are added on top.
@@ -244,6 +252,8 @@ final class ToolPalette: ObservableObject {
             toolbarOrder = Self.completeOrder(saved.toolbarOrder ?? DrawingTool.allCases)
             hiddenTools = Set(saved.hiddenTools ?? [])
             laserLeavesTail = saved.laserLeavesTail ?? false
+            highlighterOpacity = saved.highlighterOpacity ?? Double(DrawingTool.highlighterOpacity)
+            straightenHighlights = saved.straightenHighlights ?? true
             presets = saved.presets ?? []
             palettes = saved.palettes ?? []
         }
@@ -388,6 +398,11 @@ final class ToolPalette: ObservableObject {
         styles[tool] = style
     }
 
+    /// The chosen see-through amount, kept inside a readable range.
+    var highlightAlpha: CGFloat {
+        CGFloat(min(max(highlighterOpacity, 0.1), 0.8))
+    }
+
     /// The PencilKit tool for the current selection.
     var pkTool: PKTool {
         let style = style(for: tool)
@@ -403,7 +418,7 @@ final class ToolPalette: ObservableObject {
             // Drawing is switched off while these tools are active.
             return PKLassoTool()
         case .highlighter:
-            return PKInkingTool(.monoline, color: color.withAlphaComponent(DrawingTool.highlighterOpacity), width: width)
+            return PKInkingTool(.monoline, color: color.withAlphaComponent(highlightAlpha), width: width)
         default:
             return PKInkingTool(tool.inkType ?? .pen, color: color, width: width)
         }
@@ -428,6 +443,8 @@ final class ToolPalette: ObservableObject {
             toolbarOrder: toolbarOrder,
             hiddenTools: Array(hiddenTools),
             laserLeavesTail: laserLeavesTail,
+            highlighterOpacity: highlighterOpacity,
+            straightenHighlights: straightenHighlights,
             presets: presets,
             palettes: palettes
         )

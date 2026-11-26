@@ -348,5 +348,9 @@ Tap the card to see the answer => المس البطاقة لترى الإجاب�
 Nothing to Review => لا شيء للمراجعة
 Session Complete => اكتملت الجلسة
 You reviewed {} cards. They'll come back when it's time to review them again. => راجعت {} بطاقة. ستعود عندما يحين وقت مراجعتها مجدداً.
+Highlighter Opacity and Line => شفافية الهايلايتر وخطّه
+Opacity: {}% => الشفافية: {}%
+Straight Highlights => تظليل مستقيم
+Highlights come out as straight, even lines that follow the text. => يخرج التظليل خطوطاً مستقيمة متساوية تتبع النص.
 """#
 }

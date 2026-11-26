@@ -468,7 +468,8 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
     private func highlightPDFText() {
         guard let host, let lines = textHit?.lines, !lines.isEmpty else { return }
         let before = host.canvas.drawing
-        let color = UIColor(red: 0.98, green: 0.92, blue: 0.25, alpha: DrawingTool.highlighterOpacity)
+        let alpha = host.canvasController?.palette?.highlightAlpha ?? DrawingTool.highlighterOpacity
+        let color = UIColor(red: 0.98, green: 0.92, blue: 0.25, alpha: alpha)
         var drawing = host.canvas.drawing
         drawing.strokes += lines.map { Self.highlight($0, color: color) }
         host.canvas.drawing = drawing

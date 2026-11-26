@@ -118,6 +118,12 @@ enum ShapeRecognizer {
         return even
     }
 
+    /// How far the stroke strays from the straight line between its ends.
+    static func straightnessDeviation(_ points: [CGPoint]) -> CGFloat {
+        guard let first = points.first, let last = points.last else { return 0 }
+        return points.map { distanceToSegment($0, first, last) }.max() ?? 0
+    }
+
     /// The area a shape covers, for highlighting and zooming.
     static func bounds(of shape: Shape) -> CGRect {
         switch shape {

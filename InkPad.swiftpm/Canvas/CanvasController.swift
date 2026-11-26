@@ -90,7 +90,7 @@ final class CanvasController: NSObject, ObservableObject {
     }
 
     private weak var host: NoteCanvasHostView?
-    private weak var palette: ToolPalette?
+    weak var palette: ToolPalette?
     // Kept when the canvas goes away, so a final save still has the content.
     private var lastDrawing: PKDrawing?
     private var lastElements: [PageElement]?
@@ -181,6 +181,7 @@ private var drawingBeforeRefine: PKDrawing?
             guard let self else { return }
             host.predictiveOverlay.clear()
             self.expectsNewStroke = !self.evenOutNewStroke()
+            self.straightenNewHighlight()
             self.sendNewHighlightUnderInk()
             self.eraseTouchEnded()
         }
@@ -211,6 +212,7 @@ private var drawingBeforeRefine: PKDrawing?
         if expectsNewStroke, !isReplacingStroke, evenOutNewStroke() {
             expectsNewStroke = false
         }
+        straightenNewHighlight()
         sendNewHighlightUnderInk()
         if palette?.tool == .eraser {
             if awaitsEraseAfterTouch {
@@ -274,6 +276,32 @@ private var drawingBeforeRefine: PKDrawing?
         restored.strokes = highlights + penInk
         isReplacingStroke = true
         host.canvas.drawing = restored
+        isReplacingStroke = false
+    }
+
+    /// Notability's highlighter draws a straight, even line: on pencil lift
+    /// the stroke is replaced by a line from where it started to where it
+    /// ended, so a highlight follows the text and not the hand's wobble.
+    private func straightenNewHighlight() {
+        guard !isReplacingStroke,
+              let host, let palette, palette.tool == .highlighter, palette.straightenHighlights,
+              let stroke = host.canvas.drawing.strokes.last, stroke.isHighlighterInk
+        else { return }
+        let points = ShapeRecognizer.points(of: stroke)
+        guard let first = points.first, let last = points.last else { return }
+        let span = Math.distance(last.x - first.x, last.y - first.y)
+        guard span > 10 else { return }
+        // Already straight: nothing to do.
+        guard ShapeRecognizer.straightnessDeviation(points) > 1 else { return }
+        let width = palette.style(for: .highlighter).selectedWidth(for: .highlighter)
+        let ink = PKInk(.monoline, color: stroke.ink.color)
+        var clean = ShapeRecognizer.stroke(for: .polyline([first, last], closed: false), ink: ink, width: width)
+        let controlPoints = Array(clean.path)
+        clean.path = PKStrokePath(controlPoints: controlPoints, creationDate: stroke.path.creationDate)
+        var drawing = host.canvas.drawing
+        drawing.strokes[drawing.strokes.count - 1] = clean
+        isReplacingStroke = true
+        host.canvas.drawing = drawing
         isReplacingStroke = false
     }
 
