@@ -1,3 +1,4 @@
+import PencilKit
 import UIKit
 
 /// How InkPad's text fields take words: typed on the keyboard (Apple Pencil
@@ -45,6 +46,11 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     /// "Show Keyboard" was asked for in this box, so bring up the keyboard
     /// here while still handwriting in the other boxes next time.
     private var showsKeyboardNow = false
+    /// The small ink surface over this box in handwriting mode: writing on
+    /// it becomes text, with any pen, not only an Apple Pencil.
+    private var inkSurface: PKCanvasView?
+    private var readHandwritingTask: Task<Void, Never>?
+    private var isReadingHandwriting = false
 
     init(id: UUID, frame: CGRect, text: NSAttributedString, isLocked: Bool = false) {
         super.init(id: id, frame: frame, isLocked: isLocked)
@@ -175,6 +181,7 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
         if textView.isFirstResponder {
             textView.reloadInputViews()
         }
+        updateHandwritingSurface()
     }
 
     /// Brings up the keyboard in this box. After a tap with Apple Pencil
@@ -201,6 +208,102 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     @objc private func switchInputMode() {
         TextInputMode.toggle()
         layerView?.onTextStateChange?()
+    }
+
+    // MARK: Handwriting that becomes text
+
+    /// Writing on the page, then read on the iPad and typed into the box.
+    /// iPadOS Scribble only answers an Apple Pencil, so the box keeps its
+    /// own small ink surface: any pen, or a finger, writes on it and the
+    /// writing turns into text when the pen lifts.
+    private func updateHandwritingSurface() {
+        let wantsInk = TextInputMode.current == .pencil && !showsKeyboardNow
+        if wantsInk {
+            guard inkSurface == nil else { return }
+            let surface = PKCanvasView(frame: bounds)
+            surface.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            surface.backgroundColor = .clear
+            surface.isOpaque = false
+            surface.isScrollEnabled = false
+            surface.drawingPolicy = .anyInput
+            surface.delegate = self
+            surface.tool = PKInkingTool(.pen, color: UIColor(white: 0.08, alpha: 1), width: 2)
+            addSubview(surface)
+            inkSurface = surface
+            return
+        }
+        readHandwritingTask?.cancel()
+        readHandwritingTask = nil
+        inkSurface?.removeFromSuperview()
+        inkSurface = nil
+    }
+
+    /// Reads the writing a moment after the pen lifts, so a whole word or
+    /// line is read together.
+    private func scheduleHandwritingRead() {
+        readHandwritingTask?.cancel()
+        readHandwritingTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(0.7))
+            guard !Task.isCancelled else { return }
+            self?.readHandwriting()
+        }
+    }
+
+    private func readHandwriting() {
+        guard !isReadingHandwriting,
+              let surface = inkSurface,
+              !surface.drawing.strokes.isEmpty
+        else { return }
+        isReadingHandwriting = true
+        let drawing = surface.drawing
+        let readCount = drawing.strokes.count
+        let region = bounds.union(drawing.bounds).insetBy(dx: -6, dy: -6)
+        let picture = InkSnapshot.forReading(of: drawing, from: region)
+        guard let image = picture.cgImage else {
+            isReadingHandwriting = false
+            return
+        }
+        Task { [weak self] in
+            let lines = await Task.detached(priority: .userInitiated) {
+                InkOCR.handwritingLines(in: image)
+            }.value
+            self?.finishHandwriting(lines, readCount: readCount)
+        }
+    }
+
+    private func finishHandwriting(_ lines: [InkOCR.Line], readCount: Int) {
+        isReadingHandwriting = false
+        guard let surface = inkSurface else { return }
+        let text = lines.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n")
+        guard !text.isEmpty else {
+            // The ink stays, so it can be written over or added to.
+            CommandCenter.shared.say(tr("Nothing was read from that writing. Write larger or clearer, then try again."))
+            return
+        }
+        insertHandwritten(text)
+        // Only what was read leaves the surface; writing that came in
+        // meanwhile stays and is read next.
+        var left = surface.drawing
+        let removed = min(readCount, left.strokes.count)
+        if removed > 0 {
+            left.strokes.removeFirst(removed)
+        }
+        surface.drawing = left
+        if !left.strokes.isEmpty {
+            scheduleHandwritingRead()
+        }
+    }
+
+    private func insertHandwritten(_ text: String) {
+        if !textView.isFirstResponder {
+            textView.becomeFirstResponder()
+        }
+        let current = textView.text ?? ""
+        let needsSpace = !current.isEmpty
+            && !current.hasSuffix(" ")
+            && !current.hasSuffix("\n")
+        textView.insertText(needsSpace ? " " + text : text)
+        fitHeight()
     }
 
     // MARK: Gestures
@@ -254,6 +357,21 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
         } else {
             layerView?.elementsDidChange()
         }
+    }
+}
+
+extension TextBoxView: PKCanvasViewDelegate {
+    func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
+        // Typing into the box needs the caret, even though the pen writes
+        // on the surface above it. An empty input view keeps the keyboard
+        // away, so no keyboard covers the writing.
+        if !textView.isFirstResponder {
+            textView.becomeFirstResponder()
+        }
+    }
+
+    func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
+        scheduleHandwritingRead()
     }
 }
 

@@ -527,27 +527,32 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
 
     private func copyInkAsText() {
         readSelectedInk { text in
-            if !text.isEmpty { UIPasteboard.general.string = text }
+            guard !text.isEmpty else {
+                CommandCenter.shared.say(tr("Nothing was read from that writing. Write larger or clearer, then try again."))
+                return
+            }
+            UIPasteboard.general.string = text
         }
     }
 
     /// Make Editable Text: reads the selected handwriting and turns it into a
     /// text box in its place, which can then be typed and edited.
     private func makeEditableText() {
-        guard let host, hasSelection else { return }
+        guard hasSelection else { return }
         let region = selectionBounds.insetBy(dx: -12, dy: -12)
         let strokes = selected
-        // Dark ink on white reads best.
-        let picture = InkSnapshot.onWhite(
-            of: PKDrawing(strokes: strokes),
-            from: region,
-            scale: max(host.window?.screen.scale ?? 2, 2)
-        )
+        // Dark ink on white reads best, and bigger is read better.
+        let picture = InkSnapshot.forReading(of: PKDrawing(strokes: strokes), from: region)
         guard let image = picture.cgImage else { return }
         Task.detached(priority: .userInitiated) {
-            let lines = InkOCR.lines(in: image, mappedTo: region)
+            let lines = InkOCR.handwritingLines(in: image, mappedTo: region)
             await MainActor.run { [weak self] in
-                self?.replaceSelection(withLines: lines, at: region, strokes: strokes)
+                guard let self else { return }
+                guard !lines.isEmpty else {
+                    CommandCenter.shared.say(tr("Nothing was read from that writing. Write larger or clearer, then try again."))
+                    return
+                }
+                self.replaceSelection(withLines: lines, at: region, strokes: strokes)
             }
         }
     }
@@ -631,14 +636,14 @@ final class LassoSelection: NSObject, @preconcurrency UIEditMenuInteractionDeleg
 
     /// Reads the selected handwriting with Vision, off the main thread.
     private func readSelectedInk(_ done: @escaping @MainActor (String) -> Void) {
-        guard let host, hasSelection else { return }
+        guard hasSelection else { return }
         let bounds = selected.reduce(CGRect.null) { $0.union($1.renderBounds) }.insetBy(dx: -12, dy: -12)
         let drawing = PKDrawing(strokes: selected)
-        // Dark ink on white reads best.
-        let picture = InkSnapshot.onWhite(of: drawing, from: bounds, scale: max(2, host.window?.screen.scale ?? 2))
+        // Dark ink on white reads best, and bigger is read better.
+        let picture = InkSnapshot.forReading(of: drawing, from: bounds)
         guard let image = picture.cgImage else { return }
         Task.detached(priority: .userInitiated) {
-            let text = InkOCR.text(in: image)
+            let text = InkOCR.handwritingText(in: image)
             await MainActor.run { done(text) }
         }
     }

@@ -3,7 +3,10 @@ import SwiftUI
 
 /// Settings for refining handwriting as you write (toolbar ✦ button).
 struct HandwritingSettings: StoredLook {
-    static let storageKey = "handwritingSettings"
+    /// A new key for the handwriting refinements: earlier versions turned on
+    /// Notes-Style Refining by default, which rewrote every stroke as it was
+    /// written, so those saves are left behind and strokes stay as written.
+    static let storageKey = "handwritingSettings2"
 
     /// Smooths each stroke when the pencil lifts.
     var smooths = false
@@ -16,8 +19,9 @@ struct HandwritingSettings: StoredLook {
     /// Seconds without writing before a line is straightened.
     var pause = 1.2
     /// Notes-style refining: clean simple shapes on pencil lift and gently
-    /// smooth handwriting, then level lines after a pause.
-    var notesLike = true
+    /// smooth handwriting, then level lines after a pause. Off by default:
+    /// it changes your own letters, so ink stays exactly as it was written.
+    var notesLike = false
 
     init() {}
 

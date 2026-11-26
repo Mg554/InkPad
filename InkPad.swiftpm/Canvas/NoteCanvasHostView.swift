@@ -51,7 +51,7 @@ final class NoteCanvasHostView: UIView {
 
     /// Returns keyboard shortcuts for common actions when a hardware keyboard is connected.
     override var keyCommands: [UIKeyCommand]? {
-        guard let canvasController else { return nil }
+        guard canvasController != nil else { return nil }
         return [
             // Undo
             UIKeyCommand(input: "z", modifierFlags: .command, action: #selector(undo)),

@@ -19,10 +19,13 @@ enum InkOCR {
     }
 
     /// A text request tuned for handwriting on paper.
-    static func request() -> VNRecognizeTextRequest {
+    static func request(handwriting: Bool = false) -> VNRecognizeTextRequest {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
+        // Language correction guesses at printed words. On handwriting it
+        // can "fix" a word into another or drop what it does not know, so
+        // handwriting is read without it first.
+        request.usesLanguageCorrection = !handwriting
         request.automaticallyDetectsLanguage = true
         request.recognitionLanguages = languages(for: request)
         return request
@@ -31,7 +34,18 @@ enum InkOCR {
     /// Lines of text in a picture, in reading order (top to bottom, then
     /// left to right within a row).
     static func lines(in image: CGImage) -> [Line] {
-        let request = request()
+        read(image, with: request())
+    }
+
+    /// The same for handwriting, which reads better without language
+    /// correction. Neat writing that the strict pass misses is read again
+    /// with the language model.
+    static func handwritingLines(in image: CGImage) -> [Line] {
+        let strict = read(image, with: request(handwriting: true))
+        return strict.isEmpty ? read(image, with: request()) : strict
+    }
+
+    private static func read(_ image: CGImage, with request: VNRecognizeTextRequest) -> [Line] {
         do {
             try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
         } catch {
@@ -52,7 +66,16 @@ enum InkOCR {
     /// Lines read from a picture of a region, with their boxes scaled from
     /// the picture (0…1) into the region's own coordinates.
     static func lines(in image: CGImage, mappedTo canvas: CGRect) -> [(text: String, rect: CGRect)] {
-        lines(in: image).map { line in
+        mapped(read(image, with: request()), to: canvas)
+    }
+
+    /// The same for handwriting: what the lasso turns into a text box.
+    static func handwritingLines(in image: CGImage, mappedTo canvas: CGRect) -> [(text: String, rect: CGRect)] {
+        mapped(handwritingLines(in: image), to: canvas)
+    }
+
+    private static func mapped(_ lines: [Line], to canvas: CGRect) -> [(text: String, rect: CGRect)] {
+        lines.map { line in
             let rect = CGRect(
                 x: canvas.minX + line.box.minX * canvas.width,
                 y: canvas.minY + line.box.minY * canvas.height,
@@ -71,5 +94,10 @@ enum InkOCR {
     /// The picture's text, one line each.
     static func text(in image: CGImage) -> String {
         text(of: lines(in: image))
+    }
+
+    /// The picture's handwriting, one line each.
+    static func handwritingText(in image: CGImage) -> String {
+        text(of: handwritingLines(in: image))
     }
 }

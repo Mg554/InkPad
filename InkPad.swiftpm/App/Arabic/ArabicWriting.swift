@@ -127,5 +127,6 @@ Review => مراجعة
 Formula => معادلة
 Remember => تذكّر
 Summary => ملخص
+Nothing was read from that writing. Write larger or clearer, then try again. => لم يُقرأ شيء من تلك الكتابة. اكتب بحجم أكبر أو بشكل أوضح، ثم حاول مرة أخرى.
 """#
 }

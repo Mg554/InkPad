@@ -25,4 +25,13 @@ enum InkSnapshot {
             ink.draw(at: .zero)
         }
     }
+
+    /// The drawing dark on white, big enough for text recognition: small
+    /// writing is read much better when the picture has more pixels.
+    static func forReading(of drawing: PKDrawing, from bounds: CGRect, minimumWidth: CGFloat = 1400) -> UIImage {
+        let width = max(bounds.width, 1)
+        let wanted = minimumWidth / width
+        let scale = min(6, max(2, wanted))
+        return onWhite(of: drawing, from: bounds, scale: scale)
+    }
 }
