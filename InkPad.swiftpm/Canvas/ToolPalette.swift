@@ -119,6 +119,15 @@ enum DrawingTool: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+extension PKStroke {
+    /// Highlight ink: the highlighter is the see-through monoline stroke.
+    /// The Monoline pen is the same ink type but opaque, so the transparency
+    /// is what tells them apart.
+    var isHighlighterInk: Bool {
+        ink.inkType == .monoline && ink.color.cgColor.alpha < 0.99
+    }
+}
+
 /// An sRGB color that can be stored in user defaults.
 struct InkColor: Codable, Hashable {
     var red: Double
@@ -386,11 +395,10 @@ final class ToolPalette: ObservableObject {
         let color = style.selectedColor.uiColor
         switch tool {
         case .eraser:
-            return PKEraserTool(erasesWholeStrokes ? .vector : .bitmap, width: width)
-        case .eraser where eraseHighlighterOnly:
-            // "Highlighter only" mode: use bitmap eraser and will filter strokes
-            // after erasing to keep only highlighter-type strokes.
-            return PKEraserTool(.bitmap, width: width)
+            // "Highlighter Only" rubs out highlight ink with the bitmap
+            // eraser; the pen ink is put back afterwards, so it is untouched.
+            let type: PKEraserTool.EraserType = erasesWholeStrokes && !eraseHighlighterOnly ? .vector : .bitmap
+            return PKEraserTool(type, width: width)
         case .lasso, .text, .laser:
             // Drawing is switched off while these tools are active.
             return PKLassoTool()

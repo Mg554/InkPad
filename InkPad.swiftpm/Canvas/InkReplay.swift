@@ -121,8 +121,6 @@ final class InkReplay {
         case .reveal:
             // Reveal: keep only strokes written before or at the moment.
             // All strokes are drawn, but those after the moment are drawn with low alpha.
-            let created = now.timeIntervalSince1970 // simplified: use now as moment
-            // Actually, we filter by interval and moment.
             let revealedStrokes = strokes.filter { stroke in
                 let sCreated = stroke.path.creationDate
                 return interval.contains(sCreated) && sCreated <= moment

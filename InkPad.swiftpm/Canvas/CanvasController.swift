@@ -181,6 +181,7 @@ private var drawingBeforeRefine: PKDrawing?
             guard let self else { return }
             host.predictiveOverlay.clear()
             self.expectsNewStroke = !self.evenOutNewStroke()
+            self.sendNewHighlightUnderInk()
             self.eraseTouchEnded()
         }
         host.canvas.addGestureRecognizer(holdTracker)
@@ -210,11 +211,15 @@ private var drawingBeforeRefine: PKDrawing?
         if expectsNewStroke, !isReplacingStroke, evenOutNewStroke() {
             expectsNewStroke = false
         }
+        sendNewHighlightUnderInk()
         if palette?.tool == .eraser {
             if awaitsEraseAfterTouch {
                 returnFromEraser()
             } else {
                 didEraseDuringTouch = true
+            }
+            if palette?.eraseHighlighterOnly == true {
+                restorePenInk()
             }
         }
         host?.inkDidChange()
@@ -251,39 +256,50 @@ private var drawingBeforeRefine: PKDrawing?
 
     // MARK: Eraser
 
-    /// When `eraseHighlighterOnly` is true, after the eraser touch ends we
-    /// filter the drawing to keep only strokes whose ink type is `.monoline`
-    /// (highlighter). Other strokes are removed. An undo step is registered
-    /// so the user can revert.
-    private func filterHighlighterStrokes() {
+    /// With "Highlighter Only" on, the eraser rubs out highlights and leaves
+    /// every pen stroke as it was: the pen ink from before the touch is put
+    /// back, under the remaining highlights.
+    private func restorePenInk() {
         guard let palette, palette.eraseHighlighterOnly,
-              palette.tool == .eraser,
-              let host = host else { return }
+              let host = host, let before = drawingAtTouch
+        else { return }
+        let penInk = before.strokes.filter { !$0.isHighlighterInk }
+        guard !penInk.isEmpty else { return }
         let drawing = host.canvas.drawing
-        var before = drawing
-        // Keep only strokes with monoline ink type (highlighter).
-        before.strokes = before.strokes.filter { stroke in
-            stroke.ink.inkType == .monoline
-        }
-        guard before.strokes.count != drawing.strokes.count else { return }
-        // Register undo so the user can revert the filter.
-        host.canvas.undoManager?.registerUndo(withTarget: host.canvas) { canvas in
-            canvas.drawing = before
-        }
-        host.canvas.drawing = before
-        contentDidChange()
+        // Only work when some pen ink actually went missing.
+        let penLeft = drawing.strokes.filter { !$0.isHighlighterInk }.count
+        guard penLeft != penInk.count else { return }
+        var restored = drawing
+        let highlights = drawing.strokes.filter { $0.isHighlighterInk }
+        restored.strokes = highlights + penInk
+        isReplacingStroke = true
+        host.canvas.drawing = restored
+        isReplacingStroke = false
+    }
+
+    /// A highlight is drawn under the writing, as in Notability, so the
+    /// letters it marks stay crisp.
+    private func sendNewHighlightUnderInk() {
+        guard !isReplacingStroke, let host, let palette, palette.tool == .highlighter else { return }
+        let strokes = host.canvas.drawing.strokes
+        guard let last = strokes.last, last.isHighlighterInk else { return }
+        guard let firstPen = strokes.firstIndex(where: { !$0.isHighlighterInk }) else { return }
+        guard firstPen < strokes.count - 1 else { return }
+        var drawing = host.canvas.drawing
+        drawing.strokes.removeLast()
+        drawing.strokes.insert(last, at: firstPen)
+        isReplacingStroke = true
+        host.canvas.drawing = drawing
+        isReplacingStroke = false
     }
 
     /// With "Back to Last Tool" on, returns to the previous tool once an erase
     /// is done. PencilKit may report the erase before or after the touch ends.
     private func eraseTouchEnded() {
-        guard let palette, palette.tool == .eraser, palette.returnsAfterErasing else { return }
+        guard let palette, palette.tool == .eraser else { return }
+        guard palette.returnsAfterErasing else { return }
         if didEraseDuringTouch {
             returnFromEraser()
-            // After erasing, filter highlighter-only if requested.
-            if palette.eraseHighlighterOnly {
-                filterHighlighterStrokes()
-            }
         } else {
             awaitsEraseAfterTouch = true
             Task { [weak self] in
@@ -361,6 +377,7 @@ private var drawingBeforeRefine: PKDrawing?
             self.expectsNewStroke = false
             self.isReplacingStroke = false
             self.contentDidChange()
+            self.sendNewHighlightUnderInk()
             // Let the writer know the snap happened: a glow over the clean
             // shape and a light tap.
             host.flash(ShapeRecognizer.bounds(of: shape))
