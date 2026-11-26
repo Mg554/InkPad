@@ -410,11 +410,9 @@ private var drawingBeforeRefine: PKDrawing?
             self.isReplacingStroke = false
             self.contentDidChange()
             self.sendNewHighlightUnderInk()
-            // Let the writer know the snap happened: a glow over the clean
-            // shape and a light tap. Highlights keep quiet: Notability draws
-            // no box on a highlight.
+            // A light tap says the shape snapped. No glow box over the page:
+            // it covered the shape the writer had just drawn.
             if self.palette?.tool != .highlighter {
-                host.flash(ShapeRecognizer.bounds(of: shape))
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
         }
