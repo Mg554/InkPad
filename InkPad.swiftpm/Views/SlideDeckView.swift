@@ -428,11 +428,9 @@ private struct SlideFields: View {
     }
 
     /// Edits the field again, which shows the keyboard when this button was
-    /// tapped with a finger.
+    /// tapped with a finger. The saved Pencil in Text Fields setting is left
+    /// alone, so handwriting still converts to text next time.
     private func showKeyboard() {
-        if TextInputMode.current == .pencil {
-            TextInputMode.set(.keyboard)
-        }
         let field = focus ?? lastFocus
         focus = nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focus = field }

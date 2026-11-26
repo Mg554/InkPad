@@ -41,23 +41,42 @@ enum BidiIsolation {
             run = ""
         }
 
-        for index in 0..<ns.length {
-            let scalar = ns.character(at: index)
-            let isLTR = (scalar >= 0x41 && scalar <= 0x5A)
-                || (scalar >= 0x61 && scalar <= 0x7A)
-                || (scalar >= 0x30 && scalar <= 0x39)
-                || [0x24, 0x3D, 0x28, 0x29, 0x2B, 0x2D, 0x2A, 0x2F].contains(scalar)
+        var index = 0
+        while index < ns.length {
+            // Whole characters only: an emoji or an accented letter is more
+            // than one UTF-16 unit, and half of one is not a valid String.
+            let range = ns.rangeOfComposedCharacterSequences(for: NSRange(location: index, length: 1))
+            let piece = ns.substring(with: range)
             let attributes = attributed.attributes(at: index, effectiveRange: nil)
-            if isLTR {
+            if isLeftToRight(piece) {
                 if run.isEmpty { runAttributes = attributes }
-                run.append(Character(UnicodeScalar(scalar)!))
+                run += piece
             } else {
                 flush()
-                result.append(NSAttributedString(string: String(Character(UnicodeScalar(scalar)!)), attributes: attributes))
+                result.append(NSAttributedString(string: piece, attributes: attributes))
             }
+            index = NSMaxRange(range)
         }
         flush()
         return result
+    }
+
+    /// Latin letters, digits and formula signs: the runs that read left to
+    /// right inside Arabic writing.
+    private static let leftToRightSigns: Set<UInt32> = [0x24, 0x3D, 0x28, 0x29, 0x2B, 0x2D, 0x2A, 0x2F]
+
+    private static func isLeftToRight(_ piece: String) -> Bool {
+        let scalars = piece.unicodeScalars
+        guard scalars.count == 1, let scalar = scalars.first else { return false }
+        let value = scalar.value
+        if value >= 0x41, value <= 0x5A { return true }
+        if value >= 0x61, value <= 0x7A { return true }
+        if value >= 0x30, value <= 0x39 { return true }
+        return leftToRightSigns.contains(value)
+    }
+
+    static func hasControls(_ text: String) -> Bool {
+        text.contains(start) || text.contains(end)
     }
 
     static func displayReady(_ attributed: NSAttributedString) -> NSAttributedString {
@@ -65,12 +84,38 @@ enum BidiIsolation {
     }
 
     static func strippedAttributed(_ attributed: NSAttributedString) -> NSAttributedString {
-        let plain = stripped(attributed.string)
-        guard plain != attributed.string else { return attributed }
-        let result = NSMutableAttributedString(string: plain)
-        guard attributed.length > 0 else { return result }
-        let first = attributed.attributes(at: 0, effectiveRange: nil)
-        result.addAttributes(first, range: NSRange(location: 0, length: result.length))
+        guard attributed.length > 0, hasControls(attributed.string) else { return attributed }
+        let ns = attributed.string as NSString
+        let result = NSMutableAttributedString()
+        // Run by run, so each piece keeps its own font and weight.
+        attributed.enumerateAttributes(in: NSRange(location: 0, length: attributed.length)) { attributes, range, _ in
+            let plain = stripped(ns.substring(with: range))
+            guard !plain.isEmpty else { return }
+            result.append(NSAttributedString(string: plain, attributes: attributes))
+        }
         return result
+    }
+
+    /// The text as the caret and handwriting should see it: the invisible
+    /// controls removed, with `selection` moved back to match. Writing beside
+    /// them makes Scribble, the caret and Delete behave oddly, so this runs
+    /// when a text box starts editing.
+    static func editingReady(_ attributed: NSAttributedString, selection: NSRange) -> (text: NSAttributedString, selection: NSRange) {
+        guard attributed.length > 0, hasControls(attributed.string) else { return (attributed, selection) }
+        let ns = attributed.string as NSString
+
+        func withoutControls(_ offset: Int) -> Int {
+            let limit = min(max(offset, 0), ns.length)
+            var removed = 0
+            for index in 0..<limit {
+                let unit = ns.character(at: index)
+                if unit == 0x2068 || unit == 0x2069 { removed += 1 }
+            }
+            return limit - removed
+        }
+
+        let location = withoutControls(selection.location)
+        let upper = withoutControls(NSMaxRange(selection))
+        return (strippedAttributed(attributed), NSRange(location: location, length: max(upper - location, 0)))
     }
 }

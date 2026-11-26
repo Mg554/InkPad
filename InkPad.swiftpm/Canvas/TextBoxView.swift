@@ -42,6 +42,9 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     /// Scribble can change the text many times per second. Measuring the
     /// height on every change makes pencil typing stutter, so coalesce it.
     private var fitScheduled = false
+    /// "Show Keyboard" was asked for in this box, so bring up the keyboard
+    /// here while still handwriting in the other boxes next time.
+    private var showsKeyboardNow = false
 
     init(id: UUID, frame: CGRect, text: NSAttributedString, isLocked: Bool = false) {
         super.init(id: id, frame: frame, isLocked: isLocked)
@@ -147,14 +150,18 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     // MARK: Keyboard or Apple Pencil
 
     @objc private func inputModeDidChange() {
+        // A new choice replaces any one-off keyboard request.
+        showsKeyboardNow = false
         applyInputMode()
     }
 
     private func applyInputMode() {
         let mode = TextInputMode.current
         // An empty input view keeps the keyboard away while the box is
-        // still being edited, so handwriting goes into it.
-        textView.inputView = mode == .pencil ? UIView(frame: .zero) : nil
+        // still being edited, so handwriting goes into it. It is left out
+        // when this box was asked to show the keyboard.
+        let hidesKeyboard = mode == .pencil && !showsKeyboardNow
+        textView.inputView = hidesKeyboard ? UIView(frame: .zero) : nil
         let switchItem = UIBarButtonItem(
             image: UIImage(systemName: mode.switchSymbol),
             style: .plain,
@@ -170,12 +177,14 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
         }
     }
 
-    /// Brings up the keyboard. After a tap with Apple Pencil iPadOS keeps the
-    /// keyboard hidden (it expects handwriting); editing again from a finger
-    /// tap on a button shows it.
+    /// Brings up the keyboard in this box. After a tap with Apple Pencil
+    /// iPadOS keeps the keyboard hidden (it expects handwriting); editing
+    /// again from a finger tap on a button shows it. The saved handwriting
+    /// setting is left alone, so the next box writes again.
     func showKeyboard() {
         if TextInputMode.current == .pencil {
-            TextInputMode.set(.keyboard)
+            showsKeyboardNow = true
+            applyInputMode()
         }
         guard textView.isFirstResponder else {
             textView.becomeFirstResponder()
@@ -214,14 +223,14 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     // MARK: UITextViewDelegate
 
     func textViewDidBeginEditing(_ textView: UITextView) {
-        layerView?.selectElement(self)
-    }
-
-    override func becomeFirstResponder() -> Bool {
-        if let current = textView.attributedText {
-            textView.attributedText = BidiIsolation.strippedAttributed(current)
+        // The display-only bidi controls are removed before writing, so the
+        // caret, Delete and Scribble work on the words alone.
+        if let current = textView.attributedText, BidiIsolation.hasControls(current.string) {
+            let ready = BidiIsolation.editingReady(current, selection: textView.selectedRange)
+            textView.attributedText = ready.text
+            textView.selectedRange = ready.selection
         }
-        return super.becomeFirstResponder()
+        layerView?.selectElement(self)
     }
 
     func textViewDidChange(_ textView: UITextView) {
@@ -236,7 +245,10 @@ final class TextBoxView: PageElementView, UITextViewDelegate {
     func textViewDidEndEditing(_ textView: UITextView) {
         textView.attributedText = BidiIsolation.displayReady(textView.attributedText ?? NSAttributedString())
         fitHeight()
+        // Ending the keyboard request puts handwriting back for this box.
         guard !isRefocusing else { return }
+        showsKeyboardNow = false
+        applyInputMode()
         if isEmpty {
             layerView?.remove(self)
         } else {
