@@ -380,6 +380,10 @@ private var drawingBeforeRefine: PKDrawing?
               let before = drawingAtTouch, let tool = palette.pkTool as? PKInkingTool,
               let first = points.first, let last = points.last
         else { return }
+        // Highlighting is silent, as in Notability: a highlight straightens
+        // when the pen lifts (its own setting), so resting the pen does
+        // nothing and no glow is drawn over the text.
+        if palette.tool == .highlighter, palette.straightenHighlights { return }
         let shape: ShapeRecognizer.Shape
         if palette.tool == .highlighter {
             // Highlighting follows lines of text, so the highlighter always snaps straight.
@@ -407,9 +411,12 @@ private var drawingBeforeRefine: PKDrawing?
             self.contentDidChange()
             self.sendNewHighlightUnderInk()
             // Let the writer know the snap happened: a glow over the clean
-            // shape and a light tap.
-            host.flash(ShapeRecognizer.bounds(of: shape))
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            // shape and a light tap. Highlights keep quiet: Notability draws
+            // no box on a highlight.
+            if self.palette?.tool != .highlighter {
+                host.flash(ShapeRecognizer.bounds(of: shape))
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
         }
     }
 
